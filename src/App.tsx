@@ -1,4 +1,17 @@
+import { lazy, Suspense } from "react";
 import { Toaster, UIProvider } from "./ui/index.ts";
+
+// The design system page exists only in dev and in `vite build --mode design`.
+// In a production build this condition is the constant `false`, so the page and
+// everything it imports are left out of the bundle.
+const DesignSystemPage =
+  import.meta.env.DEV || import.meta.env.MODE === "design"
+    ? lazy(() => import("./ui/gallery/DesignSystemPage.tsx"))
+    : null;
+
+function isDesignSystemPath(): boolean {
+  return /^\/design\/?$/.test(window.location.pathname);
+}
 
 // Placeholder until the app's screens arrive in the next phases.
 function Placeholder() {
@@ -14,7 +27,13 @@ function Placeholder() {
 export function App() {
   return (
     <UIProvider>
-      <Placeholder />
+      {DesignSystemPage && isDesignSystemPath() ? (
+        <Suspense fallback={null}>
+          <DesignSystemPage />
+        </Suspense>
+      ) : (
+        <Placeholder />
+      )}
       <Toaster />
     </UIProvider>
   );

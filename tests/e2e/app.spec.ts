@@ -1,31 +1,9 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
+import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 
-declare global {
-  interface Window {
-    __cspViolations?: string[];
-  }
-}
-
-// Collect CSP violations from the very first script on the page.
 test.beforeEach(async ({ page }) => {
-  await page.addInitScript(() => {
-    window.__cspViolations = [];
-    document.addEventListener("securitypolicyviolation", (event) => {
-      window.__cspViolations?.push(
-        `${event.effectiveDirective} ${event.blockedURI}`,
-      );
-    });
-  });
+  await watchCspViolations(page);
 });
-
-function collectErrors(page: Page): string[] {
-  const errors: string[] = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") errors.push(`console: ${message.text()}`);
-  });
-  page.on("pageerror", (error) => errors.push(`page error: ${error.message}`));
-  return errors;
-}
 
 /** WCAG relative luminance of a computed `rgb(...)` color, from 0 (black) to 1 (white). */
 function relativeLuminance(cssColor: string): number {
@@ -52,9 +30,9 @@ for (const colorScheme of ["light", "dark"] as const) {
       await expect(
         page.getByRole("heading", { level: 1, name: "Keyworth" }),
       ).toBeVisible();
+      const violations = await cspViolations(page);
       const state = await page.evaluate(
         (scheme) => ({
-          violations: window.__cspViolations ?? [],
           crossOriginIsolated: window.crossOriginIsolated,
           background: getComputedStyle(document.documentElement)
             .backgroundColor,
@@ -65,7 +43,7 @@ for (const colorScheme of ["light", "dark"] as const) {
         colorScheme,
       );
 
-      expect(state.violations).toEqual([]);
+      expect(violations).toEqual([]);
       expect(errors).toEqual([]);
       // COOP + COEP make the page cross-origin isolated.
       expect(state.crossOriginIsolated).toBe(true);
@@ -89,6 +67,20 @@ for (const colorScheme of ["light", "dark"] as const) {
     });
   }
 }
+
+test("the design system page is not part of the production build", async ({
+  page,
+}) => {
+  // /design falls back to the app shell, which has no such page outside design mode.
+  await page.goto("/design");
+
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Keyworth" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Design system" }),
+  ).toHaveCount(0);
+});
 
 test("Trusted Types block string assignment to DOM injection sinks", async ({
   page,

@@ -11,7 +11,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "wrangler dev --config dist/keyworth/wrangler.json --port 4173",
+    "build:design": "vite build --mode design",
+    "preview:design": "wrangler dev --config dist-design/keyworth/wrangler.json --port 4174",
     "typecheck": "tsc -b",
     "cf:types": "wrangler types",
     "deploy": "npm run build && wrangler deploy",

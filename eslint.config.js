@@ -55,6 +55,7 @@ const animeUnsafeModules = [
 export default defineConfig([
   globalIgnores([
     "dist",
+    "dist-design",
     ".wrangler",
     "coverage",
     "playwright-report",

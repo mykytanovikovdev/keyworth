@@ -116,7 +116,9 @@ test.describe("static files", () => {
     request,
   }) => {
     // Unknown paths fall back to the app shell; the prototype page must never ship.
-    const response = await request.get("/design/", { headers: NAVIGATION });
+    const response = await request.get("/design/prototype/", {
+      headers: NAVIGATION,
+    });
     const html = await response.text();
 
     expect(html).toContain('<div id="root">');

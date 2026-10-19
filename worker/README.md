@@ -35,6 +35,8 @@ request ─► Cloudflare edge
 `vite build` produces `dist/client` (static assets) and `dist/keyworth` (the Worker
 bundle plus a generated `wrangler.json`). `wrangler deploy` reads the generated config
 through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
+`npm run preview` serves that build with `wrangler dev --config dist/keyworth/wrangler.json`:
+the same runtime, assets and headers as production.
 
 ### Security headers
 
@@ -108,13 +110,17 @@ and after every deploy against the live site.
 - Every CSP exception must be justified in this README. Current ones: the two
   React Aria style hashes (above). Planned: `'wasm-unsafe-eval'` for Argon2id
   (phase 3). `'unsafe-eval'` and `'unsafe-inline'` are never allowed.
-- `vite preview` adds `Vary: Origin` locally; production responses don't have it.
+- `npm run build:design` (the `/design` page) also rewrites
+  `.wrangler/deploy/config.json`, so a bare `wrangler deploy` right after it would
+  deploy the design build. `npm run deploy` and CI always rebuild production first.
 
 ## How to work with it
 
 - `npm run dev` — Vite and the Worker (running in workerd) on one port, with HMR.
 - `npm run build && npm run preview` — the production build, served locally by
-  workerd exactly as it will run on Cloudflare.
+  workerd exactly as it will run on Cloudflare (port 4173).
+- `npm run build:design && npm run preview:design` — the same with the `/design`
+  page (port 4174); see [src/ui/README.md](../src/ui/README.md).
 - New route: add it to `index.ts` (or a sub-app under `worker/routes/` once there
   are several), with session checks, validation and rate limits from the start.
 - Local secrets go in `.dev.vars` (see `.dev.vars.example`); production secrets
