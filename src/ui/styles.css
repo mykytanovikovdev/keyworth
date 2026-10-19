@@ -1,0 +1,162 @@
+/*
+ * Only src/ is scanned for class names, so the design prototype's classes never
+ * reach the app's stylesheet.
+ */
+@import "tailwindcss" source(none);
+@source "../";
+@import "@fontsource-variable/onest";
+@import "./tokens.css";
+
+/*
+ * Only semantic tokens are available as utilities: the default palette, fonts,
+ * radii and type scale are removed, so a component cannot reach for a raw color
+ * or an off-scale size.
+ */
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+  --text-*: initial;
+
+  /* Type scale. 15px is the reading size of answers; UI text is 14px. */
+  --text-2xs: 0.6875rem; /* 11px: chart axes, initials */
+  --text-2xs--line-height: 1rem;
+  --text-xs: 0.75rem; /* 12px: captions, metadata */
+  --text-xs--line-height: 1rem;
+  --text-sm: 0.875rem; /* 14px: controls, labels, tables */
+  --text-sm--line-height: 1.25rem;
+  --text-base: 0.9375rem; /* 15px: reading text */
+  --text-base--line-height: 1.5rem;
+  --text-md: 1rem; /* 16px: text inputs (iOS zooms into anything smaller) */
+  --text-md--line-height: 1.5rem;
+  --text-lg: 1.125rem; /* 18px: dialog and section titles */
+  --text-lg--line-height: 1.75rem;
+  --text-xl: 1.5rem; /* 24px: page titles */
+  --text-xl--line-height: 2rem;
+  --text-2xl: 1.75rem; /* 28px: the new chat greeting */
+  --text-2xl--line-height: 2.25rem;
+  --text-3xl: 2.25rem; /* 36px: key figures, e.g. portfolio value */
+  --text-3xl--line-height: 2.75rem;
+}
+
+@theme inline {
+  --color-canvas: var(--kw-canvas);
+  --color-surface: var(--kw-surface);
+  --color-raised: var(--kw-raised);
+  --color-hover: var(--kw-hover);
+  --color-bubble: var(--kw-bubble);
+  --color-fg: var(--kw-fg);
+  --color-fg-muted: var(--kw-fg-muted);
+  --color-line: var(--kw-line);
+  --color-line-strong: var(--kw-line-strong);
+  --color-accent: var(--kw-accent);
+  --color-on-accent: var(--kw-on-accent);
+  --color-accent-soft: var(--kw-accent-soft);
+  --color-focus: var(--kw-focus);
+  --color-gain: var(--kw-gain);
+  --color-gain-soft: var(--kw-gain-soft);
+  --color-loss: var(--kw-loss);
+  --color-loss-soft: var(--kw-loss-soft);
+  --color-warning: var(--kw-warning);
+  --color-warning-soft: var(--kw-warning-soft);
+  --color-scrim: var(--kw-scrim);
+  --color-series-1: var(--kw-series-1);
+  --color-series-2: var(--kw-series-2);
+  --color-series-3: var(--kw-series-3);
+  --color-series-4: var(--kw-series-4);
+  --color-series-5: var(--kw-series-5);
+
+  --font-sans: var(--kw-font-sans);
+
+  --radius-sm: var(--kw-radius-sm);
+  --radius-md: var(--kw-radius-md);
+  --radius-lg: var(--kw-radius-lg);
+  --radius-xl: var(--kw-radius-xl);
+
+  --shadow-raised: var(--kw-shadow-raised);
+  --ease-out: var(--kw-ease-out);
+
+  /*
+   * Entrances read the motion tokens, so reduced motion turns them off without
+   * extra code. Exits are quicker than entrances: things leave out of the way.
+   */
+  --animate-enter: kw-enter var(--kw-duration-base) var(--kw-ease-out) both;
+  --animate-fade-in: kw-fade var(--kw-duration-base) var(--kw-ease-out) both;
+  --animate-fade-out: kw-fade var(--kw-duration-fast) ease-in reverse both;
+  --animate-pop-in: kw-pop var(--kw-duration-base) var(--kw-ease-out) both;
+  --animate-pop-out: kw-pop var(--kw-duration-fast) ease-in reverse both;
+  /* A streamed word: longer than the gap between words, for a soft trailing edge. */
+  --animate-word: kw-fade var(--kw-duration-text)
+    cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  /* An agent step or status line: the same fade, quicker. */
+  --animate-step: kw-fade var(--kw-duration-step) ease-out both;
+}
+
+@keyframes kw-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes kw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes kw-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.97);
+  }
+}
+
+@layer base {
+  html {
+    background-color: var(--kw-canvas);
+    color: var(--kw-fg);
+    font-family: var(--kw-font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* One focus style everywhere: visible, 3:1 against every surface. */
+  :focus-visible {
+    outline: 2px solid var(--kw-focus);
+    outline-offset: 2px;
+  }
+
+  /* Dialogs receive focus only to move it inside; they are not controls. */
+  [role="dialog"]:focus-visible,
+  [role="alertdialog"]:focus-visible {
+    outline: none;
+  }
+}
+
+/* Height animation to and from auto, supported in every engine. */
+@utility collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--kw-duration-base) var(--kw-ease-out);
+
+  &[data-open="true"] {
+    grid-template-rows: 1fr;
+  }
+
+  & > * {
+    min-height: 0;
+    overflow: hidden;
+  }
+}
+
+/* Long scrolling content fades out at the bottom instead of being cut. */
+@utility scroll-fade-bottom {
+  mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapsible {
+    transition: none;
+  }
+}

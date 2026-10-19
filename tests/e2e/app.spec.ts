@@ -56,7 +56,8 @@ for (const colorScheme of ["light", "dark"] as const) {
         (scheme) => ({
           violations: window.__cspViolations ?? [],
           crossOriginIsolated: window.crossOriginIsolated,
-          background: getComputedStyle(document.body).backgroundColor,
+          background: getComputedStyle(document.documentElement)
+            .backgroundColor,
           scrollWidth: document.documentElement.scrollWidth,
           schemeEmulated: matchMedia(`(prefers-color-scheme: ${scheme})`)
             .matches,

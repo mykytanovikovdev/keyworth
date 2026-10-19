@@ -93,5 +93,10 @@ export default defineConfig([
     extends: [tseslint.configs.disableTypeChecked],
     languageOptions: { globals: globals.node },
   },
+  {
+    // Plain scripts served to the browser as they are (no bundler).
+    files: ["public/**/*.js"],
+    languageOptions: { globals: globals.browser, sourceType: "script" },
+  },
   prettier,
 ]);

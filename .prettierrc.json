@@ -1,4 +1,10 @@
 {
   "plugins": ["prettier-plugin-tailwindcss"],
-  "tailwindStylesheet": "./design/prototype/styles.css"
+  "tailwindStylesheet": "./src/ui/styles.css",
+  "overrides": [
+    {
+      "files": "design/prototype/**",
+      "options": { "tailwindStylesheet": "./design/prototype/styles.css" }
+    }
+  ]
 }
