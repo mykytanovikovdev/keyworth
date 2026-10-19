@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import type { Holding, SeriesSlot } from "../data.ts";
 import { formatShare } from "../format.ts";
-import { growInSequence, revealInSequence } from "../motion.ts";
+import { chartDuration, revealInSequence, wipeFromLeft } from "../motion.ts";
 
 // Color follows the asset, never its rank.
 const fill: Record<SeriesSlot, string> = {
@@ -17,11 +17,11 @@ export function AllocationBar({ holdings }: { holdings: Holding[] }) {
   const barRef = useRef<HTMLDivElement>(null);
   const legendRef = useRef<HTMLUListElement>(null);
 
+  // The bar fills left to right as one movement; labels follow as it passes.
   useLayoutEffect(() => {
-    const segments = Array.from(barRef.current?.children ?? []);
     const items = Array.from(legendRef.current?.children ?? []);
-    const stopBar = growInSequence(segments);
-    const stopLegend = revealInSequence(items, 200);
+    const stopBar = wipeFromLeft(barRef.current);
+    const stopLegend = revealInSequence(items, chartDuration() * 0.35);
     return () => {
       stopBar();
       stopLegend();
@@ -34,7 +34,7 @@ export function AllocationBar({ holdings }: { holdings: Holding[] }) {
         {holdings.map((holding) => (
           <div
             key={holding.symbol}
-            className={`h-full origin-left first:rounded-l-[4px] last:rounded-r-[4px] ${fill[holding.slot]}`}
+            className={`h-full first:rounded-l-[4px] last:rounded-r-[4px] ${fill[holding.slot]}`}
             style={{ flexGrow: holding.share }}
           />
         ))}

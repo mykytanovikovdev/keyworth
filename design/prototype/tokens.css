@@ -12,6 +12,11 @@
   --kw-duration-slow: 900ms;
   --kw-stagger: 70ms;
   --kw-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Charts draw slower, on a gentle in-out curve, so the line reads as one stroke. */
+  --kw-duration-chart: 1500ms;
+  --kw-ease-chart: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Each streamed word fades in over a few neighbours: a soft trailing edge. */
+  --kw-duration-text: 560ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -20,6 +25,8 @@
     --kw-duration-base: 0ms;
     --kw-duration-slow: 0ms;
     --kw-stagger: 0ms;
+    --kw-duration-chart: 0ms;
+    --kw-duration-text: 0ms;
   }
 }
 

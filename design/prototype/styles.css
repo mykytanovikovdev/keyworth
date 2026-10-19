@@ -72,7 +72,8 @@
 
 /* Streamed answer: each new word fades in instead of popping. */
 .kw-word {
-  animation: kw-fade var(--kw-duration-base) ease-out both;
+  animation: kw-fade var(--kw-duration-text) cubic-bezier(0.25, 0.1, 0.25, 1)
+    both;
 }
 
 @keyframes kw-enter {

@@ -6,7 +6,7 @@ import {
   type PointerEvent,
 } from "react";
 import { useElementWidth } from "../hooks.ts";
-import { drawPath, fadeIn } from "../motion.ts";
+import { chartDuration, drawLineWithFill, fadeIn } from "../motion.ts";
 
 interface ValueChartProps {
   values: number[];
@@ -51,26 +51,31 @@ export function ValueChart({
   const [containerRef, width] = useElementWidth();
   const [hover, setHover] = useState<number | null>(null);
   const lineRef = useRef<SVGPathElement>(null);
-  const areaRef = useRef<SVGPathElement>(null);
+  const clipRectRef = useRef<SVGRectElement>(null);
   const markerRef = useRef<SVGGElement>(null);
   const animated = useRef(false);
-  const gradientId = `area-${useId().replace(/[^\w-]/g, "")}`;
+  const chartId = useId().replace(/[^\w-]/g, "");
+  const gradientId = `area-${chartId}`;
+  const clipId = `reveal-${chartId}`;
 
   const ready = width > 0 && values.length > 1;
 
+  // The line draws like a pen, the fill opens behind it, then the current value appears.
   useLayoutEffect(() => {
     if (!ready || animated.current) return;
     animated.current = true;
-    const stopLine = drawPath(lineRef.current);
-    const extras = [areaRef.current, markerRef.current].filter(
-      (el): el is SVGPathElement | SVGGElement => el !== null,
+    const stopLine = drawLineWithFill(
+      lineRef.current,
+      clipRectRef.current,
+      width,
     );
-    const stopExtras = fadeIn(extras, 450);
+    const marker = markerRef.current ? [markerRef.current] : [];
+    const stopMarker = fadeIn(marker, chartDuration() * 0.85);
     return () => {
       stopLine();
-      stopExtras();
+      stopMarker();
     };
-  }, [ready]);
+  }, [ready, width]);
 
   const ticks = niceTicks(Math.min(...values), Math.max(...values));
   const low = ticks[0] ?? 0;
@@ -120,6 +125,15 @@ export function ValueChart({
               <stop offset="0%" className="kw-area-stop-top" />
               <stop offset="100%" className="kw-area-stop-bottom" />
             </linearGradient>
+            <clipPath id={clipId}>
+              <rect
+                ref={clipRectRef}
+                x={0}
+                y={0}
+                width={width}
+                height={height}
+              />
+            </clipPath>
           </defs>
 
           {ticks.map((tick) => (
@@ -160,7 +174,11 @@ export function ValueChart({
             </text>
           ))}
 
-          <path ref={areaRef} d={area} fill={`url(#${gradientId})`} />
+          <path
+            d={area}
+            fill={`url(#${gradientId})`}
+            clipPath={`url(#${clipId})`}
+          />
           <path
             ref={lineRef}
             d={line}

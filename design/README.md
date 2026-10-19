@@ -53,7 +53,7 @@ folder if a comparison is ever needed.
 | `index.html`           | Dev-only Vite entry, served at `/design/` by `npm run dev`             |
 | `prototype/tokens.css` | Every raw value: colors per theme, fonts, radii, motion                |
 | `prototype/styles.css` | Maps tokens to Tailwind utilities; removes the default palette         |
-| `prototype/motion.ts`  | anime.js helpers: draw a line, grow bars, staggered reveals            |
+| `prototype/motion.ts`  | anime.js helpers: chart line and fill, bar fill, staggered reveals     |
 | `prototype/hooks.ts`   | Scripted scene timing, streamed text, element width, reduced motion    |
 | `prototype/screens/`   | New chat, conversation, portfolio, unlock                              |
 | `capture/`             | Playwright config that writes screenshots and videos to `screenshots/` |
@@ -63,11 +63,19 @@ folder if a comparison is ever needed.
 - **The conversation is a scripted scene:** the question, two tool steps, a streamed
   answer, a chart, a second question and the confirmation card, phase by phase.
   The replay button in the controls restarts it.
-- **Motion has two layers.** CSS handles entrances and the per-word fade of
-  streamed text. anime.js handles what CSS expresses poorly: drawing the chart
-  line, growing allocation bars, choreographed reveals. Both read durations and
+- **Motion has two layers.** CSS handles entrances and the fade of streamed
+  words. anime.js handles what CSS expresses poorly: drawing the chart line,
+  filling the allocation bar, choreographed reveals. Both read durations and
   easing from the same CSS tokens. With reduced motion, the durations become zero
   and the anime.js helpers do nothing, so every screen shows its final state.
+- **Charts draw as one stroke** (`--kw-duration-chart`, 1.5 s, on the gentle
+  `--kw-ease-chart` curve). The line and its fill run from a single timer: on
+  every frame the fill opens exactly up to the pen tip (`getPointAtLength`), so the
+  two never drift apart. The current-value marker appears near the end. The
+  allocation bar fills left to right in one movement rather than segment by segment.
+- **Streamed words fade over 560 ms** (`--kw-duration-text`), longer than the time
+  between words, so the newest few words are partly transparent at once: the text
+  gets a soft trailing edge instead of popping in.
 
 ## Why this way
 
