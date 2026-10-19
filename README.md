@@ -120,7 +120,8 @@ so dependencies are treated as part of the attack surface:
 - exact versions only and a committed lockfile (`npm ci` in CI);
 - dependency install scripts are disabled (`ignore-scripts` in `.npmrc`);
 - Dependabot proposes updates only after a 7-day cooldown (security fixes are not
-  delayed);
+  delayed); majors that would break the toolchain (TypeScript 7, Node types newer
+  than the Node we run) are held back with the reason in `.github/dependabot.yml`;
 - GitHub Actions are pinned to commit SHAs;
 - every license must be compatible with AGPL-3.0 ([policy](scripts/README.md)).
 
