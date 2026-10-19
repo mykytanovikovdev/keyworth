@@ -5,16 +5,17 @@ details.
 
 ## What is covered (and what is not)
 
-| Folder                                  | Runner            | Runs in             | Covers                                 |
-| --------------------------------------- | ----------------- | ------------------- | -------------------------------------- |
-| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                | Pure logic: the license policy         |
-| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) | Worker routes, Worker security headers |
+| Folder                                  | Runner            | Runs in                                                | Covers                                                 |
+| --------------------------------------- | ----------------- | ------------------------------------------------------ | ------------------------------------------------------ |
+| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic: the license policy                         |
+| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare)                                    | Worker routes, Worker security headers                 |
+| [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
 
 Planned, each arriving with the code it tests:
 
 - `unit/` grows with `shared/metrics`, `shared/money` and schemas (phase 4).
-- `e2e/` — Playwright against the production build: CSP and headers, then
-  sign-in, encryption setup, unlock, recording a trade through chat (phase 2+).
+- `e2e/` grows with sign-in, encryption setup, unlock and recording a trade
+  through chat (phase 2+).
 - `visual/` — screenshot baselines of `/design` and key screens in both themes,
   plus axe accessibility checks (phase 1).
 - `agent/` — the chat agent with a scripted mock model from `ai/test`:
@@ -31,6 +32,7 @@ in CI once phase 3 lands.
 ```sh
 npm test            # all Vitest projects
 npm run test:watch  # Vitest in watch mode
+npm run test:e2e    # Playwright against a fresh production build
 npm run check       # format, lint, types, tests, licenses, build — run before "done"
 ```
 
