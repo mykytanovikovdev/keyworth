@@ -12,6 +12,9 @@
     },
     {
       "path": "./tests/integration"
+    },
+    {
+      "path": "./tests/unit"
     }
   ]
 }

@@ -7,11 +7,12 @@ details.
 
 | Folder                                  | Runner            | Runs in             | Covers                                 |
 | --------------------------------------- | ----------------- | ------------------- | -------------------------------------- |
+| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                | Pure logic: the license policy         |
 | [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) | Worker routes, Worker security headers |
 
 Planned, each arriving with the code it tests:
 
-- `unit/` — pure logic: `shared/metrics`, `shared/money`, schemas.
+- `unit/` grows with `shared/metrics`, `shared/money` and schemas (phase 4).
 - `e2e/` — Playwright against the production build: CSP and headers, then
   sign-in, encryption setup, unlock, recording a trade through chat (phase 2+).
 - `visual/` — screenshot baselines of `/design` and key screens in both themes,
