@@ -19,22 +19,39 @@ happens in the browser, on decrypted data).
 
 ```
 request ─► Cloudflare edge
-            ├─ path matches /api/*                 ─► Worker (Hono) ─► JSON
-            ├─ path matches a file in dist/client  ─► static asset
-            └─ anything else
-                 ├─ browser navigation              ─► index.html (SPA fallback)
-                 └─ fetch / script / image request  ─► Worker ─► JSON 404
+            ├─ path matches /api/*                 ─► Worker (Hono) ─► JSON + Worker headers
+            ├─ path matches a file in dist/client  ─► static asset  ─► + public/_headers
+            └─ anything else (any request type)    ─► index.html    ─► + public/_headers
 ```
 
-| File                           | Role                                                             |
-| ------------------------------ | ---------------------------------------------------------------- |
-| `index.ts`                     | Hono app mounted at `/api`: routes, JSON 404, error handler      |
-| `../wrangler.jsonc`            | Worker config: assets routing, observability, compatibility date |
-| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)           |
+| File                           | Role                                                                |
+| ------------------------------ | ------------------------------------------------------------------- |
+| `index.ts`                     | Hono app: security headers, API sub-app at `/api`, JSON 404, errors |
+| `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)      |
+| `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP |
+| `../wrangler.jsonc`            | Worker config: assets routing, observability, compatibility date    |
+| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)              |
 
 `vite build` produces `dist/client` (static assets) and `dist/keyworth` (the Worker
 bundle plus a generated `wrangler.json`). `wrangler deploy` reads the generated config
 through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
+
+### Security headers
+
+Two sources, because two different layers produce responses:
+
+- **Page and assets (`public/_headers`).** The CSP that actually protects the
+  encryption key lives here:
+  `default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types 'none'`.
+  Plus HSTS, `nosniff`, a deny-by-default `Permissions-Policy`, COOP/COEP/CORP
+  (the page is cross-origin isolated), `X-Frame-Options: DENY`, and `noindex`
+  until release 1.
+- **Worker responses (`security-headers.ts`).** JSON is never a document, so the
+  CSP is just `default-src 'none'; frame-ancestors 'none'`, with
+  `Cache-Control: no-store` so no proxy or browser cache keeps user data.
+
+The e2e suite asserts the exact values of both sets against the production build,
+and after every deploy against the live site.
 
 ## Why this way
 
@@ -45,7 +62,20 @@ through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
   API ever has to move off Cloudflare.
 - **`run_worker_first: ["/api/*"]`.** Without it, a browser _navigation_ to an
   unknown path gets `index.html` and the Worker never runs. OAuth redirects back to
-  `/api/auth/callback/*` are navigations, so sign-in would silently break.
+  `/api/auth/callback/*` are navigations, so sign-in would silently break. The
+  pattern form also turns off `Sec-Fetch-Mode` guessing: only `/api/*` ever reaches
+  the Worker, so a missing file gets `index.html` instead of a billable invocation.
+- **Static CSP without nonces.** There are no inline scripts or styles at all, so
+  a fixed policy in `_headers` is enough and costs no Worker invocation per page
+  load. The price: libraries that inject `<style>` tags at runtime are not usable.
+- **Trusted Types (`require-trusted-types-for 'script'`).** The browser refuses
+  string assignments to DOM injection sinks such as `innerHTML`, at the engine
+  level, even if a bug or a dependency tries one. React does not need these sinks;
+  ESLint bans them in our code as well.
+- **`Referrer-Policy: same-origin` for the page, not `no-referrer`.** With
+  `no-referrer`, browsers send `Origin: null` on same-origin `POST` requests, and
+  Better Auth (phase 2) checks `Origin` for CSRF protection, so sign-in and sign-out would
+  fail. `same-origin` still sends nothing to other sites.
 - **Explicit logs only.** Workers Logs is on, but automatic invocation logs are off
   and query strings are redacted: the only records are what our code logs on
   purpose. Request bodies are never logged.
@@ -61,6 +91,14 @@ through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
   wrangler, or local dev refuses to start.
 - Never log request bodies or put user data into error messages: `/api/chat` and
   `/api/vault` carry it.
+- `_headers` is not applied in `npm run dev` (and the React dev server needs an
+  inline script), so there is **no CSP in dev**. CSP problems only show up in the
+  production build: run `npm run test:e2e`, which fails on any CSP violation.
+- `_headers` never applies to Worker responses and `security-headers.ts` never
+  applies to static files. A new header usually belongs in both.
+- Every CSP exception must be justified in this README. The only one planned so far
+  is `'wasm-unsafe-eval'` for Argon2id (phase 3); `'unsafe-eval'` and
+  `'unsafe-inline'` are never allowed.
 - `vite preview` adds `Vary: Origin` locally; production responses don't have it.
 
 ## How to work with it

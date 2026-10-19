@@ -1,8 +1,15 @@
 import { Hono } from "hono";
+import { securityHeaders } from "./security-headers.ts";
 
-const app = new Hono<{ Bindings: Env }>().basePath("/api");
+const api = new Hono<{ Bindings: Env }>();
 
-app.get("/health", (c) => c.json({ status: "ok" }));
+api.get("/health", (c) => c.json({ status: "ok" }));
+
+const app = new Hono<{ Bindings: Env }>();
+
+// Applies to every response the Worker generates, including 404s and errors.
+app.use(securityHeaders);
+app.route("/api", api);
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 
