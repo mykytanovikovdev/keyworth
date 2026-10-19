@@ -17,6 +17,8 @@ export const ALLOWED_LICENSES = [
   "CC0-1.0",
   "Unlicense",
   "MPL-2.0",
+  // Fonts: shipped as separate files, never mixed into our code.
+  "OFL-1.1",
 ] as const;
 
 /** Allowed only for build and test tooling that is never shipped. */
