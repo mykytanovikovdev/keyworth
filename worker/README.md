@@ -26,11 +26,11 @@ request ─► Cloudflare edge
                  └─ fetch / script / image request  ─► Worker ─► JSON 404
 ```
 
-| File | Role |
-|---|---|
-| `index.ts` | Hono app mounted at `/api`: routes, JSON 404, error handler |
-| `../wrangler.jsonc` | Worker config: assets routing, observability, compatibility date |
-| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`) |
+| File                           | Role                                                             |
+| ------------------------------ | ---------------------------------------------------------------- |
+| `index.ts`                     | Hono app mounted at `/api`: routes, JSON 404, error handler      |
+| `../wrangler.jsonc`            | Worker config: assets routing, observability, compatibility date |
+| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)           |
 
 `vite build` produces `dist/client` (static assets) and `dist/keyworth` (the Worker
 bundle plus a generated `wrangler.json`). `wrangler deploy` reads the generated config
@@ -43,7 +43,7 @@ through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
 - **Hono.** Tiny, built on Web-standard `Request`/`Response`, typed routes, and
   ready-made middleware. It also runs on Node, which keeps an exit path open if the
   API ever has to move off Cloudflare.
-- **`run_worker_first: ["/api/*"]`.** Without it, a browser *navigation* to an
+- **`run_worker_first: ["/api/*"]`.** Without it, a browser _navigation_ to an
   unknown path gets `index.html` and the Worker never runs. OAuth redirects back to
   `/api/auth/callback/*` are navigations, so sign-in would silently break.
 - **Explicit logs only.** Workers Logs is on, but automatic invocation logs are off

@@ -9,7 +9,7 @@
     "not_found_handling": "single-page-application",
     // Browser navigations to unknown paths would otherwise get index.html without
     // invoking the Worker — that breaks OAuth callbacks under /api/auth/*.
-    "run_worker_first": ["/api/*"]
+    "run_worker_first": ["/api/*"],
   },
   "workers_dev": true,
   // Per-version preview URLs are public; we don't use them.
@@ -21,7 +21,7 @@
     "logs": {
       "enabled": true,
       // Keep only what our code logs explicitly; no automatic per-request records.
-      "invocation_logs": false
-    }
-  }
+      "invocation_logs": false,
+    },
+  },
 }
