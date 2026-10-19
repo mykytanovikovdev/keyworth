@@ -38,7 +38,7 @@ Covered now:
     the page follows a live change of the system setting.
 
 Not covered yet: user flows (sign-in, encryption setup, unlock, chat) — they arrive
-with their phases, and screenshot comparison of `/design` with `tests/visual/`.
+with their phases. Screenshot comparison lives in [`tests/visual/`](../visual/README.md).
 
 ## How to run
 

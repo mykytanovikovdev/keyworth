@@ -20,6 +20,9 @@
       "path": "./tests/e2e"
     },
     {
+      "path": "./tests/visual"
+    },
+    {
       "path": "./design/capture"
     }
   ]

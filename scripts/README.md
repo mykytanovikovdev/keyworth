@@ -2,8 +2,9 @@
 
 ## Purpose
 
-Small project tooling run by Node directly. Right now: the dependency license
-check. Not application code: nothing here is bundled into the SPA or the Worker.
+Small project tooling run by Node directly: the dependency license check and the
+local runner for visual tests. Not application code: nothing here is bundled into
+the SPA or the Worker.
 
 ## How it works
 
@@ -11,6 +12,7 @@ check. Not application code: nothing here is bundled into the SPA or the Worker.
 | ------------------- | --------------------------------------------------------------------- |
 | `check-licenses.ts` | CLI: reads `package-lock.json`, prints violations, exits non-zero     |
 | `license-policy.ts` | The policy (allowlists, exceptions) and pure functions to evaluate it |
+| `visual.ts`         | Runs `tests/visual` with Chromium inside the Playwright Docker image  |
 
 The check walks every entry in `package-lock.json` (lockfile v3 records each
 package's `license` field and whether it is a dev-only dependency), parses the
@@ -62,6 +64,10 @@ Rejected alternatives:
   genuinely compatible, add it to the right list with a row in the table above; for
   a one-off, add a `LICENSE_EXCEPTIONS` entry with the reason.
 - Tests: [`tests/unit/license-policy.test.ts`](../tests/unit/license-policy.test.ts).
+- `npm run test:visual` / `npm run test:visual:update` — `visual.ts` starts the
+  pinned Playwright image (as `linux/amd64`, like CI), serves its browser on
+  `127.0.0.1:3123`, runs the tests on this machine against it, and removes the
+  container afterwards. Why and how: [tests/visual/README.md](../tests/visual/README.md).
 
 ## Related
 

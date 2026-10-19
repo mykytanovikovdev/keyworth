@@ -50,7 +50,7 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
 | Frontend | React 19, Vite 8, TypeScript (strict)                                                                       |
 | UI       | Tailwind CSS 4 on semantic tokens, React Aria Components, Lucide icons, anime.js, the Onest font            |
 | API      | Hono on Cloudflare Workers; static files via Workers Assets                                                 |
-| Tests    | Vitest (Node and workerd), Playwright (Chromium, Firefox, WebKit), axe                                      |
+| Tests    | Vitest (Node and workerd), Playwright (Chromium, Firefox, WebKit), axe, screenshots in Docker               |
 | Planned  | TanStack Router/Query, AI SDK with Claude Haiku, Better Auth (Google), Neon + Drizzle, WebCrypto + Argon2id |
 
 ## Getting started
@@ -77,6 +77,8 @@ For end-to-end tests, install the browsers once:
 | `npm run check`              | Format, lint, types, Worker types, tests, licenses, build — before "done" |
 | `npm test`                   | Unit (Node) and Worker (workerd) tests                                    |
 | `npm run test:e2e`           | Playwright against fresh production and design builds                     |
+| `npm run test:visual`        | Screenshots of `/design` against the baselines (needs Docker)             |
+| `npm run test:visual:update` | Rewrite the screenshot baselines after an intended change                 |
 | `npm run lint`               | ESLint, including the project's security rules                            |
 | `npm run format`             | Prettier                                                                  |
 | `npm run typecheck`          | TypeScript project references                                             |
@@ -96,8 +98,8 @@ src/        React SPA; src/ui/ is the design system
 worker/     Cloudflare Worker (Hono): API and security headers
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
-scripts/    project tooling (license check)
-tests/      unit/, integration/ (workerd), e2e/ (Playwright)
+scripts/    project tooling (license check, visual test runner)
+tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 .github/    CI, deployment and Dependabot
 ```
 
@@ -116,6 +118,8 @@ Every pull request and every push to `main` runs, on GitHub Actions:
 - **end-to-end tests** in three browser engines against the production build,
   and against the `/design` page with every UI component (CSP, keyboard, themes,
   axe accessibility checks);
+- **visual tests**: screenshots of `/design` in both themes, rendered in the
+  official Playwright Docker image and compared with committed baselines;
 - **gitleaks** over the full git history.
 
 A push to `main` deploys to Cloudflare **only after all of them pass**, then runs

@@ -11,13 +11,14 @@ details.
 | [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare)                                    | Worker routes, Worker security headers                 |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
 |                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe    |
+| [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design` against committed baselines   |
 
 Planned, each arriving with the code it tests:
 
 - `unit/` grows with `shared/metrics`, `shared/money` and schemas (phase 4).
 - `e2e/` grows with sign-in, encryption setup, unlock and recording a trade
   through chat (phase 2+).
-- `visual/` — screenshot baselines of `/design` and key screens in both themes.
+- `visual/` grows with the app's screens as they are built.
 - `agent/` — the chat agent with a scripted mock model from `ai/test`:
   deterministic, runs in CI (phases 5–7).
 - `evals/` — a question set run manually against the real model; results are
@@ -33,6 +34,7 @@ in CI once phase 3 lands.
 npm test            # all Vitest projects
 npm run test:watch  # Vitest in watch mode
 npm run test:e2e    # Playwright against fresh production and design builds
+npm run test:visual # screenshots of /design (needs Docker)
 npm run check       # format, lint, types, tests, licenses, build — run before "done"
 ```
 

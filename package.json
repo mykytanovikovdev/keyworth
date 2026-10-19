@@ -26,6 +26,8 @@
     "cf:types:check": "wrangler types --check",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run cf:types:check && npm test && npm run licenses && npm run build",
     "test:e2e": "playwright test",
+    "test:visual": "node scripts/visual.ts",
+    "test:visual:update": "node scripts/visual.ts --update-snapshots",
     "hooks:install": "lefthook install",
     "design:screenshots": "playwright test -c design/capture/playwright.config.ts --project=screenshots",
     "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos"

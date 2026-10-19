@@ -188,7 +188,7 @@ props.
 or the build runs with `--mode design`. In a production build the condition is
 the constant `false`, so the page's code is not even in the bundle
 (`tests/e2e/app.spec.ts` checks the page is absent). The design build goes to
-`dist-design/` and is what the accessibility and CSP tests run against.
+`dist-design/` and is what the visual, accessibility and CSP tests run against.
 
 ## Writing for the interface
 
@@ -275,6 +275,8 @@ design` also redirects `wrangler deploy` to `dist-design/` until the next
 ```sh
 npm run dev                  # http://localhost:5173/design
 npm run test:e2e             # /design under the real CSP: errors, keyboard, themes, axe
+npm run test:visual          # screenshots of /design against the baselines (Docker)
+npm run test:visual:update   # after an intended visual change; review the PNG diff
 npx vitest run --project unit  # contrast of every token pair
 ```
 
@@ -285,10 +287,12 @@ table above.
 
 **Adding a component:** build on a React Aria component when one exists, style
 it with tokens only, export it from `index.ts`, add every state to
-`/design`, and extend `tests/e2e/design-system.spec.ts` if it has behavior.
+`/design`, extend `tests/e2e/design-system.spec.ts` if it has behavior, and
+update the baselines with `npm run test:visual:update`.
 
 ## Related
 
 - [design/](../../design/README.md): the phase 1 prototype and the brief
+- [tests/visual/](../../tests/visual/README.md): screenshot baselines of `/design`
 - [tests/e2e/](../../tests/e2e/README.md): CSP, keyboard, theme and axe checks
 - [worker/](../../worker/README.md): the CSP and why each exception exists
