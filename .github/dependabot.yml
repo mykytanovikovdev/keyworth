@@ -9,6 +9,16 @@ updates:
     cooldown:
       default-days: 7
     open-pull-requests-limit: 5
+    # Majors held back on purpose; revisit when the reason no longer applies.
+    ignore:
+      # Node types must match the Node major we run (.nvmrc), or the types
+      # allow APIs that do not exist at runtime.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # typescript-eslint supports TypeScript <6.1 only; TypeScript 7 has no
+      # stable compiler API for it yet.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
     groups:
       runtime:
         dependency-type: production
