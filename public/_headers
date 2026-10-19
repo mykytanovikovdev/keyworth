@@ -2,9 +2,15 @@
 # The Worker never runs for these responses; Worker responses get their headers
 # from worker/security-headers.ts. Exact values are asserted by tests/e2e.
 # Limits: 100 rules, 2000 characters per line.
+#
+# The two style-src hashes allow exactly two fixed <style> blocks that React Aria
+# inserts at runtime (touch-action for pressable elements; overscroll-behavior
+# while a dialog is open on iOS). A hash matches only that exact text, so no other
+# inline style is allowed. If React Aria changes the text, the e2e tests report a
+# CSP violation and Chromium's console prints the new hash. See worker/README.md.
 
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'self'; style-src 'self' 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types 'none'
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   X-Content-Type-Options: nosniff
   Referrer-Policy: same-origin

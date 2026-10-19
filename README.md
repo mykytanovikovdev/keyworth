@@ -142,7 +142,8 @@ see, and what it does not protect against — will be documented in
 
 **Web hardening (in place).** A cross-site scripting bug would mean key theft, so
 the page runs under a strict Content Security Policy (`default-src 'none'`,
-same-origin scripts and styles only, no inline code), Trusted Types, cross-origin
+same-origin scripts and styles only, no inline scripts; the only inline styles
+allowed are two fixed blocks from the UI library, by hash), Trusted Types, cross-origin
 isolation, HSTS and a deny-by-default Permissions Policy. Details and the
 reasoning behind each header are in [worker/README.md](worker/README.md); the e2e
 suite asserts every value.
