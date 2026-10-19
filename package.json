@@ -20,7 +20,9 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "licenses": "node scripts/check-licenses.ts"
+    "licenses": "node scripts/check-licenses.ts",
+    "cf:types:check": "wrangler types --check",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run cf:types:check && npm test && npm run licenses && npm run build"
   },
   "dependencies": {
     "hono": "4.13.13",
