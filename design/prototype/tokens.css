@@ -1,0 +1,106 @@
+/*
+ * Design tokens of the chosen direction ("warm"). Components use only these
+ * semantic names (through Tailwind utilities); raw values live here and nowhere
+ * else. tests/unit/design-tokens.test.ts checks WCAG AA contrast for both themes,
+ * so the two color blocks must keep exactly these selectors.
+ */
+
+/* Motion: read by CSS and by anime.js (design/prototype/motion.ts). */
+:root {
+  --kw-duration-fast: 150ms;
+  --kw-duration-base: 240ms;
+  --kw-duration-slow: 900ms;
+  --kw-stagger: 70ms;
+  --kw-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  /* Charts draw slower, on a gentle in-out curve, so the line reads as one stroke. */
+  --kw-duration-chart: 1500ms;
+  --kw-ease-chart: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Each streamed word fades in over a few neighbours: a soft trailing edge. */
+  --kw-duration-text: 400ms;
+  /* Agent steps and their summary fade in quickly, ahead of the answer text. */
+  --kw-duration-step: 150ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --kw-duration-fast: 0ms;
+    --kw-duration-base: 0ms;
+    --kw-duration-slow: 0ms;
+    --kw-stagger: 0ms;
+    --kw-duration-chart: 0ms;
+    --kw-duration-text: 0ms;
+    --kw-duration-step: 0ms;
+  }
+}
+
+/* Light theme: warm neutrals with one indigo accent. */
+:root {
+  color-scheme: light;
+  --kw-font-sans: "Onest Variable", system-ui, sans-serif;
+  --kw-radius-sm: 6px;
+  --kw-radius-md: 8px;
+  --kw-radius-lg: 14px;
+  --kw-radius-xl: 20px;
+
+  --kw-canvas: #faf9f6;
+  --kw-surface: #f2f0eb;
+  --kw-raised: #ffffff;
+  --kw-hover: #e9e6df;
+  --kw-bubble: #efece5;
+  --kw-fg: #26231f;
+  --kw-fg-muted: #625d55;
+  --kw-line: #e2ded5;
+  --kw-line-strong: #8e887d;
+  --kw-accent: #3d4fb5;
+  --kw-on-accent: #ffffff;
+  --kw-accent-soft: #e9ebf8;
+  --kw-focus: #3d4fb5;
+  --kw-gain: #1d7a50;
+  --kw-gain-soft: #e5f2ea;
+  --kw-loss: #b83e2e;
+  --kw-loss-soft: #f8e7e3;
+  --kw-warning: #855900;
+  --kw-warning-soft: #f7eed8;
+  --kw-scrim: rgb(38 35 31 / 0.32);
+  --kw-shadow-raised:
+    0 1px 2px rgb(38 35 31 / 0.06), 0 6px 20px rgb(38 35 31 / 0.07);
+
+  /* Data colors: a validated categorical palette, independent of the brand. */
+  --kw-series-1: #2a78d6;
+  --kw-series-2: #eb6834;
+  --kw-series-3: #1baf7a;
+  --kw-series-4: #eda100;
+  --kw-series-5: #e87ba4;
+}
+
+/* Dark theme: the same roles, stepped for a dark surface. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --kw-canvas: #1f1e1b;
+  --kw-surface: #262522;
+  --kw-raised: #2e2c29;
+  --kw-hover: #383631;
+  --kw-bubble: #33312d;
+  --kw-fg: #ede9e2;
+  --kw-fg-muted: #b1ab9f;
+  --kw-line: #3b3934;
+  --kw-line-strong: #7d786e;
+  --kw-accent: #95a2f2;
+  --kw-on-accent: #161827;
+  --kw-accent-soft: #2b2e45;
+  --kw-focus: #95a2f2;
+  --kw-gain: #5cc594;
+  --kw-gain-soft: #1d3329;
+  --kw-loss: #f08370;
+  --kw-loss-soft: #3d2622;
+  --kw-warning: #e2b455;
+  --kw-warning-soft: #3a3020;
+  --kw-scrim: rgb(0 0 0 / 0.55);
+  --kw-shadow-raised: 0 1px 2px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.28);
+
+  --kw-series-1: #3987e5;
+  --kw-series-2: #d95926;
+  --kw-series-3: #199e70;
+  --kw-series-4: #c98500;
+  --kw-series-5: #d55181;
+}

@@ -24,12 +24,19 @@
     "cf:types:check": "wrangler types --check",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run cf:types:check && npm test && npm run licenses && npm run build",
     "test:e2e": "playwright test",
-    "hooks:install": "lefthook install"
+    "hooks:install": "lefthook install",
+    "design:screenshots": "playwright test -c design/capture/playwright.config.ts --project=screenshots",
+    "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos"
   },
   "dependencies": {
+    "@fontsource-variable/onest": "5.3.1",
+    "@tailwindcss/vite": "4.3.3",
+    "animejs": "4.5.0",
     "hono": "4.13.13",
+    "lucide-react": "1.59.0",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "tailwindcss": "4.3.3"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.64.0",
@@ -47,6 +54,7 @@
     "globals": "17.13.0",
     "lefthook": "2.2.2",
     "prettier": "3.9.10",
+    "prettier-plugin-tailwindcss": "0.8.1",
     "typescript": "6.0.3",
     "typescript-eslint": "8.71.2",
     "vite": "8.3.4",

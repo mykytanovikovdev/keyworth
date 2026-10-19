@@ -7,7 +7,7 @@ details.
 
 | Folder                                  | Runner            | Runs in                                                | Covers                                                 |
 | --------------------------------------- | ----------------- | ------------------------------------------------------ | ------------------------------------------------------ |
-| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic: the license policy                         |
+| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic: license policy, design token contrast      |
 | [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare)                                    | Worker routes, Worker security headers                 |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
 

@@ -31,13 +31,14 @@ need a compiler.
 
 The project is **AGPL-3.0-or-later**, so dependencies must be compatible with it.
 
-| License                                                                  | Where allowed | Why                                                                                                                                        |
-| ------------------------------------------------------------------------ | ------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| MIT, MIT-0, ISC, BSD-2/3-Clause, 0BSD, BlueOak-1.0.0, Unlicense, CC0-1.0 | anywhere      | Permissive, compatible with (A)GPLv3                                                                                                       |
-| Apache-2.0                                                               | anywhere      | Compatible with GPLv3/AGPLv3 (not with GPLv2, which does not matter here)                                                                  |
-| MPL-2.0                                                                  | anywhere      | File-level copyleft, explicitly compatible with (A)GPL via its secondary-license clause                                                    |
-| LGPL-3.0-or-later                                                        | dev only      | Compatible, but it comes from native image libraries in the local Workers runtime; a runtime LGPL dependency deserves a conscious decision |
-| CC-BY-4.0                                                                | dev only      | Browser-support data (`caniuse-lite`), not code                                                                                            |
+| License                                                                  | Where allowed | Why                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------ | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| MIT, MIT-0, ISC, BSD-2/3-Clause, 0BSD, BlueOak-1.0.0, Unlicense, CC0-1.0 | anywhere      | Permissive, compatible with (A)GPLv3                                                                                                                                                                  |
+| Apache-2.0                                                               | anywhere      | Compatible with GPLv3/AGPLv3 (not with GPLv2, which does not matter here)                                                                                                                             |
+| MPL-2.0                                                                  | anywhere      | File-level copyleft, explicitly compatible with (A)GPL via its secondary-license clause                                                                                                               |
+| OFL-1.1                                                                  | anywhere      | Font license. The font files are separate works served alongside the app; OFL explicitly allows bundling them with any software, including (A)GPL, as long as the fonts themselves are not sold alone |
+| LGPL-3.0-or-later                                                        | dev only      | Compatible, but it comes from native image libraries in the local Workers runtime; a runtime LGPL dependency deserves a conscious decision                                                            |
+| CC-BY-4.0                                                                | dev only      | Browser-support data (`caniuse-lite`), not code                                                                                                                                                       |
 
 Rejected alternatives:
 

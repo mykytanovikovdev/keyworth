@@ -12,7 +12,7 @@ Covered now:
     link (the fallback `index.html` must get them too);
   - `index.html` contains no inline scripts, styles or event handlers;
   - hashed assets are `immutable`, `robots.txt` blocks crawling, the `_headers`
-    config file is not served;
+    config file is not served, and the design prototype never ships;
   - `/api/health` and the Worker headers;
   - a browser _navigation_ to an unknown `/api/*` path reaches the Worker instead
     of the SPA fallback (the guarantee OAuth callbacks rely on).
