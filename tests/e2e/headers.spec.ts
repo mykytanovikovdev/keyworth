@@ -111,6 +111,17 @@ test.describe("static files", () => {
 
     expect(await response.text()).not.toContain("Content-Security-Policy:");
   });
+
+  test("the design prototype is not part of the deployed site", async ({
+    request,
+  }) => {
+    // Unknown paths fall back to the app shell; the prototype page must never ship.
+    const response = await request.get("/design/", { headers: NAVIGATION });
+    const html = await response.text();
+
+    expect(html).toContain('<div id="root">');
+    expect(html).not.toContain("design prototype");
+  });
 });
 
 test.describe("API", () => {
