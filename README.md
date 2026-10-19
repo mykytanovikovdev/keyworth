@@ -1,0 +1,155 @@
+# Keyworth — private AI portfolio assistant
+
+> Your net worth. Your key.
+
+**Status: early development.** The project scaffold, security headers, tests and
+deployment pipeline are in place; product features are being built in phases.
+Nothing here is ready for real data yet.
+
+Keyworth is an investment portfolio tracker (crypto first; stocks, ETFs and metals
+next) with an AI assistant you can ask questions in plain language, in any
+language. Financial data is **encrypted in the browser** with a key the server
+never has: the operator stores only ciphertext.
+
+## What it will do
+
+- **Ask, don't dig.** "How did my portfolio change this month?" — the assistant
+  calls tools, the interface shows each step live, and the answer streams in with
+  charts.
+- **End-to-end encryption.** Trades, chat history and alerts are encrypted with
+  AES-256-GCM in the browser; the data key is unlocked with a passphrase
+  (Argon2id) or a recovery key and never leaves the device.
+- **The model does not do math.** Positions, P&L, drawdown and volatility are
+  computed by tested pure functions in the browser; the model only explains the
+  numbers it receives.
+- **Nothing changes without a click.** The assistant can propose recording a trade
+  ("bought 5 LTC yesterday at $60"), but it is saved only after the user confirms
+  a card showing exactly what will be written.
+- **Data minimization.** By default the model sees shares and percentages, not
+  amounts, and never the user's name or email.
+
+## Architecture
+
+```
+Browser (React SPA) — keys, decrypted data, calculations and agent tools live here
+   │  one origin, httpOnly session cookie
+   ▼
+Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat transit
+   ├── /            static SPA (Workers Assets)
+   ├── /api/auth    sign-in with Google                        (planned)
+   ├── /api/vault   encrypted records                          (planned)
+   ├── /api/chat    pass-through to the model, never stored    (planned)
+   └── /api/market  cached prices, not linked to users         (planned)
+   │
+   ├──► PostgreSQL (Neon) — envelopes and service data only    (planned)
+   └──► Anthropic API (Claude Haiku)                           (planned)
+```
+
+| Layer    | Choice                                                                                                                    |
+| -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Frontend | React 19, Vite 8, TypeScript (strict)                                                                                     |
+| API      | Hono on Cloudflare Workers; static files via Workers Assets                                                               |
+| Tests    | Vitest (Node and workerd), Playwright (Chromium, Firefox, WebKit)                                                         |
+| Planned  | TanStack Router/Query, Tailwind CSS, AI SDK with Claude Haiku, Better Auth (Google), Neon + Drizzle, WebCrypto + Argon2id |
+
+## Getting started
+
+Requirements: Node 24 (see `.nvmrc`) and [gitleaks](https://github.com/gitleaks/gitleaks)
+for the pre-commit secret scan (`brew install gitleaks` on macOS).
+
+```sh
+npm ci                  # install exactly what package-lock.json says
+npm run hooks:install   # once per clone: git hooks (secret scan before commit)
+npm run dev             # SPA + Worker on one port, with hot reload
+```
+
+For end-to-end tests, install the browsers once:
+`npx playwright install chromium firefox webkit`.
+
+## Scripts
+
+| Script                  | What it does                                                              |
+| ----------------------- | ------------------------------------------------------------------------- |
+| `npm run dev`           | Vite dev server with the Worker running in workerd                        |
+| `npm run build`         | Production build: `dist/client` (static) and `dist/keyworth` (Worker)     |
+| `npm run preview`       | Serve the production build locally in workerd                             |
+| `npm run check`         | Format, lint, types, Worker types, tests, licenses, build — before "done" |
+| `npm test`              | Unit (Node) and Worker (workerd) tests                                    |
+| `npm run test:e2e`      | Playwright against a fresh production build                               |
+| `npm run lint`          | ESLint, including the project's security rules                            |
+| `npm run format`        | Prettier                                                                  |
+| `npm run typecheck`     | TypeScript project references                                             |
+| `npm run licenses`      | Dependency license check                                                  |
+| `npm run cf:types`      | Regenerate Worker types after changing `wrangler.jsonc`                   |
+| `npm run hooks:install` | Install git hooks                                                         |
+| `npm run deploy`        | Build and deploy manually (CI normally does this)                         |
+
+## Project structure
+
+```
+src/        React SPA
+worker/     Cloudflare Worker (Hono): API and security headers
+public/     static files, including _headers (page CSP) and robots.txt
+scripts/    project tooling (license check)
+tests/      unit/, integration/ (workerd), e2e/ (Playwright)
+.github/    CI, deployment and Dependabot
+```
+
+Every major folder has its own README explaining what it does, why it is built
+that way, and its pitfalls: [worker](worker/README.md), [scripts](scripts/README.md),
+[tests](tests/README.md).
+
+## Quality gates
+
+Every pull request and every push to `main` runs, on GitHub Actions:
+
+- **`npm run check`** — formatting, lint, types, stale Worker types, unit and
+  Worker tests, license check, production build; plus `npm audit` for runtime
+  dependencies;
+- **end-to-end tests** in three browser engines against the production build;
+- **gitleaks** over the full git history.
+
+A push to `main` deploys to Cloudflare **only after all of them pass**, then runs
+the header and browser smoke tests against the live site.
+
+### Dependencies
+
+A malicious dependency is served from our own origin, where no CSP can stop it,
+so dependencies are treated as part of the attack surface:
+
+- exact versions only and a committed lockfile (`npm ci` in CI);
+- dependency install scripts are disabled (`ignore-scripts` in `.npmrc`);
+- Dependabot proposes updates only after a 7-day cooldown (security fixes are not
+  delayed);
+- GitHub Actions are pinned to commit SHAs;
+- every license must be compatible with AGPL-3.0 ([policy](scripts/README.md)).
+
+## Security
+
+**Encryption model (in progress).** The server never stores financial data in
+plaintext and never receives the passphrase or the data key. Each record is an
+AES-256-GCM envelope `{ v, alg, iv, ct }` with a fresh random IV, bound to its
+owner, record type and record ID through additional authenticated data, so a
+record cannot be swapped for another user's or moved to another row. The full
+design and an honest threat model — what is protected, what the operator can still
+see, and what it does not protect against — will be documented in
+`src/crypto/README.md`.
+
+**Web hardening (in place).** A cross-site scripting bug would mean key theft, so
+the page runs under a strict Content Security Policy (`default-src 'none'`,
+same-origin scripts and styles only, no inline code), Trusted Types, cross-origin
+isolation, HSTS and a deny-by-default Permissions Policy. Details and the
+reasoning behind each header are in [worker/README.md](worker/README.md); the e2e
+suite asserts every value.
+
+### Reporting a vulnerability
+
+The repository is private during early development, and a dedicated private
+reporting channel will be published here before it becomes public. Until then,
+please report issues directly to the maintainer and do not disclose them publicly.
+
+## License
+
+[GNU Affero General Public License v3.0 or later](LICENSE). If you run a modified
+version of Keyworth as a network service, you must offer its users the source code
+of your version.

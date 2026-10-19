@@ -1,0 +1,23 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.app.json"
+    },
+    {
+      "path": "./tsconfig.worker.json"
+    },
+    {
+      "path": "./tsconfig.node.json"
+    },
+    {
+      "path": "./tests/integration"
+    },
+    {
+      "path": "./tests/unit"
+    },
+    {
+      "path": "./tests/e2e"
+    }
+  ]
+}

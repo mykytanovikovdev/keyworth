@@ -1,5 +1,32 @@
-# Local working docs (not part of the repo)
-CLAUDE.md
-PLAN.md
-HANDOFF.md
-DESIGN.md
+# Markdown: only README files are tracked; everything else is a local working doc
+*.md
+!README.md
+!**/README.md
+
+# Secrets
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+
+# Dependencies and build output
+node_modules/
+dist/
+.wrangler/
+*.tsbuildinfo
+
+# Test output
+coverage/
+test-results/
+playwright-report/
+blob-report/
+
+# Design working screenshots (baselines for visual tests live under tests/)
+design/screenshots/
+
+# OS and editors
+.DS_Store
+*.log
+.vscode/
+.idea/
