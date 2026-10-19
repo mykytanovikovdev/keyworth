@@ -29,7 +29,6 @@
     "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos"
   },
   "dependencies": {
-    "@fontsource-variable/ibm-plex-sans": "5.3.0",
     "@fontsource-variable/onest": "5.3.1",
     "@tailwindcss/vite": "4.3.3",
     "animejs": "4.5.0",

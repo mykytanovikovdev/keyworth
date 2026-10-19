@@ -5,7 +5,6 @@ import { describe, expect, it } from "vitest";
 const TEXT = 4.5;
 const UI = 3;
 
-const VARIANTS = ["neutral", "warm"] as const;
 const THEMES = ["light", "dark"] as const;
 
 const REQUIRED_TOKENS = [
@@ -66,19 +65,10 @@ function parseBlocks(css: string): Map<string, Tokens> {
   return blocks;
 }
 
-function resolve(
-  blocks: Map<string, Tokens>,
-  variant: string,
-  theme: string,
-): Tokens {
-  const variantSelector = `:root[data-variant="${variant}"]`;
+function resolve(blocks: Map<string, Tokens>, theme: string): Tokens {
   return {
     ...blocks.get(":root"),
     ...(theme === "dark" ? blocks.get(':root[data-theme="dark"]') : {}),
-    ...blocks.get(variantSelector),
-    ...(theme === "dark"
-      ? blocks.get(`${variantSelector}[data-theme="dark"]`)
-      : {}),
   };
 }
 
@@ -103,31 +93,27 @@ function contrast(a: string, b: string): number {
 
 const blocks = parseBlocks(readFileSync("design/prototype/tokens.css", "utf8"));
 
-describe.each(VARIANTS)("%s variant", (variant) => {
-  describe.each(THEMES)("%s theme", (theme) => {
-    const tokens = resolve(blocks, variant, theme);
+describe.each(THEMES)("%s theme", (theme) => {
+  const tokens = resolve(blocks, theme);
 
-    it("defines every semantic color token", () => {
-      const missing = REQUIRED_TOKENS.filter((name) => !tokens[name]);
-      expect(missing).toEqual([]);
-    });
-
-    it.each(PAIRS)(
-      "%s meets its contrast minimum",
-      (foreground, backgrounds, minimum) => {
-        const failures = backgrounds
-          .map((background) => {
-            const ratio = contrast(
-              tokens[foreground] ?? "",
-              tokens[background] ?? "",
-            );
-            return { background, ratio: Math.round(ratio * 100) / 100 };
-          })
-          .filter(({ ratio }) => ratio < minimum);
-        expect(failures, `${foreground} needs ${String(minimum)}:1`).toEqual(
-          [],
-        );
-      },
-    );
+  it("defines every semantic color token", () => {
+    const missing = REQUIRED_TOKENS.filter((name) => !tokens[name]);
+    expect(missing).toEqual([]);
   });
+
+  it.each(PAIRS)(
+    "%s meets its contrast minimum",
+    (foreground, backgrounds, minimum) => {
+      const failures = backgrounds
+        .map((background) => {
+          const ratio = contrast(
+            tokens[foreground] ?? "",
+            tokens[background] ?? "",
+          );
+          return { background, ratio: Math.round(ratio * 100) / 100 };
+        })
+        .filter(({ ratio }) => ratio < minimum);
+      expect(failures, `${foreground} needs ${String(minimum)}:1`).toEqual([]);
+    },
+  );
 });

@@ -2,9 +2,9 @@
 
 ## Purpose
 
-Phase 1 design exploration: a clickable prototype of Keyworth's key screens in
-two visual variants, light and dark, used to choose a direction before the design
-system is built in `src/ui/`.
+Phase 1 design exploration: a clickable prototype of Keyworth's key screens, in
+light and dark, used to choose a direction before the design system is built in
+`src/ui/`.
 
 The prototype is a review tool, not product code. It is excluded from the
 production build and never deployed.
@@ -29,29 +29,36 @@ production build and never deployed.
 - **Languages.** The interface is English only; conversations can be in any
   language, so every font must cover Cyrillic.
 
-## The two variants
+## Direction: warm
 
-Both share one layout and one set of components; only the tokens differ.
+Two variants were prototyped on one shared layout and set of components; only the
+tokens differed. **Warm was chosen** and is now the only one in the prototype.
 
-|         | Neutral                                             | Warm                                 |
-| ------- | --------------------------------------------------- | ------------------------------------ |
-| Palette | White and near-black; color only for data and focus | Warm neutrals with one indigo accent |
-| Type    | IBM Plex Sans                                       | Onest                                |
-| Radii   | 10 / 16 / 26 px                                     | 8 / 14 / 20 px                       |
+|         | Warm (chosen)                        | Neutral (rejected)                                  |
+| ------- | ------------------------------------ | --------------------------------------------------- |
+| Palette | Warm neutrals with one indigo accent | White and near-black; color only for data and focus |
+| Type    | Onest                                | IBM Plex Sans                                       |
+| Radii   | 8 / 14 / 20 px                       | 10 / 16 / 26 px                                     |
+
+Why warm: both themes came out balanced; the indigo accent makes primary actions
+such as Confirm stand apart from text, where Neutral's near-black buttons blended
+in; and the overall look has more character without becoming decorative. Neutral
+was the safer, more generic option. Its tokens are in the git history of this
+folder if a comparison is ever needed.
 
 ## How it works
 
 | Path                   | Role                                                                   |
 | ---------------------- | ---------------------------------------------------------------------- |
 | `index.html`           | Dev-only Vite entry, served at `/design/` by `npm run dev`             |
-| `prototype/tokens.css` | Every raw value: colors per variant and theme, fonts, radii, motion    |
+| `prototype/tokens.css` | Every raw value: colors per theme, fonts, radii, motion                |
 | `prototype/styles.css` | Maps tokens to Tailwind utilities; removes the default palette         |
 | `prototype/motion.ts`  | anime.js helpers: draw a line, grow bars, staggered reveals            |
 | `prototype/hooks.ts`   | Scripted scene timing, streamed text, element width, reduced motion    |
 | `prototype/screens/`   | New chat, conversation, portfolio, unlock                              |
 | `capture/`             | Playwright config that writes screenshots and videos to `screenshots/` |
 
-- **The URL is the state:** `/design/?variant=warm&theme=dark&screen=portfolio`.
+- **The URL is the state:** `/design/?theme=dark&screen=portfolio`.
   Add `&chrome=0` to hide the prototype controls.
 - **The conversation is a scripted scene:** the question, two tool steps, a streamed
   answer, a chart, a second question and the confirmation card, phase by phase.
@@ -69,7 +76,7 @@ Both share one layout and one set of components; only the tokens differ.
   `src/ui/`.
 - **Tokens only.** The default Tailwind palette, fonts and radii are removed, so
   a component cannot use a raw color. `tests/unit/design-tokens.test.ts` checks
-  WCAG AA contrast for every text and background pair, in every variant and theme.
+  WCAG AA contrast for every text and background pair, in both themes.
 - **Chart colors.** A validated categorical palette: adjacent pairs stay
   distinguishable under color-vision deficiency, and a color follows the asset,
   never its rank. Three slots fall below 3:1 against the light background, so
@@ -96,7 +103,7 @@ Both share one layout and one set of components; only the tokens differ.
   the CSSOM in the browser. The same markup rendered as HTML on a server would be
   blocked.
 - **Keep the selector form in `tokens.css` exactly as it is.** The contrast test
-  parses blocks like `:root[data-variant="warm"][data-theme="dark"]`.
+  parses the `:root` and `:root[data-theme="dark"]` blocks.
 - **Use Chromium for captures.** Playwright's Firefox build on macOS ignores
   color-scheme emulation.
 - **Mock numbers are plain numbers,** used for display only. Real money uses
@@ -106,8 +113,8 @@ Both share one layout and one set of components; only the tokens differ.
 
 ```sh
 npm run dev                  # open http://localhost:5173/design/
-npm run design:screenshots   # 40 PNGs: 2 variants × 4 screens × 2 themes × 2 widths (+ chat top)
-npm run design:videos        # 6 WebM recordings of the animated scenes
+npm run design:screenshots   # 20 PNGs: 4 screens × 2 themes × 2 widths, plus the top of the chat
+npm run design:videos        # WebM recordings of the animated scenes in both themes
 ```
 
 Output goes to `design/screenshots/`, which is not committed.

@@ -1,6 +1,6 @@
 import { RotateCcw, SlidersHorizontal, X } from "lucide-react";
 import { useState } from "react";
-import type { Screen, Theme, Variant } from "../types.ts";
+import type { Screen, Theme } from "../types.ts";
 
 interface Option<T extends string> {
   value: T;
@@ -46,10 +46,8 @@ function Segmented<T extends string>({
 }
 
 interface PrototypeToolbarProps {
-  variant: Variant;
   theme: Theme;
   screen: Screen;
-  onVariant: (value: Variant) => void;
   onTheme: (value: Theme) => void;
   onScreen: (value: Screen) => void;
   onReplay: () => void;
@@ -104,15 +102,6 @@ export function PrototypeToolbar(props: PrototypeToolbarProps) {
           </button>
         </div>
       </div>
-      <Segmented
-        label="Variant"
-        value={props.variant}
-        options={[
-          { value: "neutral", label: "Neutral" },
-          { value: "warm", label: "Warm" },
-        ]}
-        onChange={props.onVariant}
-      />
       <Segmented
         label="Theme"
         value={props.theme}

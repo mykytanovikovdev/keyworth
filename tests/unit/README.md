@@ -8,7 +8,7 @@ Covered now:
 
 - `scripts/license-policy.ts` — SPDX parsing (precedence, parentheses, `WITH`,
   malformed input), allowlist evaluation, runtime vs dev-only rules, exceptions.
-- `design/prototype/tokens.css` — every design variant and theme defines all
+- `design/prototype/tokens.css` — both themes define all
   semantic colors, and every text/background pair meets WCAG AA (4.5:1 for text,
   3:1 for borders and focus). The test parses the CSS, so a token change that
   breaks contrast fails before anyone sees it.

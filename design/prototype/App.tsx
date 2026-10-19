@@ -5,7 +5,7 @@ import { ConversationScreen } from "./screens/ConversationScreen.tsx";
 import { EmptyChatScreen } from "./screens/EmptyChatScreen.tsx";
 import { PortfolioScreen } from "./screens/PortfolioScreen.tsx";
 import { UnlockScreen } from "./screens/UnlockScreen.tsx";
-import type { Screen, ShellScreen, Theme, Variant } from "./types.ts";
+import type { Screen, ShellScreen, Theme } from "./types.ts";
 
 const titles: Record<ShellScreen, string> = {
   empty: "New chat",
@@ -22,15 +22,10 @@ function pick<T extends string>(
 }
 
 // The URL is the state, so every combination can be linked and screenshotted:
-// /design/?variant=warm&theme=dark&screen=portfolio&chrome=0
+// /design/?theme=dark&screen=portfolio&chrome=0
 function readUrl() {
   const params = new URLSearchParams(window.location.search);
   return {
-    variant: pick(
-      params.get("variant"),
-      ["neutral", "warm"] as const,
-      "neutral",
-    ),
     theme: pick(params.get("theme"), ["light", "dark"] as const, "light"),
     screen: pick(
       params.get("screen"),
@@ -43,20 +38,17 @@ function readUrl() {
 
 export function App() {
   const [initial] = useState(readUrl);
-  const [variant, setVariant] = useState<Variant>(initial.variant);
   const [theme, setTheme] = useState<Theme>(initial.theme);
   const [screen, setScreen] = useState<Screen>(initial.screen);
   const [replay, setReplay] = useState(0);
 
   useLayoutEffect(() => {
-    document.documentElement.dataset.variant = variant;
     document.documentElement.dataset.theme = theme;
     const url = new URL(window.location.href);
-    url.searchParams.set("variant", variant);
     url.searchParams.set("theme", theme);
     url.searchParams.set("screen", screen);
     window.history.replaceState(null, "", url);
-  }, [variant, theme, screen]);
+  }, [theme, screen]);
 
   const toggleTheme = () => {
     setTheme(theme === "dark" ? "light" : "dark");
@@ -82,10 +74,8 @@ export function App() {
 
       {initial.chrome && (
         <PrototypeToolbar
-          variant={variant}
           theme={theme}
           screen={screen}
-          onVariant={setVariant}
           onTheme={setTheme}
           onScreen={(next) => {
             setScreen(next);
