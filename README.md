@@ -2,7 +2,7 @@
 
 > Your net worth. Your key.
 
-**Status: early development.** The project scaffold, security headers, tests and
+**Status: early development (design phase).** The project scaffold, security headers, tests and
 deployment pipeline are in place; product features are being built in phases.
 Nothing here is ready for real data yet.
 
@@ -68,21 +68,23 @@ For end-to-end tests, install the browsers once:
 
 ## Scripts
 
-| Script                  | What it does                                                              |
-| ----------------------- | ------------------------------------------------------------------------- |
-| `npm run dev`           | Vite dev server with the Worker running in workerd                        |
-| `npm run build`         | Production build: `dist/client` (static) and `dist/keyworth` (Worker)     |
-| `npm run preview`       | Serve the production build locally in workerd                             |
-| `npm run check`         | Format, lint, types, Worker types, tests, licenses, build — before "done" |
-| `npm test`              | Unit (Node) and Worker (workerd) tests                                    |
-| `npm run test:e2e`      | Playwright against a fresh production build                               |
-| `npm run lint`          | ESLint, including the project's security rules                            |
-| `npm run format`        | Prettier                                                                  |
-| `npm run typecheck`     | TypeScript project references                                             |
-| `npm run licenses`      | Dependency license check                                                  |
-| `npm run cf:types`      | Regenerate Worker types after changing `wrangler.jsonc`                   |
-| `npm run hooks:install` | Install git hooks                                                         |
-| `npm run deploy`        | Build and deploy manually (CI normally does this)                         |
+| Script                       | What it does                                                              |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| `npm run dev`                | Vite dev server with the Worker running in workerd                        |
+| `npm run build`              | Production build: `dist/client` (static) and `dist/keyworth` (Worker)     |
+| `npm run preview`            | Serve the production build locally in workerd                             |
+| `npm run check`              | Format, lint, types, Worker types, tests, licenses, build — before "done" |
+| `npm test`                   | Unit (Node) and Worker (workerd) tests                                    |
+| `npm run test:e2e`           | Playwright against a fresh production build                               |
+| `npm run lint`               | ESLint, including the project's security rules                            |
+| `npm run format`             | Prettier                                                                  |
+| `npm run typecheck`          | TypeScript project references                                             |
+| `npm run licenses`           | Dependency license check                                                  |
+| `npm run cf:types`           | Regenerate Worker types after changing `wrangler.jsonc`                   |
+| `npm run hooks:install`      | Install git hooks                                                         |
+| `npm run design:screenshots` | Screenshots of the design prototype (see [design](design/README.md))      |
+| `npm run design:videos`      | Recordings of the prototype animations                                    |
+| `npm run deploy`             | Build and deploy manually (CI normally does this)                         |
 
 ## Project structure
 
@@ -90,13 +92,15 @@ For end-to-end tests, install the browsers once:
 src/        React SPA
 worker/     Cloudflare Worker (Hono): API and security headers
 public/     static files, including _headers (page CSP) and robots.txt
+design/     design exploration: a dev-only prototype, never deployed
 scripts/    project tooling (license check)
 tests/      unit/, integration/ (workerd), e2e/ (Playwright)
 .github/    CI, deployment and Dependabot
 ```
 
 Every major folder has its own README explaining what it does, why it is built
-that way, and its pitfalls: [worker](worker/README.md), [scripts](scripts/README.md),
+that way, and its pitfalls: [worker](worker/README.md), [design](design/README.md),
+[scripts](scripts/README.md),
 [tests](tests/README.md).
 
 ## Quality gates
