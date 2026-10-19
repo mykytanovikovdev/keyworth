@@ -76,6 +76,11 @@ folder if a comparison is ever needed.
 - **Streamed words fade over 400 ms** (`--kw-duration-text`), longer than the time
   between words, so the newest few words are partly transparent at once: the text
   gets a soft trailing edge instead of popping in.
+- **Agent steps fade in over 150 ms** (`--kw-duration-step`): the step list and
+  the status line above it use the same opacity-only fade as the answer, but
+  faster. Status should feel immediate; content gets more time. The status line is
+  keyed by its text, so each change ("Read portfolio…" → "Calculated
+  performance…") fades in instead of jumping.
 
 ## Why this way
 

@@ -76,6 +76,11 @@
     both;
 }
 
+/* Agent steps: the same soft fade as answer text, but quicker. */
+.kw-step-fade {
+  animation: kw-fade var(--kw-duration-step) ease-out both;
+}
+
 @keyframes kw-enter {
   from {
     opacity: 0;
@@ -123,7 +128,8 @@
 
 @media (prefers-reduced-motion: reduce) {
   .kw-enter,
-  .kw-word {
+  .kw-word,
+  .kw-step-fade {
     animation: none;
   }
 

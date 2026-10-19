@@ -31,6 +31,7 @@ export function StepTimeline({
   const open = running || (userOpen ?? openWhenDone);
   const visible = steps.slice(0, Math.min(completed + 1, steps.length));
   const current = steps[completed];
+  const heading = running && current ? `${current.label}…` : summary;
 
   return (
     <div className="text-sm">
@@ -53,7 +54,10 @@ export function StepTimeline({
         ) : (
           <Check size={15} strokeWidth={2} />
         )}
-        <span>{running && current ? `${current.label}…` : summary}</span>
+        {/* Keyed by its text, so every change of the line fades in again. */}
+        <span key={heading} className="kw-step-fade">
+          {heading}
+        </span>
         {!running && (
           <ChevronDown
             size={15}
@@ -74,7 +78,7 @@ export function StepTimeline({
               return (
                 <li
                   key={step.label}
-                  className="kw-enter relative pb-2.5 last:pb-0.5"
+                  className="kw-step-fade relative pb-2.5 last:pb-0.5"
                 >
                   <span
                     className={`absolute top-[5px] -left-[21px] flex size-[9px] rounded-full border-2 border-canvas ${done ? "bg-fg-muted" : "bg-accent motion-safe:animate-pulse"}`}

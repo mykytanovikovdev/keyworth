@@ -17,6 +17,8 @@
   --kw-ease-chart: cubic-bezier(0.4, 0, 0.2, 1);
   /* Each streamed word fades in over a few neighbours: a soft trailing edge. */
   --kw-duration-text: 400ms;
+  /* Agent steps and their summary fade in quickly, ahead of the answer text. */
+  --kw-duration-step: 150ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -27,6 +29,7 @@
     --kw-stagger: 0ms;
     --kw-duration-chart: 0ms;
     --kw-duration-text: 0ms;
+    --kw-duration-step: 0ms;
   }
 }
 
