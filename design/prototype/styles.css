@@ -1,0 +1,133 @@
+@import "tailwindcss";
+@import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource-variable/onest";
+@import "./tokens.css";
+
+/*
+ * Only semantic tokens are available as utilities: the default palette, fonts
+ * and radii are removed, so a component cannot reach for a raw color.
+ */
+@theme {
+  --color-*: initial;
+  --font-*: initial;
+  --radius-*: initial;
+}
+
+@theme inline {
+  --color-canvas: var(--kw-canvas);
+  --color-surface: var(--kw-surface);
+  --color-raised: var(--kw-raised);
+  --color-hover: var(--kw-hover);
+  --color-bubble: var(--kw-bubble);
+  --color-fg: var(--kw-fg);
+  --color-fg-muted: var(--kw-fg-muted);
+  --color-line: var(--kw-line);
+  --color-line-strong: var(--kw-line-strong);
+  --color-accent: var(--kw-accent);
+  --color-on-accent: var(--kw-on-accent);
+  --color-accent-soft: var(--kw-accent-soft);
+  --color-focus: var(--kw-focus);
+  --color-gain: var(--kw-gain);
+  --color-gain-soft: var(--kw-gain-soft);
+  --color-loss: var(--kw-loss);
+  --color-loss-soft: var(--kw-loss-soft);
+  --color-warning: var(--kw-warning);
+  --color-warning-soft: var(--kw-warning-soft);
+  --color-scrim: var(--kw-scrim);
+  --color-series-1: var(--kw-series-1);
+  --color-series-2: var(--kw-series-2);
+  --color-series-3: var(--kw-series-3);
+  --color-series-4: var(--kw-series-4);
+  --color-series-5: var(--kw-series-5);
+
+  --font-sans: var(--kw-font-sans);
+
+  --radius-sm: var(--kw-radius-sm);
+  --radius-md: var(--kw-radius-md);
+  --radius-lg: var(--kw-radius-lg);
+  --radius-xl: var(--kw-radius-xl);
+
+  --shadow-raised: var(--kw-shadow-raised);
+  --ease-out: var(--kw-ease-out);
+}
+
+@layer base {
+  html {
+    background-color: var(--kw-canvas);
+    color: var(--kw-fg);
+    font-family: var(--kw-font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* One focus style everywhere: visible, 3:1 against every surface. */
+  :focus-visible {
+    outline: 2px solid var(--kw-focus);
+    outline-offset: 2px;
+  }
+}
+
+/* Entrance for messages and panels. */
+.kw-enter {
+  animation: kw-enter var(--kw-duration-base) var(--kw-ease-out) both;
+}
+
+/* Streamed answer: each new word fades in instead of popping. */
+.kw-word {
+  animation: kw-fade var(--kw-duration-base) ease-out both;
+}
+
+@keyframes kw-enter {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+@keyframes kw-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Height animation to and from auto, supported in every engine. */
+.kw-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--kw-duration-base) var(--kw-ease-out);
+}
+
+.kw-collapsible[data-open="true"] {
+  grid-template-rows: 1fr;
+}
+
+.kw-collapsible > * {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Long scrolling content fades out above the composer instead of being cut. */
+.kw-scroll-fade {
+  mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent);
+}
+
+/* SVG gradient stops cannot read CSS variables through attributes. */
+.kw-area-stop-top {
+  stop-color: var(--kw-accent);
+  stop-opacity: 0.16;
+}
+
+.kw-area-stop-bottom {
+  stop-color: var(--kw-accent);
+  stop-opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kw-enter,
+  .kw-word {
+    animation: none;
+  }
+
+  .kw-collapsible {
+    transition: none;
+  }
+}

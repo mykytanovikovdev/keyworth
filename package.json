@@ -24,7 +24,9 @@
     "cf:types:check": "wrangler types --check",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run cf:types:check && npm test && npm run licenses && npm run build",
     "test:e2e": "playwright test",
-    "hooks:install": "lefthook install"
+    "hooks:install": "lefthook install",
+    "design:screenshots": "playwright test -c design/capture/playwright.config.ts --project=screenshots",
+    "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos"
   },
   "dependencies": {
     "@fontsource-variable/ibm-plex-sans": "5.3.0",
