@@ -16,7 +16,7 @@
   --kw-duration-chart: 1500ms;
   --kw-ease-chart: cubic-bezier(0.4, 0, 0.2, 1);
   /* Each streamed word fades in over a few neighbours: a soft trailing edge. */
-  --kw-duration-text: 560ms;
+  --kw-duration-text: 400ms;
 }
 
 @media (prefers-reduced-motion: reduce) {

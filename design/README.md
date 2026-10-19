@@ -73,7 +73,7 @@ folder if a comparison is ever needed.
   every frame the fill opens exactly up to the pen tip (`getPointAtLength`), so the
   two never drift apart. The current-value marker appears near the end. The
   allocation bar fills left to right in one movement rather than segment by segment.
-- **Streamed words fade over 560 ms** (`--kw-duration-text`), longer than the time
+- **Streamed words fade over 400 ms** (`--kw-duration-text`), longer than the time
   between words, so the newest few words are partly transparent at once: the text
   gets a soft trailing edge instead of popping in.
 
