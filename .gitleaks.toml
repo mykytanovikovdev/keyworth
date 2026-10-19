@@ -1,0 +1,4 @@
+# gitleaks configuration: the built-in rules plus project-specific allowances.
+# Add an allowlist entry only for a confirmed false positive, with a comment why.
+[extend]
+useDefault = true

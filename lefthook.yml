@@ -1,0 +1,10 @@
+# Git hooks. Install once per clone: `npm run hooks:install`
+# (install scripts are disabled in .npmrc, so this does not happen on npm install).
+pre-commit:
+  jobs:
+    - name: gitleaks
+      # Fail loudly when gitleaks is missing: a silently skipped scan protects nothing.
+      run: >-
+        command -v gitleaks >/dev/null 2>&1
+        || { echo "gitleaks is not installed (macOS: brew install gitleaks)"; exit 1; };
+        gitleaks git --pre-commit --staged --redact --no-banner --verbose
