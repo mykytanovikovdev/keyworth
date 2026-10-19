@@ -29,6 +29,29 @@ const noHtmlInjection = [
   },
 ];
 
+// anime.js text splitting and scroll debug markers write innerHTML, which Trusted
+// Types blocks in production. Split text in React instead.
+const animeMessage =
+  "This part of anime.js writes innerHTML and breaks under Trusted Types; split text in React.";
+const animeUnsafeExports = [
+  {
+    name: "animejs",
+    importNames: [
+      "text",
+      "split",
+      "splitText",
+      "scrambleText",
+      "TextSplitter",
+      "onScroll",
+      "ScrollObserver",
+    ],
+    message: animeMessage,
+  },
+];
+const animeUnsafeModules = [
+  { group: ["animejs/text", "animejs/events"], message: animeMessage },
+];
+
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -53,11 +76,15 @@ export default defineConfig([
       "no-eval": "error",
       "no-new-func": "error",
       "no-script-url": "error",
+      "no-restricted-imports": [
+        "error",
+        { paths: animeUnsafeExports, patterns: animeUnsafeModules },
+      ],
       "@typescript-eslint/consistent-type-imports": "error",
     },
   },
   {
-    files: ["src/**/*.{ts,tsx}"],
+    files: ["src/**/*.{ts,tsx}", "design/prototype/**/*.{ts,tsx}"],
     extends: [reactHooks.configs.flat.recommended, reactRefresh.configs.vite],
     languageOptions: { globals: globals.browser },
   },
