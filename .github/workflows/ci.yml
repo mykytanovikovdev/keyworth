@@ -31,6 +31,8 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
+      # Worker tests run against Postgres from compose.yaml, as locally.
+      - run: npm run db:up
       - run: npm run check
       - name: Audit runtime dependencies
         run: npm audit --omit=dev --audit-level=high
@@ -49,6 +51,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium firefox webkit
+      - run: npm run db:up
       - run: npm run test:e2e
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ failure() }}
@@ -60,12 +63,7 @@ jobs:
   visual:
     name: Visual (screenshots in the Playwright image)
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    # The image that renders the committed baselines locally (npm run test:visual),
-    # pinned by digest. Keep in sync with scripts/visual.ts and @playwright/test.
-    container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf
-      options: --ipc=host
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -75,7 +73,10 @@ jobs:
           node-version-file: .nvmrc
           cache: npm
       - run: npm ci
-      - run: npx playwright test --config tests/visual/playwright.config.ts
+      - run: npm run db:up
+      # The same command as locally: Chromium runs in the pinned Playwright
+      # image (scripts/visual.ts), so screenshots match the committed baselines.
+      - run: npm run test:visual
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: ${{ failure() }}
         with:
@@ -107,11 +108,40 @@ jobs:
       - name: Scan every commit
         run: '"$RUNNER_TEMP/gitleaks" git --redact --no-banner --verbose .'
 
-  deploy:
-    name: Deploy to Cloudflare
-    # Only from main, and only after every check above has passed.
+  migrate:
+    name: Migrate the production database
+    # Only from main, and only after every check has passed. Runs before the
+    # new Worker is deployed, so migrations must stay backward compatible.
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     needs: [check, e2e, visual, gitleaks]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Apply migrations
+        env:
+          # The schema owner's connection string (Neon), never the Worker's role.
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # Without it, drizzle-kit would target the local default instead.
+          test -n "$DATABASE_URL" || { echo "::error::Set the DATABASE_URL repository secret"; exit 1; }
+          npm run db:migrate
+
+  deploy:
+    name: Deploy to Cloudflare
+    # Only from main, after every check has passed and the database is migrated.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: [migrate]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     concurrency:

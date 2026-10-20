@@ -41,8 +41,8 @@ npm run test:visual:update   # rewrite the baselines after an intended change
 Both need **Docker** running (the image is about 2 GB, downloaded on first use).
 The command builds the design-mode app, serves it on port 4174 against the
 local test database (`npm run db:up` first), starts the browser container and
-runs the tests. In CI the whole job runs inside the same image
-(`.github/workflows/ci.yml`, job `visual`).
+runs the tests. CI runs the same command (`.github/workflows/ci.yml`, job
+`visual`).
 
 After a failure, the report shows the expected, actual and diff images:
 `npx playwright show-report playwright-report/visual` (CI uploads it as an
@@ -55,7 +55,7 @@ artifact).
   taken on a laptop would never match CI. Every screenshot, local or CI, is
   rendered by Chromium inside `mcr.microsoft.com/playwright:v1.64.1-noble`,
   pinned by digest, on `linux/amd64` (emulated on Apple silicon).
-- **Locally, only the browser is in Docker.** `scripts/visual.ts` starts
+- **Only the browser is in Docker, locally and in CI.** `scripts/visual.ts` starts
   Playwright's browser server in the image and the tests connect to it; the web
   server and test runner stay on the host, so there is no `npm ci` inside a
   container. `exposeNetwork: "<loopback>"` lets the containerized browser open

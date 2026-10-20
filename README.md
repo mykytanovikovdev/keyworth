@@ -134,8 +134,9 @@ Every pull request and every push to `main` runs, on GitHub Actions:
   official Playwright Docker image and compared with committed baselines;
 - **gitleaks** over the full git history.
 
-A push to `main` deploys to Cloudflare **only after all of them pass**, then runs
-the header and browser smoke tests against the live site.
+A push to `main` applies database migrations and deploys to Cloudflare **only
+after all of them pass**, then runs the header and browser smoke tests against
+the live site.
 
 ### Dependencies
 
