@@ -9,20 +9,24 @@ import {
   RotateCcw,
   Search,
   Send,
+  Settings,
   TriangleAlert,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import {
   Badge,
   Button,
+  ButtonLink,
   Card,
   Dialog,
   DialogActions,
   DialogTrigger,
   IconButton,
+  KeyworthMark,
   showToast,
   Skeleton,
   TextField,
+  TextLink,
   ThemeToggle,
   useTheme,
 } from "../index.ts";
@@ -255,6 +259,17 @@ function Buttons() {
           <ArrowUp />
         </IconButton>
       </Row>
+      <Row label="Links">
+        <ButtonLink
+          href="/design#buttons"
+          icon={<Settings aria-hidden="true" />}
+        >
+          Open settings
+        </ButtonLink>
+        <span className="text-sm text-fg-muted">
+          Read the <TextLink href="/design#buttons">privacy policy</TextLink>.
+        </span>
+      </Row>
     </div>
   );
 }
@@ -446,17 +461,23 @@ const iconSamples: [string, ReactNode][] = [
 
 function Icons() {
   return (
-    <ul className="flex flex-wrap gap-x-6 gap-y-4">
-      {iconSamples.map(([name, icon]) => (
-        <li
-          key={name}
-          className="flex items-center gap-2 text-xs text-fg-muted"
-        >
-          <span className="text-fg">{icon}</span>
-          {name}
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-4">
+      <Row label="Mark">
+        <KeyworthMark />
+        <KeyworthMark className="size-10" />
+      </Row>
+      <ul className="flex flex-wrap gap-x-6 gap-y-4">
+        {iconSamples.map(([name, icon]) => (
+          <li
+            key={name}
+            className="flex items-center gap-2 text-xs text-fg-muted"
+          >
+            <span className="text-fg">{icon}</span>
+            {name}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -539,7 +560,7 @@ export default function DesignSystemPage() {
         <Section
           id="buttons"
           title="Buttons"
-          description="One primary action per view. Labels are verbs that say what happens."
+          description="One primary action per view. Labels are verbs that say what happens. Links that navigate can look like buttons."
         >
           <Buttons />
         </Section>
@@ -596,8 +617,8 @@ export default function DesignSystemPage() {
         </Section>
         <Section
           id="icons"
-          title="Icons"
-          description="Lucide at a 1.75 stroke. Decorative icons are hidden from screen readers."
+          title="Mark and icons"
+          description="The Keyworth mark, then Lucide icons at a 1.75 stroke. Decorative icons are hidden from screen readers."
         >
           <Icons />
         </Section>

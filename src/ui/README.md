@@ -23,7 +23,7 @@ phase 4, and take their colors from the tokens below).
 | `styles.css`                   | Maps tokens to Tailwind utilities, removes Tailwind's defaults, keyframes |
 | `theme.ts`                     | The user's theme choice and the theme on screen, as React hooks           |
 | `../../public/theme-init.js`   | Sets the theme before the first paint (not bundled, see below)            |
-| `UIProvider.tsx`               | English for React Aria's built-in strings, default icon size and stroke   |
+| `UIProvider.tsx`               | English for React Aria's strings, icon defaults, links through the router |
 | `components/`                  | Base components, mostly thin styling layers over React Aria Components    |
 | `toast.ts`                     | The toast queue and `showToast()`, callable from anywhere                 |
 | `motion.ts`                    | anime.js helpers for charts and choreographed reveals                     |
@@ -175,6 +175,14 @@ and form controls match.
 | `Tooltip`                 | React Aria `Tooltip`   | Hover and keyboard focus only; never the only label                     |
 | `Skeleton`                | `div`                  | Hidden from screen readers; mark the region `aria-busy`                 |
 | `ThemeToggle`             | `ToggleButtonGroup`    | Icons in the header, icons with text in settings                        |
+| `ButtonLink`              | React Aria `Link`      | Navigation that reads as an action; the same variants as `Button`       |
+| `TextLink`                | React Aria `Link`      | Inline link in running text, always underlined                          |
+| `KeyworthMark`            | `svg`                  | The app's mark (a keyhole on the accent); decorative                    |
+
+Links are React Aria `Link`s, so they share the buttons' hover, press and
+focus states. `UIProvider` receives the app router's `navigate`, which keeps
+`src/ui` independent of the router while links still navigate without a page
+load.
 
 States come from React Aria's data attributes (`data-hovered`,
 `data-pressed`, `data-focus-visible`, `data-disabled`) rather than CSS

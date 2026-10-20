@@ -1,13 +1,11 @@
 // The design system's public surface. Import from "src/ui", not from files inside it.
 export { Badge, type BadgeTone } from "./components/Badge.tsx";
-export {
-  Button,
-  IconButton,
-  type ButtonSize,
-  type ButtonVariant,
-} from "./components/Button.tsx";
+export { Button, IconButton } from "./components/Button.tsx";
+export type { ButtonSize, ButtonVariant } from "./components/button-styles.ts";
 export { Card, type CardTone } from "./components/Card.tsx";
 export { Dialog, DialogActions, DialogTrigger } from "./components/Dialog.tsx";
+export { KeyworthMark } from "./components/KeyworthMark.tsx";
+export { ButtonLink, TextLink } from "./components/Link.tsx";
 export { Skeleton } from "./components/Skeleton.tsx";
 export { TextField } from "./components/TextField.tsx";
 export { ThemeToggle } from "./components/ThemeToggle.tsx";
