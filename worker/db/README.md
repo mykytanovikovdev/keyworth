@@ -117,12 +117,22 @@ apply it with `npm run db:migrate`, and add tests.
 
 **Production setup (once):**
 
-1. A Neon project on Postgres 18 in AWS Frankfurt (`aws-eu-central-1`).
-2. A `keyworth_app` role (Neon console) and the owner's connection string for
-   migrations, stored as the `DATABASE_URL` GitHub secret.
-3. `npx wrangler hyperdrive create keyworth --connection-string="<keyworth_app's connection string>" --caching-disabled`,
-   then put the returned id into `wrangler.jsonc`.
-4. Invite people: `DATABASE_URL="<owner connection string>" npm run allowlist -- add <email>`.
+1. A Neon project on Postgres 18 in AWS Frankfurt (`aws-eu-central-1`), with a
+   database named `keyworth`.
+2. The `keyworth_app` role, created **with SQL** as the owner in Neon's SQL
+   editor, not in the console:
+   `CREATE ROLE keyworth_app WITH LOGIN PASSWORD '<random>'; GRANT CONNECT ON DATABASE keyworth TO keyworth_app;`.
+   Roles created in the console join `neon_superuser`, which brings
+   `GRANT ALL` on the tables of `public`, and the restriction would be lost.
+3. The owner's direct (not pooled) connection string as the `DATABASE_URL`
+   GitHub secret: CI applies migrations with it before each deploy.
+4. A Hyperdrive configuration with `keyworth_app`'s direct connection string
+   and caching disabled (dashboard, or
+   `npx wrangler hyperdrive create keyworth --connection-string="…" --caching-disabled`);
+   its id goes into `wrangler.jsonc`. Neon's own pooler is not needed:
+   Hyperdrive pools.
+5. After the first deploy, invite people:
+   `DATABASE_URL="<owner connection string>" npm run allowlist -- add <email>`.
 
 ## Related
 
