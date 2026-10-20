@@ -15,6 +15,8 @@ const PAGE_HEADERS = {
   "cross-origin-resource-policy": "same-origin",
   "x-frame-options": "DENY",
   "x-robots-tag": "noindex, nofollow",
+  // no-transform: Cloudflare must not inject scripts (analytics) into pages.
+  "cache-control": "public, max-age=0, must-revalidate, no-transform",
 };
 
 const WORKER_HEADERS = {
@@ -89,7 +91,7 @@ test.describe("static files", () => {
 
     expect(response.status()).toBe(200);
     expect(response.headers()["cache-control"]).toBe(
-      "public, max-age=31536000, immutable",
+      "public, max-age=31536000, immutable, no-transform",
     );
     expectHeaders(response, {
       "x-content-type-options": "nosniff",
