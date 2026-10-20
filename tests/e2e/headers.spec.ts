@@ -137,6 +137,16 @@ test.describe("API", () => {
     expectHeaders(response, WORKER_HEADERS);
   });
 
+  test("GET /api/me without a session is refused with the Worker headers", async ({
+    request,
+  }) => {
+    const response = await request.get("/api/me");
+
+    expect(response.status()).toBe(401);
+    expect(await response.json()).toEqual({ error: "unauthorized" });
+    expectHeaders(response, WORKER_HEADERS);
+  });
+
   test("a navigation to an unknown /api path reaches the Worker, not the SPA", async ({
     request,
   }) => {
@@ -145,8 +155,9 @@ test.describe("API", () => {
       headers: NAVIGATION,
     });
 
-    expect(response.status()).toBe(404);
-    expect(await response.json()).toEqual({ error: "not_found" });
+    // Deny by default: without a session, an unknown route looks protected.
+    expect(response.status()).toBe(401);
+    expect(await response.json()).toEqual({ error: "unauthorized" });
     expectHeaders(response, WORKER_HEADERS);
   });
 });

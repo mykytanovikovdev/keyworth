@@ -8,13 +8,13 @@ the SPA or the Worker.
 
 ## How it works
 
-| File                      | Role                                                                  |
-| ------------------------- | --------------------------------------------------------------------- |
-| `check-licenses.ts`       | CLI: reads `package-lock.json`, prints violations, exits non-zero     |
-| `license-policy.ts`       | The policy (allowlists, exceptions) and pure functions to evaluate it |
-| `visual.ts`               | Runs `tests/visual` with Chromium inside the Playwright Docker image  |
-| `allowlist.ts`            | `npm run allowlist`: list, add or remove invited emails               |
-| `generate-auth-schema.ts` | `npm run db:auth-schema`: regenerates Better Auth's tables            |
+| File                      | Role                                                                      |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `check-licenses.ts`       | CLI: reads `package-lock.json`, prints violations, exits non-zero         |
+| `license-policy.ts`       | The policy (allowlists, exceptions) and pure functions to evaluate it     |
+| `visual.ts`               | Runs `tests/visual` with Chromium in the Playwright image, here and in CI |
+| `allowlist.ts`            | `npm run allowlist`: list, add or remove invited emails                   |
+| `generate-auth-schema.ts` | `npm run db:auth-schema`: regenerates Better Auth's tables                |
 
 The check walks every entry in `package-lock.json` (lockfile v3 records each
 package's `license` field and whether it is a dev-only dependency), parses the

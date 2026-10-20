@@ -192,8 +192,8 @@ props.
 
 ### The `/design` page
 
-`src/App.tsx` renders it at `/design` only when `import.meta.env.DEV` is true
-or the build runs with `--mode design`. In a production build the condition is
+`src/routes/router.tsx` adds the `/design` route only when
+`import.meta.env.DEV` is true or the build runs with `--mode design`. In a production build the condition is
 the constant `false`, so the page's code is not even in the bundle
 (`tests/e2e/app.spec.ts` checks the page is absent). The design build goes to
 `dist-design/` and is what the visual, accessibility and CSP tests run against.

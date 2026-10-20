@@ -82,6 +82,19 @@ export default defineConfig([
         { paths: animeUnsafeExports, patterns: animeUnsafeModules },
       ],
       "@typescript-eslint/consistent-type-imports": "error",
+      // TanStack Router's redirect() is thrown by design (a Response, not an Error).
+      "@typescript-eslint/only-throw-error": [
+        "error",
+        {
+          allow: [
+            {
+              from: "package",
+              package: "@tanstack/router-core",
+              name: "Redirect",
+            },
+          ],
+        },
+      ],
     },
   },
   {

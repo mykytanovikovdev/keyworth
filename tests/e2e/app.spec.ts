@@ -25,10 +25,12 @@ for (const colorScheme of ["light", "dark"] as const) {
       await page.emulateMedia({ colorScheme });
       await page.setViewportSize({ width, height: 900 });
 
+      // Signed out, the app sends every page to sign-in.
       await page.goto("/");
 
+      await expect(page).toHaveURL(/\/sign-in$/);
       await expect(
-        page.getByRole("heading", { level: 1, name: "Keyworth" }),
+        page.getByRole("heading", { level: 1, name: "Sign in to Keyworth" }),
       ).toBeVisible();
       const violations = await cspViolations(page);
       const state = await page.evaluate(
@@ -71,11 +73,11 @@ for (const colorScheme of ["light", "dark"] as const) {
 test("the design system page is not part of the production build", async ({
   page,
 }) => {
-  // /design falls back to the app shell, which has no such page outside design mode.
+  // /design falls back to the app shell, which has no such route outside design mode.
   await page.goto("/design");
 
   await expect(
-    page.getByRole("heading", { level: 1, name: "Keyworth" }),
+    page.getByRole("heading", { level: 1, name: "Page not found" }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Design system" }),

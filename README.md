@@ -130,7 +130,7 @@ Every pull request and every push to `main` runs, on GitHub Actions:
 - **end-to-end tests** in three browser engines against the production build,
   and against the `/design` page with every UI component (CSP, keyboard, themes,
   axe accessibility checks);
-- **visual tests**: screenshots of `/design` in both themes, rendered in the
+- **visual tests**: screenshots of `/design`, sign-in and settings in both themes, rendered in the
   official Playwright Docker image and compared with committed baselines;
 - **gitleaks** over the full git history.
 

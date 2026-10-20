@@ -11,7 +11,8 @@ details.
 | [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes and headers, Google sign-in, isolation   |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
 |                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe    |
-| [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design` against committed baselines   |
+|                                         |                   | the same, with the local test database                 | Sign-in pages, sign-out, account deletion              |
+| [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design`, sign-in and settings         |
 
 Planned, each arriving with the code it tests:
 
@@ -56,7 +57,8 @@ in the table above.
 
 - Each test folder has its own `tsconfig.json` because runtimes differ (workerd,
   Node, browser); a type that exists in one may not exist in another.
-  Node-side helpers shared by several folders (the test database setup) live in
-  `support/`.
+  Node-side helpers shared by several folders live in `support/`: the test
+  database setup, and signed-in sessions for browser tests created with Better
+  Auth's `testUtils` plugin.
 - Tests must not depend on order or on shared state; workerd storage is isolated
   per test by the pool.

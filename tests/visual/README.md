@@ -7,11 +7,18 @@ at the difference and accepted it.
 
 ## What is covered (and what is not)
 
-Covered (`design.spec.ts`, Chromium):
+Covered (Chromium):
+
+`design.spec.ts`:
 
 - the whole `/design` page, light and dark, at 390 px and 1440 px;
 - an open dialog over the page, in the same four combinations;
 - a toast, in both themes.
+
+`app.spec.ts`, light and dark, at 390 px and 1440 px:
+
+- sign-in, with the "not on the invite list" message;
+- settings, for a signed-in user with a fixed name and email.
 
 Not covered here:
 
@@ -22,7 +29,7 @@ Not covered here:
   reference.
 - **Hover and animation frames.** Screenshots use reduced motion, so every
   element is in its final state. Motion was reviewed by eye in phase 1.
-- **App screens.** They join this suite as they are built.
+- **Other app screens.** They join this suite as they are built.
 
 ## How to run
 
@@ -32,9 +39,10 @@ npm run test:visual:update   # rewrite the baselines after an intended change
 ```
 
 Both need **Docker** running (the image is about 2 GB, downloaded on first use).
-The command builds the design-mode app, serves it on port 4174, starts the
-browser container and runs the tests. In CI the whole job runs inside the same
-image (`.github/workflows/ci.yml`, job `visual`).
+The command builds the design-mode app, serves it on port 4174 against the
+local test database (`npm run db:up` first), starts the browser container and
+runs the tests. In CI the whole job runs inside the same image
+(`.github/workflows/ci.yml`, job `visual`).
 
 After a failure, the report shows the expected, actual and diff images:
 `npx playwright show-report playwright-report/visual` (CI uploads it as an
@@ -55,7 +63,9 @@ artifact).
 - **Deterministic pages.** Reduced motion (all motion tokens are 0), fonts
   awaited with `document.fonts.ready`, the theme chosen through the stored
   preference rather than color-scheme emulation, and no live data: `/design`
-  uses fixed sample values.
+  uses fixed sample values, and signed-in pages use a session created in the
+  test database (`tests/support/session.ts`) for a user whose name and email
+  are the same on every run.
 - **One file per screenshot.** `snapshotPathTemplate` drops the OS suffix
   Playwright adds by default (every run renders on Linux), so baselines live in
   `__screenshots__/` with readable names such as `design-dark-390.png`.

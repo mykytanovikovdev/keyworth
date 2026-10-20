@@ -1,5 +1,7 @@
 import { resolve } from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+import { TEST_DATABASE_URL } from "../support/database.ts";
+import { testServerVars } from "../support/session.ts";
 
 // Screenshot comparison of /design. Baselines are rendered by Chromium inside
 // the official Playwright Linux image, so they match pixel for pixel on any
@@ -18,6 +20,8 @@ export default defineConfig({
   outputDir: resolve(root, "test-results/visual"),
   // One baseline per screenshot: no OS suffix, because every run renders on Linux.
   snapshotPathTemplate: "{testDir}/__screenshots__/{arg}{ext}",
+  // Signed-in pages use sessions created in the local test database.
+  globalSetup: "../support/e2e-setup.ts",
   forbidOnly: isCI,
   reporter: isCI
     ? [
@@ -42,7 +46,11 @@ export default defineConfig({
     }),
   },
   webServer: {
-    command: "npm run build:design && npm run preview:design",
+    command: `npm run build:design && npm run preview:design -- ${testServerVars(url)}`,
+    env: {
+      CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE:
+        TEST_DATABASE_URL,
+    },
     cwd: root,
     url: `${url}/api/health`,
     reuseExistingServer: !isCI,
