@@ -45,12 +45,13 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
    └──► Anthropic API (Claude Haiku)                           (planned)
 ```
 
-| Layer    | Choice                                                                                                                    |
-| -------- | ------------------------------------------------------------------------------------------------------------------------- |
-| Frontend | React 19, Vite 8, TypeScript (strict)                                                                                     |
-| API      | Hono on Cloudflare Workers; static files via Workers Assets                                                               |
-| Tests    | Vitest (Node and workerd), Playwright (Chromium, Firefox, WebKit)                                                         |
-| Planned  | TanStack Router/Query, Tailwind CSS, AI SDK with Claude Haiku, Better Auth (Google), Neon + Drizzle, WebCrypto + Argon2id |
+| Layer    | Choice                                                                                                      |
+| -------- | ----------------------------------------------------------------------------------------------------------- |
+| Frontend | React 19, Vite 8, TypeScript (strict)                                                                       |
+| UI       | Tailwind CSS 4 on semantic tokens, React Aria Components, Lucide icons, anime.js, the Onest font            |
+| API      | Hono on Cloudflare Workers; static files via Workers Assets                                                 |
+| Tests    | Vitest (Node and workerd), Playwright (Chromium, Firefox, WebKit), axe, screenshots in Docker               |
+| Planned  | TanStack Router/Query, AI SDK with Claude Haiku, Better Auth (Google), Neon + Drizzle, WebCrypto + Argon2id |
 
 ## Getting started
 
@@ -75,13 +76,17 @@ For end-to-end tests, install the browsers once:
 | `npm run preview`            | Serve the production build locally in workerd                             |
 | `npm run check`              | Format, lint, types, Worker types, tests, licenses, build — before "done" |
 | `npm test`                   | Unit (Node) and Worker (workerd) tests                                    |
-| `npm run test:e2e`           | Playwright against a fresh production build                               |
+| `npm run test:e2e`           | Playwright against fresh production and design builds                     |
+| `npm run test:visual`        | Screenshots of `/design` against the baselines (needs Docker)             |
+| `npm run test:visual:update` | Rewrite the screenshot baselines after an intended change                 |
 | `npm run lint`               | ESLint, including the project's security rules                            |
 | `npm run format`             | Prettier                                                                  |
 | `npm run typecheck`          | TypeScript project references                                             |
 | `npm run licenses`           | Dependency license check                                                  |
 | `npm run cf:types`           | Regenerate Worker types after changing `wrangler.jsonc`                   |
 | `npm run hooks:install`      | Install git hooks                                                         |
+| `npm run build:design`       | Build with the `/design` page into `dist-design/`                         |
+| `npm run preview:design`     | Serve the design build locally (port 4174)                                |
 | `npm run design:screenshots` | Screenshots of the design prototype (see [design](design/README.md))      |
 | `npm run design:videos`      | Recordings of the prototype animations                                    |
 | `npm run deploy`             | Build and deploy manually (CI normally does this)                         |
@@ -89,19 +94,19 @@ For end-to-end tests, install the browsers once:
 ## Project structure
 
 ```
-src/        React SPA
+src/        React SPA; src/ui/ is the design system
 worker/     Cloudflare Worker (Hono): API and security headers
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
-scripts/    project tooling (license check)
-tests/      unit/, integration/ (workerd), e2e/ (Playwright)
+scripts/    project tooling (license check, visual test runner)
+tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 .github/    CI, deployment and Dependabot
 ```
 
 Every major folder has its own README explaining what it does, why it is built
-that way, and its pitfalls: [worker](worker/README.md), [design](design/README.md),
-[scripts](scripts/README.md),
-[tests](tests/README.md).
+that way, and its pitfalls: [design system](src/ui/README.md),
+[worker](worker/README.md), [design](design/README.md),
+[scripts](scripts/README.md), [tests](tests/README.md).
 
 ## Quality gates
 
@@ -110,7 +115,11 @@ Every pull request and every push to `main` runs, on GitHub Actions:
 - **`npm run check`** — formatting, lint, types, stale Worker types, unit and
   Worker tests, license check, production build; plus `npm audit` for runtime
   dependencies;
-- **end-to-end tests** in three browser engines against the production build;
+- **end-to-end tests** in three browser engines against the production build,
+  and against the `/design` page with every UI component (CSP, keyboard, themes,
+  axe accessibility checks);
+- **visual tests**: screenshots of `/design` in both themes, rendered in the
+  official Playwright Docker image and compared with committed baselines;
 - **gitleaks** over the full git history.
 
 A push to `main` deploys to Cloudflare **only after all of them pass**, then runs
@@ -142,7 +151,8 @@ see, and what it does not protect against — will be documented in
 
 **Web hardening (in place).** A cross-site scripting bug would mean key theft, so
 the page runs under a strict Content Security Policy (`default-src 'none'`,
-same-origin scripts and styles only, no inline code), Trusted Types, cross-origin
+same-origin scripts and styles only, no inline scripts; the only inline styles
+allowed are two fixed blocks from the UI library, by hash), Trusted Types, cross-origin
 isolation, HSTS and a deny-by-default Permissions Policy. Details and the
 reasoning behind each header are in [worker/README.md](worker/README.md); the e2e
 suite asserts every value.

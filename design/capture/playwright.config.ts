@@ -34,7 +34,7 @@ export default defineConfig({
   webServer: {
     command: `npx vite --port ${String(port)} --strictPort`,
     cwd: resolve(import.meta.dirname, "../.."),
-    url: `http://localhost:${String(port)}/design/`,
+    url: `http://localhost:${String(port)}/design/prototype/`,
     reuseExistingServer: true,
     timeout: 120_000,
   },

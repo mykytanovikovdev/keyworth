@@ -1,10 +1,20 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// Set PLAYWRIGHT_BASE_URL to run the same suite against a deployed site
-// (the post-deploy smoke test in CI). Otherwise a local production build is used.
+// Set PLAYWRIGHT_BASE_URL to run the production checks against a deployed site
+// (the post-deploy smoke test in CI). Otherwise local builds are used.
 const remoteBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
-const localPort = 4173;
 const isCI = Boolean(process.env.CI);
+
+// Each build is served by `wrangler dev` from its own output config, so the two
+// servers can run side by side (`vite preview` serves whichever build ran last).
+const productionUrl = remoteBaseUrl ?? "http://localhost:4173";
+const designUrl = "http://localhost:4174";
+
+const desktopBrowsers = [
+  ["chromium", devices["Desktop Chrome"]],
+  ["firefox", devices["Desktop Firefox"]],
+  ["webkit", devices["Desktop Safari"]],
+] as const;
 
 export default defineConfig({
   testDir: "tests/e2e",
@@ -12,38 +22,53 @@ export default defineConfig({
   retries: isCI ? 1 : 0,
   reporter: isCI ? [["github"], ["html", { open: "never" }]] : "list",
   use: {
-    baseURL: remoteBaseUrl ?? `http://localhost:${String(localPort)}`,
+    baseURL: productionUrl,
     trace: "retain-on-failure",
   },
   projects: [
-    // HTTP-level checks: no browser needed.
+    // The production build. HTTP-level checks need no browser.
     { name: "headers", testMatch: "headers.spec.ts" },
-    {
-      name: "chromium",
+    ...desktopBrowsers.map(([name, device]) => ({
+      name,
       testMatch: "app.spec.ts",
-      use: { ...devices["Desktop Chrome"] },
-    },
-    {
-      name: "firefox",
-      testMatch: "app.spec.ts",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      testMatch: "app.spec.ts",
-      use: { ...devices["Desktop Safari"] },
-    },
+      use: { ...device },
+    })),
+    // The design-mode build: every src/ui component on /design.
+    ...(remoteBaseUrl
+      ? []
+      : [
+          ...desktopBrowsers.map(([name, device]) => ({
+            name: `design-${name}`,
+            testMatch: "design-system.spec.ts",
+            grepInvert: /@ios/,
+            use: { ...device, baseURL: designUrl },
+          })),
+          {
+            name: "design-iphone",
+            testMatch: "design-system.spec.ts",
+            grep: /@ios/,
+            use: { ...devices["iPhone 15"], baseURL: designUrl },
+          },
+        ]),
   ],
-  // The production build served by workerd: the only place where the real
-  // headers and CSP apply (there is no CSP in `vite dev`).
+  // Production headers and CSP apply only to built output served by workerd
+  // (there is no CSP in `vite dev`).
   ...(remoteBaseUrl
     ? {}
     : {
-        webServer: {
-          command: `npm run build && npm run preview -- --port ${String(localPort)} --strictPort`,
-          url: `http://localhost:${String(localPort)}`,
-          reuseExistingServer: !isCI,
-          timeout: 120_000,
-        },
+        webServer: [
+          {
+            command: "npm run build && npm run preview",
+            url: `${productionUrl}/api/health`,
+            reuseExistingServer: !isCI,
+            timeout: 120_000,
+          },
+          {
+            command: "npm run build:design && npm run preview:design",
+            url: `${designUrl}/api/health`,
+            reuseExistingServer: !isCI,
+            timeout: 120_000,
+          },
+        ],
       }),
 });

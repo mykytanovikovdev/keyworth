@@ -7,7 +7,9 @@ const SCREENS = ["empty", "chat", "portfolio", "unlock"] as const;
 const WIDTHS = [390, 1440] as const;
 
 async function open(page: Page, theme: string, screen: string) {
-  await page.goto(`/design/?theme=${theme}&screen=${screen}&chrome=0`);
+  await page.goto(
+    `/design/prototype/?theme=${theme}&screen=${screen}&chrome=0`,
+  );
   await page.evaluate(() => document.fonts.ready);
 }
 

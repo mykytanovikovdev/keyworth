@@ -4,7 +4,7 @@ import { expect, test, type APIResponse } from "@playwright/test";
 // public/_headers or worker/security-headers.ts: the test must catch wrong values.
 const PAGE_HEADERS = {
   "content-security-policy":
-    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types 'none'",
+    "default-src 'none'; script-src 'self'; style-src 'self' 'sha256-38RhXrc7EdReTKsOm23ZPOCUgniTUUcjky8QOOrQx6o=' 'sha256-gYiS/BvZvRcK27JIXTuwhZ3hs2+VJ1X+2gUlE+farlg='; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types 'none'",
   "strict-transport-security": "max-age=63072000; includeSubDomains; preload",
   "x-content-type-options": "nosniff",
   "referrer-policy": "same-origin",
@@ -116,7 +116,9 @@ test.describe("static files", () => {
     request,
   }) => {
     // Unknown paths fall back to the app shell; the prototype page must never ship.
-    const response = await request.get("/design/", { headers: NAVIGATION });
+    const response = await request.get("/design/prototype/", {
+      headers: NAVIGATION,
+    });
     const html = await response.text();
 
     expect(html).toContain('<div id="root">');

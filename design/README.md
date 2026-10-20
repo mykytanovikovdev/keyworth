@@ -9,6 +9,12 @@ light and dark, used to choose a direction before the design system is built in
 The prototype is a review tool, not product code. It is excluded from the
 production build and never deployed.
 
+**The design system now lives in [`src/ui/`](../src/ui/README.md)**, which is
+the source of truth for tokens and components. The prototype keeps its own copy
+of the tokens as they were when the direction was chosen, and is kept for now as
+a reference for the chat screens (agent steps, streamed answer, chart, trade
+confirmation) in phases 5–7. Whether it stays after that is decided later.
+
 ## Design brief
 
 - **Audience.** A few private investors (the owner and friends) who check their
@@ -50,7 +56,7 @@ folder if a comparison is ever needed.
 
 | Path                   | Role                                                                   |
 | ---------------------- | ---------------------------------------------------------------------- |
-| `index.html`           | Dev-only Vite entry, served at `/design/` by `npm run dev`             |
+| `prototype/index.html` | Dev-only Vite entry, served at `/design/prototype/` by `npm run dev`   |
 | `prototype/tokens.css` | Every raw value: colors per theme, fonts, radii, motion                |
 | `prototype/styles.css` | Maps tokens to Tailwind utilities; removes the default palette         |
 | `prototype/motion.ts`  | anime.js helpers: chart line and fill, bar fill, staggered reveals     |
@@ -58,7 +64,7 @@ folder if a comparison is ever needed.
 | `prototype/screens/`   | New chat, conversation, portfolio, unlock                              |
 | `capture/`             | Playwright config that writes screenshots and videos to `screenshots/` |
 
-- **The URL is the state:** `/design/?theme=dark&screen=portfolio`.
+- **The URL is the state:** `/design/prototype/?theme=dark&screen=portfolio`.
   Add `&chrome=0` to hide the prototype controls.
 - **The conversation is a scripted scene:** the question, two tool steps, a streamed
   answer, a chart, a second question and the confirmation card, phase by phase.
@@ -88,8 +94,8 @@ folder if a comparison is ever needed.
   real, and the chosen variant's tokens and components move straight into
   `src/ui/`.
 - **Tokens only.** The default Tailwind palette, fonts and radii are removed, so
-  a component cannot use a raw color. `tests/unit/design-tokens.test.ts` checks
-  WCAG AA contrast for every text and background pair, in both themes.
+  a component cannot use a raw color. The same tokens, now in `src/ui/tokens.css`,
+  are checked for WCAG AA contrast by `tests/unit/design-tokens.test.ts`.
 - **Chart colors.** A validated categorical palette: adjacent pairs stay
   distinguishable under color-vision deficiency, and a color follows the asset,
   never its rank. Three slots fall below 3:1 against the light background, so
@@ -104,8 +110,11 @@ folder if a comparison is ever needed.
   its two modules that write `innerHTML` (text splitting, scroll debug markers) are
   banned by an ESLint rule, and text is split in React instead.
 - **UI primitives for the next step.** Radix was rejected after reading its
-  source: its dialog's scroll lock injects a `<style>` tag, which our nonce-free
-  CSP blocks. React Aria has no such injection and will be used in `src/ui/`.
+  source: its dialog's scroll lock injects a `<style>` tag with content that
+  depends on the scrollbar width, which our nonce-free CSP cannot allow. React
+  Aria, used in `src/ui/`, injects two `<style>` tags too, but with fixed text,
+  so the CSP allows exactly those by hash (details in
+  [src/ui/README.md](../src/ui/README.md)).
 
 ## Pitfalls & gotchas
 
@@ -115,8 +124,8 @@ folder if a comparison is ever needed.
 - **React's `style` prop is fine under our CSP** because React applies it through
   the CSSOM in the browser. The same markup rendered as HTML on a server would be
   blocked.
-- **Keep the selector form in `tokens.css` exactly as it is.** The contrast test
-  parses the `:root` and `:root[data-theme="dark"]` blocks.
+- **The prototype's tokens are a snapshot.** Changes to the design system go to
+  `src/ui/tokens.css`; the prototype's copy is not tested and not kept in sync.
 - **Use Chromium for captures.** Playwright's Firefox build on macOS ignores
   color-scheme emulation.
 - **Mock numbers are plain numbers,** used for display only. Real money uses
@@ -125,18 +134,18 @@ folder if a comparison is ever needed.
 ## How to work with it
 
 ```sh
-npm run dev                  # open http://localhost:5173/design/
+npm run dev                  # open http://localhost:5173/design/prototype/
 npm run design:screenshots   # 20 PNGs: 4 screens × 2 themes × 2 widths, plus the top of the chat
 npm run design:videos        # WebM recordings of the animated scenes in both themes
 ```
 
 Output goes to `design/screenshots/`, which is not committed.
 
-To try a token change, edit `prototype/tokens.css`, then run
-`npx vitest run --project unit` to check contrast.
+To try a visual idea in the context of a whole screen, edit the prototype; to
+change the product, edit `src/ui/` (see its README).
 
 ## Related
 
 - [Root README](../README.md)
+- [Design system](../src/ui/README.md): what this exploration turned into
 - [Unit tests](../tests/unit/README.md): contrast check of the tokens
-- `src/ui/README.md`: the design system that follows from this exploration

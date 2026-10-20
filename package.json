@@ -11,7 +11,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "wrangler dev --config dist/keyworth/wrangler.json --port 4173",
+    "build:design": "vite build --mode design",
+    "preview:design": "wrangler dev --config dist-design/keyworth/wrangler.json --port 4174",
     "typecheck": "tsc -b",
     "cf:types": "wrangler types",
     "deploy": "npm run build && wrangler deploy",
@@ -24,6 +26,8 @@
     "cf:types:check": "wrangler types --check",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run cf:types:check && npm test && npm run licenses && npm run build",
     "test:e2e": "playwright test",
+    "test:visual": "node scripts/visual.ts",
+    "test:visual:update": "node scripts/visual.ts --update-snapshots",
     "hooks:install": "lefthook install",
     "design:screenshots": "playwright test -c design/capture/playwright.config.ts --project=screenshots",
     "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos"
@@ -35,10 +39,12 @@
     "hono": "4.13.13",
     "lucide-react": "1.59.0",
     "react": "19.3.1",
+    "react-aria-components": "1.22.1",
     "react-dom": "19.3.1",
     "tailwindcss": "4.3.3"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.13.0",
     "@cloudflare/vite-plugin": "1.64.0",
     "@cloudflare/vitest-plugin": "1.4.4",
     "@eslint/js": "10.0.1",

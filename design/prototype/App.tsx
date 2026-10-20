@@ -22,7 +22,7 @@ function pick<T extends string>(
 }
 
 // The URL is the state, so every combination can be linked and screenshotted:
-// /design/?theme=dark&screen=portfolio&chrome=0
+// /design/prototype/?theme=dark&screen=portfolio&chrome=0
 function readUrl() {
   const params = new URLSearchParams(window.location.search);
   return {

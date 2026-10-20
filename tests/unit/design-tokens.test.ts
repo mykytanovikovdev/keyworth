@@ -27,6 +27,11 @@ const REQUIRED_TOKENS = [
   "loss-soft",
   "warning",
   "warning-soft",
+  "series-1",
+  "series-2",
+  "series-3",
+  "series-4",
+  "series-5",
 ];
 
 // [foreground, backgrounds it appears on, minimum ratio]
@@ -34,7 +39,7 @@ const PAIRS: [string, string[], number][] = [
   ["fg", ["canvas", "surface", "raised", "hover", "bubble"], TEXT],
   ["fg-muted", ["canvas", "surface", "raised", "bubble"], TEXT],
   ["on-accent", ["accent"], TEXT],
-  ["accent", ["canvas", "surface", "raised"], TEXT],
+  ["accent", ["canvas", "surface", "raised", "accent-soft"], TEXT],
   ["line-strong", ["canvas", "surface", "raised"], UI],
   ["focus", ["canvas", "surface", "raised"], UI],
   ["gain", ["canvas", "surface", "raised", "gain-soft"], TEXT],
@@ -91,7 +96,7 @@ function contrast(a: string, b: string): number {
   return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
 }
 
-const blocks = parseBlocks(readFileSync("design/prototype/tokens.css", "utf8"));
+const blocks = parseBlocks(readFileSync("src/ui/tokens.css", "utf8"));
 
 describe.each(THEMES)("%s theme", (theme) => {
   const tokens = resolve(blocks, theme);
