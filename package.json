@@ -30,7 +30,12 @@
     "test:visual:update": "node scripts/visual.ts --update-snapshots",
     "hooks:install": "lefthook install",
     "design:screenshots": "playwright test -c design/capture/playwright.config.ts --project=screenshots",
-    "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos"
+    "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate",
+    "allowlist": "node scripts/allowlist.ts"
   },
   "dependencies": {
     "@fontsource-variable/onest": "5.3.1",

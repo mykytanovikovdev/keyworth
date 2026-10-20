@@ -2,8 +2,8 @@
 
 ## Purpose
 
-Small project tooling run by Node directly: the dependency license check and the
-local runner for visual tests. Not application code: nothing here is bundled into
+Small project tooling run by Node directly: the dependency license check, the
+local runner for visual tests and the invite list. Not application code: nothing here is bundled into
 the SPA or the Worker.
 
 ## How it works
@@ -13,6 +13,7 @@ the SPA or the Worker.
 | `check-licenses.ts` | CLI: reads `package-lock.json`, prints violations, exits non-zero     |
 | `license-policy.ts` | The policy (allowlists, exceptions) and pure functions to evaluate it |
 | `visual.ts`         | Runs `tests/visual` with Chromium inside the Playwright Docker image  |
+| `allowlist.ts`      | `npm run allowlist`: list, add or remove invited emails               |
 
 The check walks every entry in `package-lock.json` (lockfile v3 records each
 package's `license` field and whether it is a dev-only dependency), parses the
@@ -64,6 +65,9 @@ Rejected alternatives:
   genuinely compatible, add it to the right list with a row in the table above; for
   a one-off, add a `LICENSE_EXCEPTIONS` entry with the reason.
 - Tests: [`tests/unit/license-policy.test.ts`](../tests/unit/license-policy.test.ts).
+- `npm run allowlist -- add <email>` — targets `DATABASE_URL` when set, the local
+  database otherwise, and always prints which one first. See
+  [worker/db/README.md](../worker/db/README.md).
 - `npm run test:visual` / `npm run test:visual:update` — `visual.ts` starts the
   pinned Playwright image (as `linux/amd64`, like CI), serves its browser on
   `127.0.0.1:3123`, runs the tests on this machine against it, and removes the

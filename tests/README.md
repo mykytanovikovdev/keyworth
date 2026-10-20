@@ -8,7 +8,7 @@ details.
 | Folder                                  | Runner            | Runs in                                                | Covers                                                 |
 | --------------------------------------- | ----------------- | ------------------------------------------------------ | ------------------------------------------------------ |
 | [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic: license policy, design token contrast      |
-| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare)                                    | Worker routes, Worker security headers                 |
+| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes and headers                              |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
 |                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe    |
 | [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design` against committed baselines   |
@@ -31,6 +31,7 @@ in CI once phase 3 lands.
 ## How to run
 
 ```sh
+npm run db:up       # once: the local Postgres the Worker tests need (Docker)
 npm test            # all Vitest projects
 npm run test:watch  # Vitest in watch mode
 npm run test:e2e    # Playwright against fresh production and design builds
@@ -55,5 +56,7 @@ in the table above.
 
 - Each test folder has its own `tsconfig.json` because runtimes differ (workerd,
   Node, browser); a type that exists in one may not exist in another.
+  Node-side helpers shared by several folders (the test database setup) live in
+  `support/`.
 - Tests must not depend on order or on shared state; workerd storage is isolated
   per test by the pool.

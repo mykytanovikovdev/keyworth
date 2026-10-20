@@ -11,6 +11,18 @@
     // invoking the Worker — that breaks OAuth callbacks under /api/auth/*.
     "run_worker_first": ["/api/*"],
   },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      // Neon, created with `wrangler hyperdrive create --caching-disabled`
+      // (see worker/db/README.md). Placeholder until that config exists.
+      "id": "00000000000000000000000000000000",
+      // Local dev: the Postgres from compose.yaml, as the Worker's role.
+      // Tests and e2e point CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE
+      // at the test database instead.
+      "localConnectionString": "postgres://keyworth_app:keyworth_app@localhost:5433/keyworth",
+    },
+  ],
   "workers_dev": true,
   // Per-version preview URLs are public; we don't use them.
   "preview_urls": false,

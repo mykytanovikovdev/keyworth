@@ -1,0 +1,20 @@
+import { sql } from "drizzle-orm";
+import { check, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+
+/**
+ * Who may sign in: the closed beta's invite list. Emails are personal data, so
+ * the list lives here, never in code. Managed with `npm run allowlist`.
+ */
+export const allowedEmails = pgTable(
+  "allowed_emails",
+  {
+    email: text("email").primaryKey(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  // Stored lowercase, so lookups need no normalization at query time.
+  (table) => [
+    check("email_lowercase", sql`${table.email} = lower(${table.email})`),
+  ],
+);
