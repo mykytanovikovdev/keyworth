@@ -23,6 +23,18 @@
       "localConnectionString": "postgres://keyworth_app:keyworth_app@localhost:5433/keyworth",
     },
   ],
+  "vars": {
+    // Overridden locally by .dev.vars.
+    "BETTER_AUTH_URL": "https://keyworth.mykyta-novikov-dev.workers.dev",
+  },
+  // Set with `npx wrangler secret put <NAME>`; locally in .dev.vars.
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+    ],
+  },
   "workers_dev": true,
   // Per-version preview URLs are public; we don't use them.
   "preview_urls": false,

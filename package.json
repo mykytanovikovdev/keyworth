@@ -33,6 +33,7 @@
     "design:videos": "playwright test -c design/capture/playwright.config.ts --project=videos",
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
+    "db:auth-schema": "node scripts/generate-auth-schema.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "allowlist": "node scripts/allowlist.ts"

@@ -3,17 +3,18 @@
 ## Purpose
 
 Small project tooling run by Node directly: the dependency license check, the
-local runner for visual tests and the invite list. Not application code: nothing here is bundled into
+local runner for visual tests, the invite list and the auth schema generator. Not application code: nothing here is bundled into
 the SPA or the Worker.
 
 ## How it works
 
-| File                | Role                                                                  |
-| ------------------- | --------------------------------------------------------------------- |
-| `check-licenses.ts` | CLI: reads `package-lock.json`, prints violations, exits non-zero     |
-| `license-policy.ts` | The policy (allowlists, exceptions) and pure functions to evaluate it |
-| `visual.ts`         | Runs `tests/visual` with Chromium inside the Playwright Docker image  |
-| `allowlist.ts`      | `npm run allowlist`: list, add or remove invited emails               |
+| File                      | Role                                                                  |
+| ------------------------- | --------------------------------------------------------------------- |
+| `check-licenses.ts`       | CLI: reads `package-lock.json`, prints violations, exits non-zero     |
+| `license-policy.ts`       | The policy (allowlists, exceptions) and pure functions to evaluate it |
+| `visual.ts`               | Runs `tests/visual` with Chromium inside the Playwright Docker image  |
+| `allowlist.ts`            | `npm run allowlist`: list, add or remove invited emails               |
+| `generate-auth-schema.ts` | `npm run db:auth-schema`: regenerates Better Auth's tables            |
 
 The check walks every entry in `package-lock.json` (lockfile v3 records each
 package's `license` field and whether it is a dev-only dependency), parses the
@@ -68,6 +69,8 @@ Rejected alternatives:
 - `npm run allowlist -- add <email>` — targets `DATABASE_URL` when set, the local
   database otherwise, and always prints which one first. See
   [worker/db/README.md](../worker/db/README.md).
+- `npm run db:auth-schema` — runs Better Auth's CLI at the installed version
+  (not the newest on npm) and switches every timestamp to `with time zone`.
 - `npm run test:visual` / `npm run test:visual:update` — `visual.ts` starts the
   pinned Playwright image (as `linux/amd64`, like CI), serves its browser on
   `127.0.0.1:3123`, runs the tests on this machine against it, and removes the

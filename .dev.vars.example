@@ -1,3 +1,11 @@
-# Local Worker secrets. Copy to .dev.vars (never committed) and fill in values.
-# Production values are set with `npx wrangler secret put <NAME>`.
-# Variables are added here as features need them (database and auth in phase 2).
+# Local Worker secrets and overrides. Copy to .dev.vars (never committed) and
+# fill in values. Production values are set with `npx wrangler secret put <NAME>`.
+
+# The origin the browser uses locally (npm run dev).
+BETTER_AUTH_URL=http://localhost:5173
+# Signs session cookies. Generate one with: openssl rand -base64 32
+BETTER_AUTH_SECRET=
+# The Google OAuth client (Google Cloud console). Needed only to sign in with a
+# real Google account locally; automated tests use their own fake values.
+GOOGLE_CLIENT_ID=
+GOOGLE_CLIENT_SECRET=

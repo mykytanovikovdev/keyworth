@@ -36,31 +36,37 @@ Browser (React SPA) — keys, decrypted data, calculations and agent tools live 
    ▼
 Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat transit
    ├── /            static SPA (Workers Assets)
-   ├── /api/auth    sign-in with Google                        (planned)
+   ├── /api/auth    sign-in with Google, invite-only beta
    ├── /api/vault   encrypted records                          (planned)
    ├── /api/chat    pass-through to the model, never stored    (planned)
    └── /api/market  cached prices, not linked to users         (planned)
    │
-   ├──► PostgreSQL (Neon) — envelopes and service data only    (planned)
+   ├──► PostgreSQL (Neon, via Hyperdrive) — envelopes and service data only
    └──► Anthropic API (Claude Haiku)                           (planned)
 ```
 
-| Layer    | Choice                                                                                                      |
-| -------- | ----------------------------------------------------------------------------------------------------------- |
-| Frontend | React 19, Vite 8, TypeScript (strict)                                                                       |
-| UI       | Tailwind CSS 4 on semantic tokens, React Aria Components, Lucide icons, anime.js, the Onest font            |
-| API      | Hono on Cloudflare Workers; static files via Workers Assets                                                 |
-| Tests    | Vitest (Node and workerd), Playwright (Chromium, Firefox, WebKit), axe, screenshots in Docker               |
-| Planned  | TanStack Router/Query, AI SDK with Claude Haiku, Better Auth (Google), Neon + Drizzle, WebCrypto + Argon2id |
+| Layer    | Choice                                                                                            |
+| -------- | ------------------------------------------------------------------------------------------------- |
+| Frontend | React 19, Vite 8, TypeScript (strict)                                                             |
+| UI       | Tailwind CSS 4 on semantic tokens, React Aria Components, Lucide icons, anime.js, the Onest font  |
+| API      | Hono on Cloudflare Workers; static files via Workers Assets                                       |
+| Auth     | Better Auth: Google sign-in, database sessions, invite list                                       |
+| Data     | PostgreSQL 18 (Neon in production, Docker locally) through Hyperdrive, Drizzle ORM and migrations |
+| Tests    | Vitest (Node and workerd + Postgres), Playwright (Chromium, Firefox, WebKit), axe, screenshots    |
+| Planned  | TanStack Router/Query, AI SDK with Claude Haiku, WebCrypto + Argon2id                             |
 
 ## Getting started
 
-Requirements: Node 24 (see `.nvmrc`) and [gitleaks](https://github.com/gitleaks/gitleaks)
-for the pre-commit secret scan (`brew install gitleaks` on macOS).
+Requirements: Node 24 (see `.nvmrc`), Docker (local Postgres and visual tests)
+and [gitleaks](https://github.com/gitleaks/gitleaks) for the pre-commit secret
+scan (`brew install gitleaks` on macOS).
 
 ```sh
 npm ci                  # install exactly what package-lock.json says
 npm run hooks:install   # once per clone: git hooks (secret scan before commit)
+cp .dev.vars.example .dev.vars   # local secrets; fill in BETTER_AUTH_SECRET
+npm run db:up           # local Postgres 18 in Docker
+npm run db:migrate      # create the tables
 npm run dev             # SPA + Worker on one port, with hot reload
 ```
 
@@ -89,13 +95,19 @@ For end-to-end tests, install the browsers once:
 | `npm run preview:design`     | Serve the design build locally (port 4174)                                |
 | `npm run design:screenshots` | Screenshots of the design prototype (see [design](design/README.md))      |
 | `npm run design:videos`      | Recordings of the prototype animations                                    |
+| `npm run db:up` / `db:down`  | Start or stop the local Postgres (Docker)                                 |
+| `npm run db:migrate`         | Apply migrations (local, or `DATABASE_URL` when set)                      |
+| `npm run db:generate`        | Create a migration from schema changes                                    |
+| `npm run db:auth-schema`     | Regenerate Better Auth's tables after changing its options                |
+| `npm run allowlist`          | List, add or remove invited emails                                        |
 | `npm run deploy`             | Build and deploy manually (CI normally does this)                         |
 
 ## Project structure
 
 ```
 src/        React SPA; src/ui/ is the design system
-worker/     Cloudflare Worker (Hono): API and security headers
+worker/     Cloudflare Worker (Hono): API, sign-in, security headers; db/ is the database
+drizzle/    SQL migrations
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
 scripts/    project tooling (license check, visual test runner)
@@ -105,7 +117,7 @@ tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 
 Every major folder has its own README explaining what it does, why it is built
 that way, and its pitfalls: [design system](src/ui/README.md),
-[worker](worker/README.md), [design](design/README.md),
+[worker](worker/README.md), [database](worker/db/README.md), [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).
 
 ## Quality gates
@@ -148,6 +160,13 @@ record cannot be swapped for another user's or moved to another row. The full
 design and an honest threat model — what is protected, what the operator can still
 see, and what it does not protect against — will be documented in
 `src/crypto/README.md`.
+
+**Sign-in (in place).** Google accounts only, for an invite list kept in the
+database. Sessions live in the database and in an httpOnly, Secure, SameSite
+cookie, so signing out or deleting the account takes effect immediately.
+Keyworth stores the name and email from Google, never Google's access tokens or
+the avatar. Deleting the account requires a sign-in from the last 10 minutes.
+Details: [worker/README.md](worker/README.md).
 
 **Web hardening (in place).** A cross-site scripting bug would mean key theft, so
 the page runs under a strict Content Security Policy (`default-src 'none'`,

@@ -45,6 +45,13 @@ export default defineConfig({
             wrangler: { configPath: "./wrangler.jsonc" },
             miniflare: {
               hyperdrives: { HYPERDRIVE: TEST_DATABASE_URL },
+              // Test-only values: nothing here is a real credential.
+              bindings: {
+                BETTER_AUTH_URL: "https://keyworth.test",
+                BETTER_AUTH_SECRET: "integration-tests-only-0123456789abcdef",
+                GOOGLE_CLIENT_ID: "test-client-id.apps.googleusercontent.com",
+                GOOGLE_CLIENT_SECRET: "test-client-secret",
+              },
             },
           }),
         ],

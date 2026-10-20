@@ -8,7 +8,7 @@ details.
 | Folder                                  | Runner            | Runs in                                                | Covers                                                 |
 | --------------------------------------- | ----------------- | ------------------------------------------------------ | ------------------------------------------------------ |
 | [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic: license policy, design token contrast      |
-| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes and headers                              |
+| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes and headers, Google sign-in, isolation   |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
 |                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe    |
 | [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design` against committed baselines   |

@@ -6,8 +6,8 @@ The Worker's Postgres layer: the schema (Drizzle), the per-request database
 handle, migrations, the restricted role the Worker runs as, and the local
 database for development and tests.
 
-The database holds only what the server is allowed to see in plaintext: for
-now, the invite list; sign-in data arrives with authentication.
+The database holds only what the server is allowed to see in plaintext: the
+Google profile (name, email), sessions, the invite list and rate-limit counters.
 Financial data arrives in phase 3, and only as encrypted envelopes. Queries that
 belong to a feature live with that feature, not here.
 
@@ -18,15 +18,17 @@ production   Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Hyperdrive (
 local, tests Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Postgres 18 in Docker (compose.yaml), port 5433
 ```
 
-| File                         | Role                                                                 |
-| ---------------------------- | -------------------------------------------------------------------- |
-| `client.ts`                  | `connect()`: a Drizzle handle over a pg pool, one per request        |
-| `schema.ts`                  | All tables: `allowed_emails` for now                                 |
-| `local/init.sql`             | Creates the `keyworth_app` role and `keyworth_test` database locally |
-| `../../drizzle/`             | SQL migrations and drizzle-kit snapshots, committed                  |
-| `../../drizzle.config.ts`    | drizzle-kit settings; targets `DATABASE_URL` or the local database   |
-| `../../compose.yaml`         | Local Postgres, pinned by digest                                     |
-| `../../scripts/allowlist.ts` | `npm run allowlist`: add, remove or list invited emails              |
+| File                         | Role                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------ |
+| `client.ts`                  | `connect()`: a Drizzle handle over a pg pool, one per request            |
+| `schema.ts`                  | All tables: re-exports Better Auth's, defines `allowed_emails`           |
+| `auth-schema.ts`             | Better Auth's tables, generated from `worker/auth.ts`; never hand-edited |
+| `auth-cli.config.ts`         | What Better Auth's CLI loads to generate `auth-schema.ts`                |
+| `local/init.sql`             | Creates the `keyworth_app` role and `keyworth_test` database locally     |
+| `../../drizzle/`             | SQL migrations and drizzle-kit snapshots, committed                      |
+| `../../drizzle.config.ts`    | drizzle-kit settings; targets `DATABASE_URL` or the local database       |
+| `../../compose.yaml`         | Local Postgres, pinned by digest                                         |
+| `../../scripts/allowlist.ts` | `npm run allowlist`: add, remove or list invited emails                  |
 
 **Two roles, in every environment:**
 
@@ -42,9 +44,14 @@ own.
 
 **Tables:**
 
-| Table            | Holds           | Notes                    |
-| ---------------- | --------------- | ------------------------ |
-| `allowed_emails` | The invite list | Lowercase only (`CHECK`) |
+| Table            | Holds                                            | Notes                                             |
+| ---------------- | ------------------------------------------------ | ------------------------------------------------- |
+| `user`           | Name and email from Google                       | No avatar URL                                     |
+| `session`        | Session tokens, expiry, IP address, user agent   | Deleted with the user                             |
+| `account`        | The link between a user and their Google account | No Google tokens: they are stripped before saving |
+| `verification`   | Short-lived OAuth state                          | Better Auth cleans it up                          |
+| `rate_limit`     | Request counters per IP and path                 | Workers have no shared memory                     |
+| `allowed_emails` | The invite list                                  | Lowercase only (`CHECK`)                          |
 
 Every timestamp is `timestamp with time zone`.
 
@@ -58,7 +65,7 @@ Every timestamp is `timestamp with time zone`.
   locally and has no interactive transactions.
 - **Hyperdrive's query cache is off** (`--caching-disabled`). It is on by
   default and keeps read results for up to 60 seconds, so a deleted session or
-  revoked invite could keep working for a minute.
+  a revoked invite could keep working for a minute.
 - **A restricted runtime role.** If the Worker is ever tricked into running
   arbitrary SQL, it still cannot drop or alter tables.
 - **Postgres in Docker for development and tests**, not Neon branches: no
@@ -66,7 +73,8 @@ Every timestamp is `timestamp with time zone`.
   touches a test.
 - **Time zones everywhere.** Without a zone, `pg` writes dates in the machine's
   local zone while the Worker reads them as UTC: a session created from a laptop
-  in UTC+4 would be off by four hours.
+  in UTC+4 would be off by four hours. `npm run db:auth-schema` rewrites the
+  generated schema accordingly.
 - **No explicit `pool.end()`.** A Worker's sockets belong to the request and the
   runtime closes them when it ends; Cloudflare's own Hyperdrive example never
   closes its client.
@@ -78,6 +86,8 @@ Every timestamp is `timestamp with time zone`.
 - **Migrations run before the new Worker is deployed**, so the running Worker
   briefly sees the new schema. Keep migrations backward compatible: add a column
   and backfill first, drop the old one in a later release.
+- **Never edit `auth-schema.ts`.** After changing Better Auth options that add
+  tables or columns, run `npm run db:auth-schema`, then `npm run db:generate`.
 - **Ending the pool breaks things.** pg-cloudflare's read loop fails on the
   closed socket and the error surfaces as an unhandled rejection.
 - **pg in the Workers test runner** needs two module redirects
@@ -101,7 +111,8 @@ docker compose exec postgres psql -U keyworth_owner -d keyworth   # inspect
 docker compose down -v           # wipe local data; next db:up starts empty
 ```
 
-**Changing the schema:** edit `schema.ts`, run `npm run db:generate`, read the generated SQL,
+**Changing the schema:** edit `schema.ts` (or the Better Auth options, then
+`npm run db:auth-schema`), run `npm run db:generate`, read the generated SQL,
 apply it with `npm run db:migrate`, and add tests.
 
 **Production setup (once):**
