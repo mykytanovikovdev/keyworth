@@ -7,7 +7,8 @@ handle, migrations, the restricted role the Worker runs as, and the local
 database for development and tests.
 
 The database holds only what the server is allowed to see in plaintext: the
-Google profile (name, email), sessions, the invite list and rate-limit counters.
+Google profile (name, email), sessions, the invite and block lists and
+rate-limit counters.
 Financial data arrives in phase 3, and only as encrypted envelopes. Queries that
 belong to a feature live with that feature, not here.
 
@@ -18,17 +19,17 @@ production   Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Hyperdrive (
 local, tests Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Postgres 18 in Docker (compose.yaml), port 5433
 ```
 
-| File                         | Role                                                                     |
-| ---------------------------- | ------------------------------------------------------------------------ |
-| `client.ts`                  | `connect()`: a Drizzle handle over a pg pool, one per request            |
-| `schema.ts`                  | All tables: re-exports Better Auth's, defines `allowed_emails`           |
-| `auth-schema.ts`             | Better Auth's tables, generated from `worker/auth.ts`; never hand-edited |
-| `auth-cli.config.ts`         | What Better Auth's CLI loads to generate `auth-schema.ts`                |
-| `local/init.sql`             | Creates the `keyworth_app` role and `keyworth_test` database locally     |
-| `../../drizzle/`             | SQL migrations and drizzle-kit snapshots, committed                      |
-| `../../drizzle.config.ts`    | drizzle-kit settings; targets `DATABASE_URL` or the local database       |
-| `../../compose.yaml`         | Local Postgres, pinned by digest                                         |
-| `../../scripts/allowlist.ts` | `npm run allowlist`: add, remove or list invited emails                  |
+| File                      | Role                                                                     |
+| ------------------------- | ------------------------------------------------------------------------ |
+| `client.ts`               | `connect()`: a Drizzle handle over a pg pool, one per request            |
+| `schema.ts`               | All tables: re-exports Better Auth's, defines the invite and block lists |
+| `auth-schema.ts`          | Better Auth's tables, generated from `worker/auth.ts`; never hand-edited |
+| `auth-cli.config.ts`      | What Better Auth's CLI loads to generate `auth-schema.ts`                |
+| `local/init.sql`          | Creates the `keyworth_app` role and `keyworth_test` database locally     |
+| `../../drizzle/`          | SQL migrations and drizzle-kit snapshots, committed                      |
+| `../../drizzle.config.ts` | drizzle-kit settings; targets `DATABASE_URL` or the local database       |
+| `../../compose.yaml`      | Local Postgres, pinned by digest                                         |
+| `../../scripts/users.ts`  | `npm run users`: invites, sessions, blocks, account deletion             |
 
 **Two roles, in every environment:**
 
@@ -37,8 +38,8 @@ local, tests Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Postgres 18 
 | `keyworth_owner` | migrations (CI, `npm run db:migrate`) | change the schema                           |
 | `keyworth_app`   | the Worker                            | `SELECT`, `INSERT`, `UPDATE`, `DELETE` only |
 
-Roles are created outside migrations (`local/init.sql` here, the Neon console in
-production). Migration `0000` grants `keyworth_app` its privileges through
+Roles are created outside migrations (`local/init.sql` here, SQL in Neon's editor
+in production). Migration `0000` grants `keyworth_app` its privileges through
 default privileges, so tables added by later migrations need no grants of their
 own.
 
@@ -52,6 +53,7 @@ own.
 | `verification`   | Short-lived OAuth state                          | Better Auth cleans it up                          |
 | `rate_limit`     | Request counters per IP and path                 | Workers have no shared memory                     |
 | `allowed_emails` | The invite list                                  | Lowercase only (`CHECK`)                          |
+| `blocked_emails` | Emails that may never sign in, with a reason     | Lowercase only; checked at every sign-in          |
 
 Every timestamp is `timestamp with time zone`.
 
@@ -68,6 +70,18 @@ Every timestamp is `timestamp with time zone`.
   a revoked invite could keep working for a minute.
 - **A restricted runtime role.** If the Worker is ever tricked into running
   arbitrary SQL, it still cannot drop or alter tables.
+- **Users are managed from a terminal, not an admin page.** An admin page would
+  be a new HTTP route with powers over every account: one more thing to
+  protect, for an action needed a few times a year. `npm run users` uses the
+  owner's connection string and adds no attack surface.
+- **Blocking is by email, at the database.** Removing an invite alone would
+  leave open sessions alive for up to seven days, and a later `invite` could
+  let the person back by mistake; `block` ends the sessions and records the
+  email in `blocked_emails`, which `invite` and the sign-in hooks both check.
+  Each command that touches several tables is one SQL statement, so it never
+  half-applies. IP addresses are blocked at Cloudflare's edge instead (see
+  [worker/README.md](../README.md#blocking-by-ip-address)): friends behind a
+  shared VPN address would be blocked with the attacker.
 - **Postgres in Docker for development and tests**, not Neon branches: no
   network, no account, the same state on every run. Production data never
   touches a test.
@@ -98,15 +112,21 @@ Every timestamp is `timestamp with time zone`.
 - **`npm audit` reports esbuild** through drizzle-kit's old loader. It is a
   development-only dependency, and the vulnerable feature (esbuild's dev server)
   is not used.
-- **Removing an invite does not end existing sessions**: it blocks the next
-  sign-in. To cut someone off at once, also delete their sessions.
+- **Deleting an `allowed_emails` row by hand does not end existing sessions**:
+  it only stops the next sign-in. `npm run users -- uninvite` and `block` also
+  delete the sessions.
+- **A blocked email sees "not on the invite list"**, the same as a stranger:
+  nothing confirms to that person that they were singled out.
+- **Tables added in later phases must reference `user.id` with
+  `on delete cascade`**, so `delete` (and self-service deletion) removes their
+  rows too.
 
 ## How to work with it
 
 ```sh
 npm run db:up                    # start local Postgres (Docker)
 npm run db:migrate               # apply migrations to the local database
-npm run allowlist -- add me@example.com
+npm run users -- invite me@example.com
 npm run dev                      # the Worker uses the local database
 docker compose exec postgres psql -U keyworth_owner -d keyworth   # inspect
 docker compose down -v           # wipe local data; next db:up starts empty
@@ -135,10 +155,28 @@ apply it with `npm run db:migrate`, and add tests.
    cache off later with `npx wrangler hyperdrive update <id> --caching-disabled`. Neon's own pooler is not needed:
    Hyperdrive pools.
 5. After the first deploy, invite people:
-   `DATABASE_URL="<owner connection string>" npm run allowlist -- add <email>`.
+   `DATABASE_URL="<owner connection string>" npm run users -- invite <email>`.
+   While the Google app is in Testing, each person must also be one of its
+   test users.
+
+### Managing users
+
+`npm run users -- <command>`, with `DATABASE_URL="<owner connection string>"`
+in front for production. The target database is printed first.
+
+| Command                          | Does                                                    | Use when                                     |
+| -------------------------------- | ------------------------------------------------------- | -------------------------------------------- |
+| `list`                           | Every known email: invited, blocked, account, sessions  | Checking who has access                      |
+| `sessions <email>`               | Live sessions: when, IP address, browser (never tokens) | Something looks wrong with an account        |
+| `invite <email>`                 | Allows sign-in; refused for a blocked email             | Adding a friend                              |
+| `uninvite <email>`               | Removes the invite and ends all sessions                | Someone should simply stop using it          |
+| `revoke <email>`                 | Ends all sessions; signing in again still works         | A lost or shared device                      |
+| `block <email> [--reason "why"]` | Blocks, removes the invite, ends all sessions           | Abuse; the account stays for a closer look   |
+| `unblock <email>`                | Lifts the block, without inviting again                 | A block was a mistake                        |
+| `delete <email>`                 | Deletes the account and everything that references it   | After `block`, or on request; asks to retype |
 
 ## Related
 
 - [worker/](../README.md): routes, session checks and security headers
 - [tests/integration/](../../tests/integration/README.md): Worker tests against the test database
-- [scripts/](../../scripts/README.md): the allowlist and schema generation scripts
+- [scripts/](../../scripts/README.md): the user management and schema generation scripts

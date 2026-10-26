@@ -99,7 +99,7 @@ For end-to-end tests, install the browsers once:
 | `npm run db:migrate`         | Apply migrations (local, or `DATABASE_URL` when set)                      |
 | `npm run db:generate`        | Create a migration from schema changes                                    |
 | `npm run db:auth-schema`     | Regenerate Better Auth's tables after changing its options                |
-| `npm run allowlist`          | List, add or remove invited emails                                        |
+| `npm run users`              | Invites, sessions, blocks and account deletion (see `worker/db`)          |
 | `npm run deploy`             | Build and deploy manually (CI normally does this)                         |
 
 ## Project structure

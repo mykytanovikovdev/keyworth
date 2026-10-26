@@ -25,6 +25,14 @@ Covered now:
     while Bob's account and session keep working;
   - account deletion needs a sign-in from the last 10 minutes;
   - sign-in attempts are limited to three per 10 seconds per address.
+- **`users.test.ts`**: the operations behind `npm run users`
+  (`scripts/user-admin.ts`), run as the Worker's role next to real sign-ins:
+  `block` ends sessions at once and keeps the email out (also from `invite`);
+  the sign-in hooks refuse a blocked email even while it is still invited, for
+  new and existing accounts; `unblock` does not invite again; `revoke` ends
+  every session while sign-in keeps working; `uninvite` ends sessions;
+  `sessions` never returns the token; `delete` removes the account with its
+  sessions and Google link; `list` reports each email's state.
 
 Deliberately not covered here:
 

@@ -207,7 +207,24 @@ and after every deploy against the live site.
 - Local secrets go in `.dev.vars` (copy `.dev.vars.example`); production
   secrets via `npx wrangler secret put <NAME>`. Local sign-in with real Google
   also needs the localhost redirect URI on the OAuth client.
-- The database: [db/README.md](db/README.md).
+- The database: [db/README.md](db/README.md). Invites, blocks and account
+  deletion: `npm run users` ([db/README.md](db/README.md#managing-users)).
+
+### Blocking by IP address
+
+IP addresses are blocked at Cloudflare's edge, before the Worker runs, not in
+code. In the dashboard, open the `keyworth.app` zone, then **Security →
+Security rules → Create rule**:
+
+- **Custom rules** (what Cloudflare recommends; the free plan includes a few):
+  for example the expression `(ip.src in {203.0.113.7 198.51.100.0/24})` with
+  the action **Block**. A rule can also match an ASN or a country.
+- **IP access rules**: one IP address, range, ASN or country per rule, with a
+  note saying why.
+
+Prefer blocking the account (`npm run users -- block`): friends in Russia reach
+the app through a shared VPN address, and blocking it would lock them out too.
+An IP rule is for an ongoing attack, and is removed once it ends.
 
 ## Related
 

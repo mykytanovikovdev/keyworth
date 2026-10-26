@@ -19,6 +19,8 @@ export const FRESH_SESSION_SECONDS = 10 * 60;
  * Thrown from the database hooks. Because it carries a code, Better Auth's OAuth
  * callback turns it into a redirect to `/sign-in?error=NOT_INVITED` instead of a
  * bare JSON error page; the sign-in screen maps known codes to its own text.
+ * A blocked email gets the same answer: nothing tells it apart from one that
+ * was never invited.
  */
 const notInvited = () =>
   new APIError("FORBIDDEN", {
@@ -26,13 +28,19 @@ const notInvited = () =>
     message: "This Google account is not on the invite list.",
   });
 
-async function isInvited(db: Database, email: string): Promise<boolean> {
-  const rows = await db
-    .select({ email: schema.allowedEmails.email })
+/** Invited and not blocked, in one round trip. */
+async function maySignIn(db: Database, email: string): Promise<boolean> {
+  const [row] = await db
+    .select({ blocked: schema.blockedEmails.email })
     .from(schema.allowedEmails)
+    .leftJoin(
+      schema.blockedEmails,
+      eq(schema.blockedEmails.email, schema.allowedEmails.email),
+    )
     .where(eq(schema.allowedEmails.email, email.toLowerCase()))
     .limit(1);
-  return rows.length > 0;
+  // No row: not invited. A row with a blocked email: blocked.
+  return row?.blocked === null;
 }
 
 // Google tokens would let whoever reads the database act on the user's Google
@@ -85,7 +93,7 @@ export function authOptions(db: Database, env: AuthEnv) {
         create: {
           // The closed beta: only invited, Google-verified emails get an account.
           before: async (user) => {
-            if (!user.emailVerified || !(await isInvited(db, user.email))) {
+            if (!user.emailVerified || !(await maySignIn(db, user.email))) {
               throw notInvited();
             }
             // The avatar is never shown (img-src 'self'), so its URL is not kept.
@@ -95,15 +103,16 @@ export function authOptions(db: Database, env: AuthEnv) {
       },
       session: {
         create: {
-          // Checked on every sign-in too: removing an email from the list
-          // blocks its next sign-in, not just new accounts.
+          // Checked on every sign-in too: removing an invite or blocking an
+          // email stops its next sign-in, not just new accounts. Existing
+          // sessions are ended by `npm run users` (revoke, uninvite, block).
           before: async (session) => {
             const [owner] = await db
               .select({ email: schema.user.email })
               .from(schema.user)
               .where(eq(schema.user.id, session.userId))
               .limit(1);
-            if (!owner || !(await isInvited(db, owner.email))) {
+            if (!owner || !(await maySignIn(db, owner.email))) {
               throw notInvited();
             }
           },

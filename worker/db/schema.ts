@@ -6,7 +6,7 @@ export * from "./auth-schema.ts";
 
 /**
  * Who may sign in: the closed beta's invite list. Emails are personal data, so
- * the list lives here, never in code. Managed with `npm run allowlist`.
+ * the list lives here, never in code. Managed with `npm run users`.
  */
 export const allowedEmails = pgTable(
   "allowed_emails",
@@ -19,5 +19,28 @@ export const allowedEmails = pgTable(
   // Stored lowercase, so lookups need no normalization at query time.
   (table) => [
     check("email_lowercase", sql`${table.email} = lower(${table.email})`),
+  ],
+);
+
+/**
+ * Emails that may never sign in, even if invited again by mistake: a second
+ * line of defense behind the invite list. `npm run users -- block` adds the
+ * email here, removes its invite and ends its sessions in one statement.
+ */
+export const blockedEmails = pgTable(
+  "blocked_emails",
+  {
+    email: text("email").primaryKey(),
+    // Why, in the owner's words; never shown to the blocked person.
+    reason: text("reason"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    check(
+      "blocked_email_lowercase",
+      sql`${table.email} = lower(${table.email})`,
+    ),
   ],
 );

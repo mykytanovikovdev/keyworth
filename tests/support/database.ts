@@ -28,7 +28,7 @@ export async function prepareTestDatabase(): Promise<void> {
     }
     await migrate(drizzle(pool), { migrationsFolder });
     await pool.query(
-      'TRUNCATE "user", allowed_emails, verification, rate_limit CASCADE',
+      'TRUNCATE "user", allowed_emails, blocked_emails, verification, rate_limit CASCADE',
     );
   } finally {
     await pool.end();
