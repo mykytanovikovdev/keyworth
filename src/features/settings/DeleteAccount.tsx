@@ -90,7 +90,7 @@ export function DeleteAccount({ reauthenticated }: DeleteAccountProps) {
                   Cancel
                 </Button>
                 <Button
-                  variant="primary"
+                  variant="danger"
                   isPending={step === "deleting"}
                   onPress={() => void deleteAccount()}
                 >

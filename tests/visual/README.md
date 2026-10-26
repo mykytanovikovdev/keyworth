@@ -19,6 +19,8 @@ Covered (Chromium):
 
 - sign-in, with the "not on the invite list" message;
 - settings, for a signed-in user with a fixed name and email.
+- the account deletion dialog over settings, with the red `danger` confirm
+  button.
 
 Not covered here:
 

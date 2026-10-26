@@ -61,6 +61,7 @@ checked for WCAG AA in both themes by `tests/unit/design-tokens.test.ts`.
 | `focus`       | `#3d4fb5` | `#95a2f2` | The focus ring (2px, offset 2px, on every control)   |
 | `gain`        | `#1d7a50` | `#5cc594` | Increases; always with a sign or an arrow            |
 | `loss`        | `#b83e2e` | `#f08370` | Decreases and errors; always with a sign or an icon  |
+| `on-loss`     | `#ffffff` | `#1f1e1b` | Text on the loss color (the danger button)           |
 | `warning`     | `#855900` | `#e2b455` | Warnings, such as an unusual price                   |
 | `*-soft`      |           |           | Tinted backgrounds for the three status colors       |
 | `scrim`       | 32% ink   | 55% black | Behind modal dialogs                                 |
@@ -163,21 +164,21 @@ and form controls match.
 
 ### Components
 
-| Component                 | Built on               | Notes                                                                   |
-| ------------------------- | ---------------------- | ----------------------------------------------------------------------- |
-| `Button`                  | React Aria `Button`    | `primary` (one per view), `secondary`, `ghost`; `sm`/`md`; `isPending`  |
-| `IconButton`              | React Aria `Button`    | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)       |
-| `TextField`               | React Aria `TextField` | Visible label, hint, error; ARIA validation, no native bubbles          |
-| `Card`                    | `div`                  | `raised` (above the page) or `surface` (on it); padding from the caller |
-| `Badge`                   | `span`                 | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon    |
-| `Dialog`, `DialogActions` | React Aria `Modal`     | Focus trap and return, scroll lock; `alertdialog` ignores Escape        |
-| `Toaster`, `showToast()`  | React Aria `Toast`     | Top of the screen; errors stay until dismissed, others 5 seconds        |
-| `Tooltip`                 | React Aria `Tooltip`   | Hover and keyboard focus only; never the only label                     |
-| `Skeleton`                | `div`                  | Hidden from screen readers; mark the region `aria-busy`                 |
-| `ThemeToggle`             | `ToggleButtonGroup`    | Icons in the header, icons with text in settings                        |
-| `ButtonLink`              | React Aria `Link`      | Navigation that reads as an action; the same variants as `Button`       |
-| `TextLink`                | React Aria `Link`      | Inline link in running text, always underlined                          |
-| `KeyworthMark`            | `svg`                  | The app's mark (a keyhole on the accent); decorative                    |
+| Component                 | Built on               | Notes                                                                            |
+| ------------------------- | ---------------------- | -------------------------------------------------------------------------------- |
+| `Button`                  | React Aria `Button`    | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending` |
+| `IconButton`              | React Aria `Button`    | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                |
+| `TextField`               | React Aria `TextField` | Visible label, hint, error; ARIA validation, no native bubbles                   |
+| `Card`                    | `div`                  | `raised` (above the page) or `surface` (on it); padding from the caller          |
+| `Badge`                   | `span`                 | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon             |
+| `Dialog`, `DialogActions` | React Aria `Modal`     | Focus trap and return, scroll lock; `alertdialog` ignores Escape                 |
+| `Toaster`, `showToast()`  | React Aria `Toast`     | Top of the screen; errors stay until dismissed, others 5 seconds                 |
+| `Tooltip`                 | React Aria `Tooltip`   | Hover and keyboard focus only; never the only label                              |
+| `Skeleton`                | `div`                  | Hidden from screen readers; mark the region `aria-busy`                          |
+| `ThemeToggle`             | `ToggleButtonGroup`    | Icons in the header, icons with text in settings                                 |
+| `ButtonLink`              | React Aria `Link`      | Navigation that reads as an action; the same variants as `Button`                |
+| `TextLink`                | React Aria `Link`      | Inline link in running text, always underlined                                   |
+| `KeyworthMark`            | `svg`                  | The app's mark (a keyhole on the accent); decorative                             |
 
 Links are React Aria `Link`s, so they share the buttons' hover, press and
 focus states. `UIProvider` receives the app router's `navigate`, which keeps
@@ -209,6 +210,10 @@ the constant `false`, so the page's code is not even in the bundle
   `20.12.25`.
 - Gains and losses always carry a sign and an arrow; color is never the only
   signal.
+- The red `danger` button appears only on the final confirmation of an
+  irreversible deletion, and its label names what is lost ("Delete account").
+  The control that opens the confirmation stays neutral, so red marks the point
+  of no return and nothing else.
 
 ## Why this way
 
@@ -228,6 +233,12 @@ the constant `false`, so the page's code is not even in the bundle
   the class conflicts those libraries exist to resolve.
 - **Tailwind's defaults removed.** Without them, a raw color or an off-scale
   size fails to exist at all, instead of slipping through review.
+- **The danger button darkens by mixing, not by transparency.** `primary` fades
+  the accent on hover and press (`bg-accent/90`); the same on the red would
+  lighten it over a white dialog and drop white text to 3.9:1 when pressed.
+  `loss-hover` and `loss-pressed` (in `styles.css`) mix the red toward `fg`
+  instead: darker in the light theme, lighter in the dark one, so the contrast
+  with `on-loss` rises in every state. The unit test checks the same mixes.
 - **One dark block, set by a script.** The alternative, a
   `prefers-color-scheme` media query plus an override attribute, needs every
   dark value written twice. The theme script must exist anyway (the CSP forbids

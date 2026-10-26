@@ -34,9 +34,9 @@ account. Later phases add the passphrase, the recovery key, usage and export.
 
 ## Pitfalls & gotchas
 
-- The confirm button uses the primary style: the design system has no
-  destructive variant yet. Add one to `src/ui` (with contrast checks) before
-  more destructive actions appear.
+- Only the confirm button inside the dialog is red (`danger`); the button that
+  opens the dialog stays neutral. Keep it that way for new destructive actions:
+  see "Writing for the interface" in [src/ui](../../ui/README.md).
 - `reauthenticated` only opens the dialog; it grants nothing. The server
   decides whether the session is fresh.
 

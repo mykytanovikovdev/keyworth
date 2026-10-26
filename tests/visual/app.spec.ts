@@ -1,9 +1,10 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { TEST_DATABASE_URL } from "../support/database.ts";
 import { createSignedInUser } from "../support/session.ts";
 
-// App screens with fixed content: sign-in, and settings for a signed-in user
-// whose name and email never change between runs.
+// App screens with fixed content: sign-in, and settings (with the account
+// deletion dialog) for a signed-in user whose name and email never change
+// between runs.
 
 const THEMES = ["light", "dark"] as const;
 const WIDTHS = [390, 1440] as const;
@@ -13,6 +14,21 @@ async function prepare(page: Page, theme: string, width: number) {
   await page.addInitScript((value) => {
     window.localStorage.setItem("keyworth-theme", value);
   }, theme);
+}
+
+async function signIn(
+  context: BrowserContext,
+  baseURL: string | undefined,
+  email: string,
+) {
+  await context.addCookies(
+    await createSignedInUser({
+      databaseUrl: TEST_DATABASE_URL,
+      baseURL: baseURL ?? "",
+      email,
+      name: "Alex Example",
+    }),
+  );
 }
 
 for (const theme of THEMES) {
@@ -34,14 +50,11 @@ for (const theme of THEMES) {
       baseURL,
     }) => {
       await prepare(page, theme, width);
-      await context.addCookies(
-        await createSignedInUser({
-          databaseUrl: TEST_DATABASE_URL,
-          baseURL: baseURL ?? "",
-          // Unique per test, but the same length every run: it is on screen.
-          email: `visual-${theme}-${String(width).padStart(4, "0")}@example.com`,
-          name: "Alex Example",
-        }),
+      // Unique per test, but the same length every run: it is on screen.
+      await signIn(
+        context,
+        baseURL,
+        `visual-${theme}-${String(width).padStart(4, "0")}@example.com`,
       );
       await page.goto("/settings");
       await expect(
@@ -51,6 +64,29 @@ for (const theme of THEMES) {
 
       await expect(page).toHaveScreenshot(
         `settings-${theme}-${String(width)}.png`,
+      );
+    });
+
+    test(`delete account dialog, ${theme}, ${String(width)}px`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      await prepare(page, theme, width);
+      await signIn(
+        context,
+        baseURL,
+        `delete-${theme}-${String(width).padStart(4, "0")}@example.com`,
+      );
+      await page.goto("/settings");
+      await page.getByRole("button", { name: "Delete account" }).click();
+      await expect(
+        page.getByRole("alertdialog", { name: "Delete your account?" }),
+      ).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+
+      await expect(page).toHaveScreenshot(
+        `delete-account-${theme}-${String(width)}.png`,
       );
     });
   }

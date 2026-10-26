@@ -106,6 +106,7 @@ const colorGroups: { name: string; tokens: [string, string][] }[] = [
       ["gain", "bg-gain"],
       ["gain-soft", "bg-gain-soft"],
       ["loss", "bg-loss"],
+      ["on-loss", "bg-on-loss"],
       ["loss-soft", "bg-loss-soft"],
       ["warning", "bg-warning"],
       ["warning-soft", "bg-warning-soft"],
@@ -246,6 +247,12 @@ function Buttons() {
       <Row label="Pending">
         <Button variant="primary" isPending>
           Saving
+        </Button>
+      </Row>
+      <Row label="Danger">
+        <Button variant="danger">Delete account</Button>
+        <Button variant="danger" isPending>
+          Deleting
         </Button>
       </Row>
       <Row label="Icon buttons">

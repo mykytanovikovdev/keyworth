@@ -1,7 +1,7 @@
 // Button variants as class names, shared by Button and ButtonLink so a link
 // that acts as a button looks exactly like one.
 
-export type ButtonVariant = "primary" | "secondary" | "ghost";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md";
 
 const variants: Record<ButtonVariant, string> = {
@@ -11,6 +11,9 @@ const variants: Record<ButtonVariant, string> = {
     "border border-line bg-raised text-fg data-hovered:bg-hover data-pressed:bg-hover",
   ghost:
     "text-fg-muted data-hovered:bg-hover data-hovered:text-fg data-pressed:bg-hover data-pressed:text-fg",
+  // Only for the final confirmation of an irreversible deletion.
+  danger:
+    "bg-loss text-on-loss data-hovered:bg-loss-hover data-pressed:bg-loss-pressed",
 };
 
 const sizes: Record<ButtonSize, string> = {
