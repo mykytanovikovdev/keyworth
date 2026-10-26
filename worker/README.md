@@ -174,8 +174,10 @@ and after every deploy against the live site.
 - `_headers` never applies to Worker responses and `security-headers.ts` never
   applies to static files. A new header usually belongs in both.
 - Every CSP exception must be justified in this README. Current ones: the two
-  React Aria style hashes (above). Planned: `'wasm-unsafe-eval'` for Argon2id
-  (phase 3). `'unsafe-eval'` and `'unsafe-inline'` are never allowed.
+  React Aria style hashes (above). None other is planned: Argon2id runs as plain
+  JavaScript, so `'wasm-unsafe-eval'` is not needed (see
+  [src/crypto/README.md](../src/crypto/README.md)). `'unsafe-eval'` and
+  `'unsafe-inline'` are never allowed.
 - `BETTER_AUTH_URL` must be the origin the browser uses: Better Auth builds the
   OAuth redirect URI and its trusted origin from it. It is a var in
   `wrangler.jsonc` for production and overridden in `.dev.vars` locally.

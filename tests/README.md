@@ -7,7 +7,7 @@ details.
 
 | Folder                                  | Runner            | Runs in                                                | Covers                                                 |
 | --------------------------------------- | ----------------- | ------------------------------------------------------ | ------------------------------------------------------ |
-| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic: license policy, design token contrast      |
+| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic, the encryption core, shared schemas        |
 | [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes and headers, Google sign-in, isolation   |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
 |                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe    |
@@ -16,7 +16,7 @@ details.
 
 Planned, each arriving with the code it tests:
 
-- `unit/` grows with `shared/metrics`, `shared/money` and schemas (phase 4).
+- `unit/` grows with `shared/metrics` and `shared/money` (phase 4).
 - `e2e/` grows with sign-in, encryption setup, unlock and recording a trade
   through chat (phase 2+).
 - `visual/` grows with the app's screens as they are built.

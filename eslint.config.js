@@ -52,6 +52,12 @@ const animeUnsafeModules = [
   { group: ["animejs/text", "animejs/events"], message: animeMessage },
 ];
 
+// zod probes `new Function` unless jitless is on, and the CSP reports the probe.
+const zodMessage =
+  "Import z from shared/schemas/zod.ts, which turns on zod's jitless mode for the CSP.";
+const zodDirect = [{ name: "zod", message: zodMessage }];
+const zodSubpaths = [{ group: ["zod/*"], message: zodMessage }];
+
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -79,7 +85,10 @@ export default defineConfig([
       "no-script-url": "error",
       "no-restricted-imports": [
         "error",
-        { paths: animeUnsafeExports, patterns: animeUnsafeModules },
+        {
+          paths: [...animeUnsafeExports, ...zodDirect],
+          patterns: [...animeUnsafeModules, ...zodSubpaths],
+        },
       ],
       "@typescript-eslint/consistent-type-imports": "error",
       // TanStack Router's redirect() is thrown by design (a Response, not an Error).
@@ -94,6 +103,16 @@ export default defineConfig([
             },
           ],
         },
+      ],
+    },
+  },
+  {
+    // The one module allowed to import zod: it configures it first.
+    files: ["shared/schemas/zod.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        { paths: animeUnsafeExports, patterns: animeUnsafeModules },
       ],
     },
   },
