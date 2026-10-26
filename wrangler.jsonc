@@ -35,6 +35,11 @@
       "GOOGLE_CLIENT_SECRET",
     ],
   },
+  // The production address. Cloudflare creates the DNS record and the
+  // certificate for it on deploy; the zone is in this account.
+  "routes": [{ "pattern": "keyworth.app", "custom_domain": true }],
+  // Kept on while keyworth.app is being verified; turned off when sign-in goes
+  // live, so the app has a single origin (cookies, OAuth redirect URI, CSP).
   "workers_dev": true,
   // Per-version preview URLs are public; we don't use them.
   "preview_urls": false,

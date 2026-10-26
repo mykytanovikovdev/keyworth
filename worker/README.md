@@ -46,6 +46,11 @@ Inside the Worker:
 | `../wrangler.jsonc`            | Worker config: assets routing, observability, compatibility date    |
 | `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)              |
 
+Production runs at **https://keyworth.app**, a Custom Domain declared in
+`wrangler.jsonc` (`routes` with `custom_domain: true`): each deploy keeps its DNS
+record and certificate in place. The `workers.dev` address stays on until sign-in
+goes live, then it is turned off so the app has a single origin.
+
 `vite build` produces `dist/client` (static assets) and `dist/keyworth` (the Worker
 bundle plus a generated `wrangler.json`). `wrangler deploy` reads the generated config
 through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
@@ -107,6 +112,13 @@ and after every deploy against the live site.
   else, so `'unsafe-inline'` stays off. Style attributes (`style="…"`) remain
   blocked: hashes do not apply to them. Details and how to update the hashes:
   [src/ui/README.md](../src/ui/README.md#pitfalls--gotchas).
+- **`Cache-Control: no-transform` on pages and assets.** On a zone (unlike
+  `workers.dev`), Cloudflare can rewrite HTML at the edge: its Web Analytics
+  beacon, email obfuscation, Rocket Loader. When keyworth.app went live, the
+  beacon was injected into the page; the CSP blocked it, and the post-deploy
+  smoke test caught the violation. `no-transform` tells the edge not to touch the
+  response, so the page arrives exactly as built and no third-party script is
+  ever inserted.
 - **Trusted Types (`require-trusted-types-for 'script'`).** The browser refuses
   string assignments to DOM injection sinks such as `innerHTML`, at the engine
   level, even if a bug or a dependency tries one. React does not need these sinks;
