@@ -1,68 +1,120 @@
 # tests/integration/
 
 Worker tests that run **inside workerd**, the same runtime as production, through
-[`@cloudflare/vitest-plugin`](https://developers.cloudflare.com/workers/testing/vitest-integration/).
+[`@cloudflare/vitest-plugin`](https://developers.cloudflare.com/workers/testing/vitest-integration/),
+against a real Postgres: the local test database from `compose.yaml`.
 
 ## What is covered (and what is not)
 
 Covered now:
 
-- `GET /api/health` responds and carries the Worker security headers.
-- Unknown paths and methods get a JSON 404, still with every security header (an
-  error response is the easiest place to forget them).
-- `X-Powered-By` is never sent.
+- **`worker.test.ts`**: `/api/health` and the Worker security headers on every
+  response, including errors; paths outside `/api` get a JSON 404; without a
+  session, unknown `/api` routes get the same 401 as protected ones.
+- **`auth.test.ts`**, through the real Google sign-in flow (state cookie,
+  callback, database hooks, session):
+  - an invited user gets a session, and `/api/me` returns only their own profile;
+  - the session cookie is httpOnly, Secure and SameSite=Lax; a forged cookie gets 401;
+  - neither Google's tokens nor the avatar URL are stored;
+  - the invite list is case-insensitive; uninvited and unverified emails are
+    sent to `/sign-in?error=NOT_INVITED` with nothing stored; removing an email
+    from the list blocks the next sign-in;
+  - sign-out ends the session at once; a cross-site request with the session
+    cookie is refused (403);
+  - **isolation**: deleting Alice's account removes Alice and her sessions,
+    while Bob's account and session keep working;
+  - account deletion needs a sign-in from the last 10 minutes;
+  - sign-in attempts are limited to three per 10 seconds per address.
+- **`users.test.ts`**: the operations behind `npm run users`
+  (`scripts/user-admin.ts`), run as the Worker's role next to real sign-ins:
+  `block` ends sessions at once and keeps the email out (also from `invite`);
+  the sign-in hooks refuse a blocked email even while it is still invited, for
+  new and existing accounts; `unblock` does not invite again; `revoke` ends
+  every session while sign-in keeps working; `uninvite` ends sessions;
+  `sessions` never returns the token; `delete` removes the account with its
+  sessions and Google link; `list` reports each email's state.
 
 Deliberately not covered here:
 
-- Headers of static assets and the SPA shell: those come from `public/_headers` and
-  are applied by the assets layer, which this pool does not emulate. They are
-  asserted by [`tests/e2e`](../e2e/README.md) against the real production build.
-- Database-backed behaviour: arrives with phase 2, together with user-isolation
-  tests (user A must never read, change or delete user B's records).
+- Headers of static assets and the SPA shell: they come from `public/_headers`,
+  applied by the assets layer, which this pool does not emulate. `tests/e2e`
+  asserts them against the real build.
+- Google itself: its token endpoint is replaced in the test (see Approach). The
+  real sign-in is checked by hand on each deploy that touches auth.
 
 ## How to run
 
 ```sh
+npm run db:up                          # once per session: local Postgres in Docker
 npm test                               # all Vitest projects
 npx vitest run --project worker        # only these tests
 npx vitest --project worker            # watch mode
 ```
 
-No network, account or database is needed: Miniflare runs everything locally.
+No network or account is needed. Before the tests, `tests/support/integration-setup.ts`
+applies every migration to `keyworth_test` and empties its tables.
 
 ## Approach
 
 - The test calls the real Worker entry point with
-  `exports.default.fetch(new Request(...))` from `cloudflare:workers`. This is the
-  replacement for the deprecated `SELF` from `cloudflare:test`.
-- Configuration comes from `wrangler.jsonc` (`cloudflareTest({ wrangler: ... })`),
-  so compatibility date and flags match production.
-- Expected header values are listed explicitly in the test, not imported from
-  `worker/security-headers.ts`: a test that reads its expectations from the code
-  under test cannot catch a wrong value.
+  `exports.default.fetch(new Request(...))` from `cloudflare:workers`.
+- **The Worker connects as `keyworth_app`**, the restricted production role,
+  through the Hyperdrive binding pointed at the test database
+  (`miniflare.hyperdrives` in `vitest.config.ts`). Secrets are fixed test values
+  there too.
+- **Google is replaced at one point only.** In the authorization-code flow,
+  Better Auth gets the ID token directly from Google's token endpoint over TLS
+  and only decodes it. `signInWithGoogle()` in `helpers.ts` swaps that one
+  response (via `vi.spyOn(globalThis, "fetch")`, which works because the test
+  and the Worker share an isolate) and drives everything else for real: the
+  sign-in request, the state cookie, the callback, the hooks and the session.
+- **Every test uses its own identity** (`uniqueUser()`): a unique email and
+  client IP, so tests never share users or rate-limit counters and can run in
+  any order without cleanup.
+- Expected values (headers, cookie flags, error codes) are written out in the
+  tests, not imported from the code under test.
 
 ## Adding a test
 
 ```ts
-import { exports } from "cloudflare:workers";
 import { expect, it } from "vitest";
+import {
+  fetchWorker,
+  invite,
+  signInWithGoogle,
+  uniqueUser,
+} from "./helpers.ts";
 
-it("GET /api/example returns 401 without a session", async () => {
-  const response = await exports.default.fetch(
-    new Request("https://keyworth.test/api/example"),
-  );
-  expect(response.status).toBe(401);
+it("GET /api/example returns the signed-in user's data", async () => {
+  const user = uniqueUser("example");
+  await invite(user.email);
+  const { cookie } = await signInWithGoogle(user);
+
+  const response = await fetchWorker("/api/example", { headers: { cookie } });
+
+  expect(response.status).toBe(200);
 });
 ```
 
-Name files `*.test.ts` and put them in this folder; `tests/integration/tsconfig.json`
-provides the workerd and `cloudflare:test` types.
+Name files `*.test.ts` and put them in this folder. For a check on stored data,
+`query()` runs SQL as the Worker's role.
 
 ## Pitfalls
 
-- After changing `wrangler.jsonc`, run `npm run cf:types`, or the `Env` and
-  `exports` types used here go stale.
+- **The database must be running** (`npm run db:up`); the setup fails with that
+  hint otherwise.
+- **The first request in each file is slow** (about 2 seconds, more in CI):
+  every file gets a fresh isolate that evaluates the Worker's modules on its
+  first request. `setup.ts` makes that request in a `beforeAll` with a long
+  limit, so the cold start never counts against a test's 5-second timeout. A
+  test that needs more than 5 seconds after that is a bug, not a slow machine.
+- After changing `wrangler.jsonc`, run `npm run cf:types`, or the `Env` types go
+  stale.
+- `pg` needs two module redirects in this test runner (`pg-protocol` and
+  `pg-cloudflare`, in `vitest.config.ts`); without them it fails to load.
+- Do not end database pools in tests or Worker code: the closed socket surfaces
+  as an unhandled rejection that fails the run.
+- Rate limits are per client IP: a test that signs in more than three times in
+  10 seconds needs fresh identities, or it gets 429.
 - This folder has its own `tsconfig.json` because the code runs in workerd, not
-  Node: there is no `process`, `fs` or DOM.
-- The pool requires a Vitest version it supports; check the plugin's peer
-  dependencies before upgrading Vitest.
+  Node; Node-side setup lives in `tests/support/`.

@@ -1,0 +1,25 @@
+# Local Postgres for development and tests (`npm run db:up`). Production uses
+# Neon through Cloudflare Hyperdrive. The passwords below exist only on this
+# machine and in CI; they protect nothing.
+services:
+  postgres:
+    # Same major version as the Neon project. Pinned by digest.
+    image: postgres:18-alpine@sha256:77f585114c32fbca283dc835b0596f4e52b51b4c6662d7810b2f4084f60a1873
+    environment:
+      POSTGRES_USER: keyworth_owner
+      POSTGRES_PASSWORD: keyworth_owner
+      POSTGRES_DB: keyworth
+    # 5433, not 5432: a Postgres installed on the host often holds the default port.
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./worker/db/local/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "keyworth_owner", "-d", "keyworth"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
+
+volumes:
+  postgres-data:

@@ -2,7 +2,8 @@
 
 Playwright tests against the **production build** and the **design-mode build**
 (the same app plus the `/design` page), both served locally by workerd with the
-production headers, and after every deploy against the live site.
+production headers and the local test database, and after every deploy against
+the live site.
 
 ## What is covered (and what is not)
 
@@ -14,7 +15,7 @@ Covered now:
   - `index.html` contains no inline scripts, styles or event handlers;
   - hashed assets are `immutable`, `robots.txt` blocks crawling, the `_headers`
     config file is not served, and the design prototype never ships;
-  - `/api/health` and the Worker headers;
+  - `/api/health` and the Worker headers; `/api/me` without a session is 401;
   - a browser _navigation_ to an unknown `/api/*` path reaches the Worker instead
     of the SPA fallback (the guarantee OAuth callbacks rely on).
 - **`app.spec.ts`** (Chromium, Firefox, WebKit):
@@ -24,7 +25,16 @@ Covered now:
   - the page is cross-origin isolated (COOP + COEP work);
   - Trusted Types block `innerHTML` string assignment (skipped in browsers that
     do not implement Trusted Types);
-  - the `/design` page is absent from the production build.
+  - the `/design` page is absent from the production build (an unknown path).
+- **`auth.spec.ts`** (Chromium, Firefox, WebKit; local builds only):
+  - "Continue with Google" leaves for Google with this app's client ID,
+    callback URL and a state value (the request to Google is intercepted);
+  - the invite-list refusal is explained in the app's own words, and text in
+    the URL is never shown; unknown error codes get a generic message;
+  - the privacy policy and terms are public;
+  - signed in: the app opens, `/sign-in` sends back to it, sign-out ends the
+    session, account deletion works after confirmation, and a session older
+    than 10 minutes is asked to sign in again first.
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:
   - every component used for real (dialog, confirmation, toast, tooltip) with
@@ -37,18 +47,20 @@ Covered now:
     is blocked in that test), a choice survives a reload, "System" clears it, and
     the page follows a live change of the system setting.
 
-Not covered yet: user flows (sign-in, encryption setup, unlock, chat) — they arrive
+Not covered yet: the real round trip through Google (checked by hand), and
+encryption setup, unlock and chat, which arrive
 with their phases. Screenshot comparison lives in [`tests/visual/`](../visual/README.md).
 
 ## How to run
 
 ```sh
+npm run db:up                                 # once: the local test database (Docker)
 npm run test:e2e                              # builds both, serves :4173 and :4174, runs all projects
 npx playwright test --project=headers         # HTTP checks only, fast
 npx playwright test --project=chromium        # production build, one browser
 npx playwright test --project=design-webkit   # /design, one browser
 npx playwright show-report                    # after a failure (traces are kept)
-PLAYWRIGHT_BASE_URL=https://example.workers.dev npx playwright test --project=headers --project=chromium
+PLAYWRIGHT_BASE_URL=https://keyworth.app npx playwright test --project=headers --project=chromium
 ```
 
 First run on a new machine: `npx playwright install chromium firefox webkit`.
@@ -62,6 +74,15 @@ No account, database or network access to third parties is needed.
 - **Two builds, two servers.** Production on 4173, design mode on 4174. Each is
   served by `wrangler dev` from its own generated config, because `vite preview`
   serves whichever build ran last.
+- **Test servers, test database, fake secrets.** Both servers get the test
+  database through `CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE`
+  and fixed fake secrets through `wrangler dev --var`; the global setup
+  (`tests/support/e2e-setup.ts`) migrates and empties the database first.
+- **Signed-in sessions without Google.** `createSignedInUser()`
+  (`tests/support/session.ts`) runs Better Auth's `testUtils` plugin in Node,
+  with the production auth options: it invites a unique email, creates the
+  user and session in the test database and returns the signed cookie for
+  `context.addCookies()`. The Worker contains no test routes.
 - **Themes are chosen, not emulated, where it matters.** Component and axe tests
   store the theme choice before loading, which works in every engine; only the
   "follows the system" test relies on color-scheme emulation.
@@ -95,6 +116,8 @@ label-based locators: they double as a basic accessibility check.
 - A new header or CSP change must be made in `public/_headers` (or
   `worker/security-headers.ts`) **and** in the expectations here; that is
   intentional friction.
+- **The test database must be running** (`npm run db:up`); the global setup
+  fails with that hint otherwise.
 - `reuseExistingServer` is on locally: a stale server on port 4173 or 4174 will
   be reused with an old build. Stop it, or let the command rebuild.
 - Axe scans run with reduced motion: text caught mid-fade fails the contrast

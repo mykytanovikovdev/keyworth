@@ -24,6 +24,7 @@ const REQUIRED_TOKENS = [
   "gain",
   "gain-soft",
   "loss",
+  "on-loss",
   "loss-soft",
   "warning",
   "warning-soft",
@@ -39,6 +40,7 @@ const PAIRS: [string, string[], number][] = [
   ["fg", ["canvas", "surface", "raised", "hover", "bubble"], TEXT],
   ["fg-muted", ["canvas", "surface", "raised", "bubble"], TEXT],
   ["on-accent", ["accent"], TEXT],
+  ["on-loss", ["loss"], TEXT],
   ["accent", ["canvas", "surface", "raised", "accent-soft"], TEXT],
   ["line-strong", ["canvas", "surface", "raised"], UI],
   ["focus", ["canvas", "surface", "raised"], UI],
@@ -91,6 +93,20 @@ function luminance(hex: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+// color-mix(in srgb, a share%, b), rounded like a browser would.
+function mix(a: string, b: string, share: number): string {
+  const channels = (hex: string) =>
+    [1, 3, 5].map((start) => parseInt(hex.slice(start, start + 2), 16));
+  const [from, to] = [channels(a), channels(b)];
+  return `#${from
+    .map((value, i) =>
+      Math.round(value * share + (to[i] ?? 0) * (1 - share))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
 function contrast(a: string, b: string): number {
   const [light, dark] = [luminance(a), luminance(b)].sort((x, y) => y - x);
   return ((light ?? 0) + 0.05) / ((dark ?? 0) + 0.05);
@@ -119,6 +135,17 @@ describe.each(THEMES)("%s theme", (theme) => {
         })
         .filter(({ ratio }) => ratio < minimum);
       expect(failures, `${foreground} needs ${String(minimum)}:1`).toEqual([]);
+    },
+  );
+
+  // styles.css: --color-loss-hover and --color-loss-pressed.
+  it.each([0.9, 0.8])(
+    "on-loss stays readable on the danger button at %s red",
+    (share) => {
+      const fill = mix(tokens.loss ?? "", tokens.fg ?? "", share);
+      expect(contrast(tokens["on-loss"] ?? "", fill)).toBeGreaterThanOrEqual(
+        TEXT,
+      );
     },
   );
 });

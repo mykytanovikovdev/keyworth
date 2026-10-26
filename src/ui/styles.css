@@ -56,6 +56,12 @@
   --color-gain: var(--kw-gain);
   --color-gain-soft: var(--kw-gain-soft);
   --color-loss: var(--kw-loss);
+  --color-on-loss: var(--kw-on-loss);
+  /* The danger button's hover and press: the red mixed toward the text color,
+     darker in light and lighter in dark, so contrast with on-loss only rises.
+     tests/unit/design-tokens.test.ts checks the same shares. */
+  --color-loss-hover: color-mix(in srgb, var(--kw-loss) 90%, var(--kw-fg));
+  --color-loss-pressed: color-mix(in srgb, var(--kw-loss) 80%, var(--kw-fg));
   --color-loss-soft: var(--kw-loss-soft);
   --color-warning: var(--kw-warning);
   --color-warning-soft: var(--kw-warning-soft);

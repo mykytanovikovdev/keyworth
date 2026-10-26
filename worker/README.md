@@ -11,6 +11,10 @@ The Worker is designed to only ever see encrypted envelopes and service data
 exception is `/api/chat`, a pass-through to the model that never stores or logs
 bodies.
 
+It also owns sign-in: Google through [Better Auth](https://www.better-auth.com),
+an invite list for the closed beta, database sessions in an httpOnly cookie, and
+a session check in front of every other API route.
+
 **Not responsible for:** serving static files or the SPA fallback (the assets layer
 does that without invoking the Worker), and any computation on financial data (that
 happens in the browser, on decrypted data).
@@ -24,9 +28,19 @@ request ─► Cloudflare edge
             └─ anything else (any request type)    ─► index.html    ─► + public/_headers
 ```
 
+Inside the Worker:
+
+```
+/api/health      public, never touches the database
+/api/auth/*      Better Auth: Google sign-in and callback, session, sign-out, account deletion
+/api/*           everything else: a valid session or 401 (deny by default), e.g. /api/me
+```
+
 | File                           | Role                                                                |
 | ------------------------------ | ------------------------------------------------------------------- |
-| `index.ts`                     | Hono app: security headers, API sub-app at `/api`, JSON 404, errors |
+| `index.ts`                     | Hono app: headers, per-request database and auth, session check     |
+| `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits    |
+| `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))      |
 | `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)      |
 | `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP |
 | `../wrangler.jsonc`            | Worker config: assets routing, observability, compatibility date    |
@@ -34,14 +48,29 @@ request ─► Cloudflare edge
 
 Production runs at **https://keyworth.app**, a Custom Domain declared in
 `wrangler.jsonc` (`routes` with `custom_domain: true`): each deploy keeps its DNS
-record and certificate in place. The `workers.dev` address stays on until sign-in
-goes live, then it is turned off so the app has a single origin.
+record and certificate in place. The `workers.dev` address is off, so the app has
+a single origin: session cookies, the OAuth redirect URI and Better Auth's trusted
+origin all assume keyworth.app.
 
 `vite build` produces `dist/client` (static assets) and `dist/keyworth` (the Worker
 bundle plus a generated `wrangler.json`). `wrangler deploy` reads the generated config
 through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
 `npm run preview` serves that build with `wrangler dev --config dist/keyworth/wrangler.json`:
 the same runtime, assets and headers as production.
+
+### Sign-in and sessions
+
+1. The SPA asks `POST /api/auth/sign-in/social` for Google's URL; Better Auth
+   stores the OAuth state and sends the browser to Google.
+2. Google redirects back to `/api/auth/callback/google`. Better Auth exchanges
+   the code for the user's profile, then the database hooks in `auth.ts` decide:
+   the email must be verified by Google and on the invite list, both when the
+   account is created and at every later sign-in.
+3. Accepted: a session row and a signed `__Secure-better-auth.session_token`
+   cookie (httpOnly, Secure, SameSite=Lax), then a redirect to the app.
+   Refused: a redirect to `/sign-in?error=NOT_INVITED`, and nothing is stored.
+4. Every other `/api/*` request reads the session from the cookie and the
+   database. The user comes only from there, never from a request body or URL.
 
 ### Security headers
 
@@ -97,8 +126,27 @@ and after every deploy against the live site.
   ESLint bans them in our code as well.
 - **`Referrer-Policy: same-origin` for the page, not `no-referrer`.** With
   `no-referrer`, browsers send `Origin: null` on same-origin `POST` requests, and
-  Better Auth (phase 2) checks `Origin` for CSRF protection, so sign-in and sign-out would
+  Better Auth checks `Origin` for CSRF protection, so sign-in and sign-out would
   fail. `same-origin` still sends nothing to other sites.
+- **Better Auth.** It runs on Workers with Hono, keeps sessions in our own
+  database (so they can be revoked at once), and brings CSRF origin checks and
+  rate limiting for its routes. Rejected: writing OAuth and session handling by
+  hand (easy to get subtly wrong), and Lucia, which its author deprecated.
+- **Database sessions, no cookie cache.** Each request checks the session row,
+  so signing out, deleting the account or revoking a session takes effect on the
+  next request. It costs one query per request.
+- **Only what sign-in needs is stored.** Google's access, refresh and ID tokens
+  would let a database reader act on the user's Google account; Keyworth never
+  calls Google APIs, so the hooks drop them before saving, along with the avatar
+  URL (the page cannot load it anyway: `img-src 'self'`).
+- **Deleting the account needs a sign-in from the last 10 minutes.** A stolen
+  session cookie alone cannot erase someone's data.
+- **Deny by default.** The session check sits in front of every route except
+  health and auth, so a new route is protected unless it is deliberately made
+  public. Without a session, an unknown route answers 401, not 404, and does not
+  reveal what exists.
+- **A fresh auth instance per request.** Bindings and secrets arrive with each
+  request in Workers, so `createAuth(db, env)` runs inside the middleware.
 - **Explicit logs only.** Workers Logs is on, but automatic invocation logs are off
   and query strings are redacted: the only records are what our code logs on
   purpose. Request bodies are never logged.
@@ -110,6 +158,12 @@ and after every deploy against the live site.
 
 - Run `npm run cf:types` after every change to `wrangler.jsonc`; CI fails if
   `worker-configuration.d.ts` is stale.
+- **Local previews pass `--local-upstream localhost:<port>`.** Because
+  `wrangler.jsonc` declares the keyworth.app route, a bare `wrangler dev`
+  rewrites each request's host and `Origin` header to keyworth.app. Better Auth
+  then sees a foreign origin and refuses every POST that carries the session
+  cookie (`403 INVALID_ORIGIN`): sign-out and account deletion break while
+  reads keep working. `npm run dev` (the Vite plugin) does not rewrite.
 - `compatibility_date` cannot be newer than the workerd version bundled with
   wrangler, or local dev refuses to start.
 - Never log request bodies or put user data into error messages: `/api/chat` and
@@ -122,6 +176,19 @@ and after every deploy against the live site.
 - Every CSP exception must be justified in this README. Current ones: the two
   React Aria style hashes (above). Planned: `'wasm-unsafe-eval'` for Argon2id
   (phase 3). `'unsafe-eval'` and `'unsafe-inline'` are never allowed.
+- `BETTER_AUTH_URL` must be the origin the browser uses: Better Auth builds the
+  OAuth redirect URI and its trusted origin from it. It is a var in
+  `wrangler.jsonc` for production and overridden in `.dev.vars` locally.
+- Secrets are declared by name in `wrangler.jsonc` (`secrets.required`), so the
+  generated types are the same on every machine and missing secrets are reported
+  in local dev.
+- A database hook that refuses sign-in must throw an `APIError` **with a
+  `code`**; only then does Better Auth's callback redirect to the error page
+  instead of answering with JSON.
+- Account deletion with a session older than 10 minutes fails with
+  `400 SESSION_EXPIRED`; the client then asks the user to sign in again.
+- Better Auth rate-limits only its own routes (`/api/auth/*`); other routes get
+  their limits when they are added.
 - `npm run build:design` (the `/design` page) also rewrites
   `.wrangler/deploy/config.json`, so a bare `wrangler deploy` right after it would
   deploy the design build. `npm run deploy` and CI always rebuild production first.
@@ -133,13 +200,35 @@ and after every deploy against the live site.
   workerd exactly as it will run on Cloudflare (port 4173).
 - `npm run build:design && npm run preview:design` — the same with the `/design`
   page (port 4174); see [src/ui/README.md](../src/ui/README.md).
-- New route: add it to `index.ts` (or a sub-app under `worker/routes/` once there
-  are several), with session checks, validation and rate limits from the start.
-- Local secrets go in `.dev.vars` (see `.dev.vars.example`); production secrets
-  via `wrangler secret put <NAME>`.
+- New route: add it to `index.ts` after `requireSession` (or a sub-app under
+  `worker/routes/` once there are several), read the user with `c.get("user")`,
+  and add validation and limits from the start. A public route goes before the
+  session check, on purpose and with a comment.
+- Local secrets go in `.dev.vars` (copy `.dev.vars.example`); production
+  secrets via `npx wrangler secret put <NAME>`. Local sign-in with real Google
+  also needs the localhost redirect URI on the OAuth client.
+- The database: [db/README.md](db/README.md). Invites, blocks and account
+  deletion: `npm run users` ([db/README.md](db/README.md#managing-users)).
+
+### Blocking by IP address
+
+IP addresses are blocked at Cloudflare's edge, before the Worker runs, not in
+code. In the dashboard, open the `keyworth.app` zone, then **Security →
+Security rules → Create rule**:
+
+- **Custom rules** (what Cloudflare recommends; the free plan includes a few):
+  for example the expression `(ip.src in {203.0.113.7 198.51.100.0/24})` with
+  the action **Block**. A rule can also match an ASN or a country.
+- **IP access rules**: one IP address, range, ASN or country per rule, with a
+  note saying why.
+
+Prefer blocking the account (`npm run users -- block`): friends in Russia reach
+the app through a shared VPN address, and blocking it would lock them out too.
+An IP rule is for an ongoing attack, and is removed once it ends.
 
 ## Related
 
 - [Root README](../README.md)
 - [Design system](../src/ui/README.md) — why the CSP allows two style hashes
+- [Database](db/README.md) — schema, roles, migrations, local Postgres
 - [Integration tests](../tests/integration/README.md) — Worker tests in workerd

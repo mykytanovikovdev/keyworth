@@ -11,12 +11,37 @@
     // invoking the Worker — that breaks OAuth callbacks under /api/auth/*.
     "run_worker_first": ["/api/*"],
   },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      // Neon in Frankfurt as keyworth_app, with query caching disabled so a
+      // deleted session is never served from a cache (see worker/db/README.md).
+      // Not a secret: the credentials live in the Hyperdrive config itself.
+      "id": "4b7e297d346e414fb933d220ffffd6fd",
+      // Local dev: the Postgres from compose.yaml, as the Worker's role.
+      // Tests and e2e point CLOUDFLARE_HYPERDRIVE_LOCAL_CONNECTION_STRING_HYPERDRIVE
+      // at the test database instead.
+      "localConnectionString": "postgres://keyworth_app:keyworth_app@localhost:5433/keyworth",
+    },
+  ],
+  "vars": {
+    // Overridden locally by .dev.vars.
+    "BETTER_AUTH_URL": "https://keyworth.app",
+  },
+  // Set with `npx wrangler secret put <NAME>`; locally in .dev.vars.
+  "secrets": {
+    "required": [
+      "BETTER_AUTH_SECRET",
+      "GOOGLE_CLIENT_ID",
+      "GOOGLE_CLIENT_SECRET",
+    ],
+  },
   // The production address. Cloudflare creates the DNS record and the
   // certificate for it on deploy; the zone is in this account.
   "routes": [{ "pattern": "keyworth.app", "custom_domain": true }],
-  // Kept on while keyworth.app is being verified; turned off when sign-in goes
-  // live, so the app has a single origin (cookies, OAuth redirect URI, CSP).
-  "workers_dev": true,
+  // Off: keyworth.app is the only origin. Session cookies, the OAuth redirect
+  // URI and Better Auth's trusted origin all assume it.
+  "workers_dev": false,
   // Per-version preview URLs are public; we don't use them.
   "preview_urls": false,
   "upload_source_maps": true,
