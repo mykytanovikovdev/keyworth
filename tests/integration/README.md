@@ -103,6 +103,11 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
 
 - **The database must be running** (`npm run db:up`); the setup fails with that
   hint otherwise.
+- **The first request in each file is slow** (about 2 seconds, more in CI):
+  every file gets a fresh isolate that evaluates the Worker's modules on its
+  first request. `setup.ts` makes that request in a `beforeAll` with a long
+  limit, so the cold start never counts against a test's 5-second timeout. A
+  test that needs more than 5 seconds after that is a bug, not a slow machine.
 - After changing `wrangler.jsonc`, run `npm run cf:types`, or the `Env` types go
   stale.
 - `pg` needs two module redirects in this test runner (`pg-protocol` and

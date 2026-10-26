@@ -59,6 +59,7 @@ export default defineConfig({
           name: "worker",
           include: ["tests/integration/**/*.test.ts"],
           globalSetup: ["tests/support/integration-setup.ts"],
+          setupFiles: ["tests/integration/setup.ts"],
         },
       },
     ],
