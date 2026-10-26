@@ -158,6 +158,12 @@ and after every deploy against the live site.
 
 - Run `npm run cf:types` after every change to `wrangler.jsonc`; CI fails if
   `worker-configuration.d.ts` is stale.
+- **Local previews pass `--local-upstream localhost:<port>`.** Because
+  `wrangler.jsonc` declares the keyworth.app route, a bare `wrangler dev`
+  rewrites each request's host and `Origin` header to keyworth.app. Better Auth
+  then sees a foreign origin and refuses every POST that carries the session
+  cookie (`403 INVALID_ORIGIN`): sign-out and account deletion break while
+  reads keep working. `npm run dev` (the Vite plugin) does not rewrite.
 - `compatibility_date` cannot be newer than the workerd version bundled with
   wrangler, or local dev refuses to start.
 - Never log request bodies or put user data into error messages: `/api/chat` and
