@@ -48,8 +48,9 @@ Inside the Worker:
 
 Production runs at **https://keyworth.app**, a Custom Domain declared in
 `wrangler.jsonc` (`routes` with `custom_domain: true`): each deploy keeps its DNS
-record and certificate in place. The `workers.dev` address stays on until sign-in
-goes live, then it is turned off so the app has a single origin.
+record and certificate in place. The `workers.dev` address is off, so the app has
+a single origin: session cookies, the OAuth redirect URI and Better Auth's trusted
+origin all assume keyworth.app.
 
 `vite build` produces `dist/client` (static assets) and `dist/keyworth` (the Worker
 bundle plus a generated `wrangler.json`). `wrangler deploy` reads the generated config

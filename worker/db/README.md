@@ -81,8 +81,9 @@ Every timestamp is `timestamp with time zone`.
 
 ## Pitfalls & gotchas
 
-- **The Hyperdrive `id` in `wrangler.jsonc` is a placeholder** until the
-  production config exists (see below). Local dev and tests ignore it.
+- **The Hyperdrive `id` in `wrangler.jsonc` is not a secret**: the
+  credentials live in the Hyperdrive config at Cloudflare. Local dev and tests
+  ignore it and use `localConnectionString` or the environment variable.
 - **Migrations run before the new Worker is deployed**, so the running Worker
   briefly sees the new schema. Keep migrations backward compatible: add a column
   and backfill first, drop the old one in a later release.
@@ -129,7 +130,9 @@ apply it with `npm run db:migrate`, and add tests.
 4. A Hyperdrive configuration with `keyworth_app`'s direct connection string
    and caching disabled (dashboard, or
    `npx wrangler hyperdrive create keyworth --connection-string="…" --caching-disabled`);
-   its id goes into `wrangler.jsonc`. Neon's own pooler is not needed:
+   its id goes into `wrangler.jsonc`. Check it with `npx wrangler hyperdrive list`
+   (user `keyworth_app`, a host without `-pooler`, caching `disabled`); turn the
+   cache off later with `npx wrangler hyperdrive update <id> --caching-disabled`. Neon's own pooler is not needed:
    Hyperdrive pools.
 5. After the first deploy, invite people:
    `DATABASE_URL="<owner connection string>" npm run allowlist -- add <email>`.

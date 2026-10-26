@@ -60,7 +60,7 @@ npx playwright test --project=headers         # HTTP checks only, fast
 npx playwright test --project=chromium        # production build, one browser
 npx playwright test --project=design-webkit   # /design, one browser
 npx playwright show-report                    # after a failure (traces are kept)
-PLAYWRIGHT_BASE_URL=https://example.workers.dev npx playwright test --project=headers --project=chromium
+PLAYWRIGHT_BASE_URL=https://keyworth.app npx playwright test --project=headers --project=chromium
 ```
 
 First run on a new machine: `npx playwright install chromium firefox webkit`.
