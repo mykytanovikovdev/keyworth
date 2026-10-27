@@ -157,7 +157,7 @@ so dependencies are treated as part of the attack surface:
 
 ## Security
 
-**Encryption model (core in place, storage and screens in progress).** The
+**Encryption model (core and storage in place, screens in progress).** The
 server never stores financial data in plaintext and never receives the
 passphrase, the recovery key or the data key. A random AES-256-GCM data key,
 made in the browser, encrypts every record; the server stores it only wrapped by
