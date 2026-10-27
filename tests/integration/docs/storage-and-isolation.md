@@ -70,6 +70,25 @@ uninviting, deleting and listing, as described in
   limit answers 429 with `Retry-After` (the seconds left in the window), resets
   after its window, and covers Lock (`DELETE /api/keys/device`).
 
+**Each guard's exact condition** (`isolation.test.ts`) — with well-formed but
+meaningless bytes, aimed at what a broken guard would let through:
+
+- Bob cannot update (under either kind) or delete Alice's record by its id, and
+  the stored row is unchanged; under one id shared by both, an update touches
+  only the writer's row. Replacing one's own slots leaves another user's alone.
+- Remembered devices: a well-formed but wrong token gets nothing; Bob with
+  Alice's device cookie gets nothing and his Lock keeps her row; Lock in one
+  session keeps another session's device; remembering again replaces the row
+  and the old cookie stops working.
+- Every Origin that is not exactly the app's (a trailing slash, upper case, an
+  explicit port, http, a longer domain, `null`, empty) is refused on DELETE as
+  on PUT, and a Referer alone is not enough; nothing changes.
+- A record body over 96 KB: 413. Record writes, remembering a device and
+  replacing a slot are each rate-limited; with three writes left in the window,
+  exactly three of six simultaneous writes pass. A replaced record's old size
+  counts once against the storage limit (same size passes, larger fails,
+  smaller passes).
+
 ## Invariants these tests hold
 
 1. Nothing is reachable without a session; the user comes only from it.

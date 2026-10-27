@@ -37,7 +37,11 @@ Covered now:
   and encrypted records through `/api/keys` and `/api/vault`, with slots and
   envelopes made by the real `src/crypto`: every guard (origin, size, rate,
   freshness, revisions, quotas), **no plaintext anywhere in the database**, and
-  **isolation** between users. What each test proves:
+  **isolation** between users.
+- **`isolation.test.ts`**: the same guards with well-formed but meaningless
+  bytes (the server cannot tell them from ciphertext), aimed at each guard's
+  exact condition: user scope, the device token, Origin on every method,
+  every limit and its boundary. What each test proves:
   [docs/storage-and-isolation.md](docs/storage-and-isolation.md).
 
 Deliberately not covered here:

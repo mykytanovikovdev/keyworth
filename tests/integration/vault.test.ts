@@ -336,13 +336,9 @@ describe("isolation", () => {
     const id = crypto.randomUUID();
     await put(alice, id, { owner: "alice" });
 
+    // Before Bob has a record of his own under this id, so only Alice's exists.
+    const bobUpdatesAlices = await put(bob, id, {}, { revision: 1 });
     const bobCreates = await put(bob, id, { owner: "bob" });
-    const bobUpdatesAlices = await put(
-      bob,
-      crypto.randomUUID(),
-      {},
-      { revision: 1 },
-    );
     const bobDeletes = await api(`/api/vault/${id}`, {
       cookie: bob.cookie,
       method: "DELETE",
