@@ -52,6 +52,9 @@ Covered now:
   Trusted Types with **zero violations or errors**. The measured time is added to
   the report as an `argon2id` annotation, one per browser.
 
+What these suites prove about the CSP and the browser engines, and their
+pitfalls: [docs/csp-and-engines.md](docs/csp-and-engines.md).
+
 Not covered yet: the real round trip through Google (checked by hand), and
 encryption setup, unlock and chat, which arrive
 with their phases. Screenshot comparison lives in [`tests/visual/`](../visual/README.md).

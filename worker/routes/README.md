@@ -31,57 +31,35 @@ Responses use plain error codes: `invalid_body`, `invalid_id`, `already_set_up`
 current `revision`), `quota_exceeded` (413), `body_too_large` (413),
 `rate_limited` (429, with `Retry-After`), `forbidden_origin` (403).
 
-**Remembered devices.** `POST /api/keys/device` stores the data key wrapped by
-a key that exists only in that browser's IndexedDB, in `device_unlocks` keyed by
-the session id, together with the SHA-256 of a random 32-byte token. The token
-goes to the browser as `__Host-keyworth-device`: httpOnly, Secure,
-SameSite=Strict, Path=/, and no expiry, so the browser drops it when it closes.
-`GET` returns the wrapped key only for the same session and the same token.
-Signing out, revoking the session (`npm run users -- revoke`, "Sign out
-everywhere") or its expiry deletes the row through the foreign key.
+**Remembered devices:** `POST /api/keys/device` stores the data key wrapped by a
+browser-only key under the current session and sets the session-only
+`__Host-keyworth-device` cookie; `GET` returns it only to the same session with
+that cookie; signing out or revoking the session deletes it. Design and threat
+model: [src/crypto/docs/remember-device.md](../../src/crypto/docs/remember-device.md).
 
 ## Why this way
 
-- **Validation from `shared/schemas`.** The browser and the Worker use the same
-  zod schemas; the server accepts only envelopes and slots that `src/crypto`
-  could have produced (exact byte lengths, padding buckets, Argon2 settings
-  within limits).
-- **Revisions instead of last-write-wins.** Two devices editing the same record
-  must not silently overwrite each other; the loser gets 409 with the current
-  revision and reloads.
-- **Limits inside the write.** The record count and the bytes a user stores are
-  checked in the same SQL statement that writes, so concurrent requests cannot
-  slip past them. Only when nothing was written does a second query explain why.
-- **Rate limits in Postgres** (`../limits.ts`), for writes only. Workers keep no
-  memory between requests, and Cloudflare's rate-limiting binding counts per
-  location and only approximately (its availability on the free plan is also
-  unconfirmed). Reads stay at one round trip, which matters for users far from
-  Frankfurt.
-- **A recent sign-in to replace a wrapped key.** A stolen session cookie could
-  otherwise replace a slot with garbage and lock the owner out. It cannot read
-  anything either way.
-- **The device cookie is separate from the session cookie.** The session lasts
-  days; "until the browser closes" needs a cookie without an expiry, and
-  binding it to one session makes sign-out and revocation end it.
-- **Same-origin check on writes.** The session cookie is SameSite=Lax, which
-  already keeps other sites from sending it with their requests; checking
-  `Origin` as well does not depend on that setting (Better Auth does the same).
+- **Validation from `shared/schemas`:** the server accepts only envelopes and
+  slots that `src/crypto` could have produced.
+- **Revisions, quotas inside the write, rate limits in Postgres, a recent
+  sign-in to replace a wrapped key, and an `Origin` check on writes:** each is
+  explained, with the alternatives, in
+  [docs/api-guards.md](docs/api-guards.md).
+- **A separate, session-bound device cookie** for "Remember this device":
+  [src/crypto/docs/remember-device.md](../../src/crypto/docs/remember-device.md).
 
 ## Pitfalls & gotchas
 
-- **A stolen session can still delete records.** It cannot read them, but
-  `DELETE /api/vault/:id` needs only a session. Export (phase 4) is the
-  defense; there is no undo.
-- **The device cookie is `__Host-` only over HTTPS.** On `http://localhost` it
-  is plain `keyworth-device` without Secure, so local development and the e2e
+- **A stolen session can still delete records** (it cannot read them); export
+  (phase 4) is the defense.
+- **The device cookie is `__Host-` only over HTTPS;** on `http://localhost` it is
+  plain `keyworth-device` without Secure, so local development and the e2e
   builds work in every browser.
-- **Raising the Argon2 settings later**: rewrapping a passphrase slot needs a
-  fresh session, so the automatic upgrade must happen right after a sign-in,
-  or the rule needs an exception for same-passphrase upgrades.
-- **The GET routes are not rate-limited.** They need a session and cost one
-  query; revisit in the phase 8 audit.
-- **`/api/vault` returns everything** of a kind in one response. Fine for
-  thousands of records; add paging before chat history grows large.
+- **Raising the Argon2 settings later** needs a fresh session to rewrap the
+  passphrase slot: run the upgrade right after a sign-in, or allow
+  same-passphrase upgrades explicitly.
+- **GET routes are not rate-limited** and `GET /api/vault` returns everything at
+  once: revisit in the phase 8 audit and before chat history grows.
 
 ## How to work with it
 
@@ -92,6 +70,8 @@ everywhere") or its expiry deletes the row through the foreign key.
 - Tests: `tests/integration/keys.test.ts`, `tests/integration/vault.test.ts`.
 
 ## Related
+
+- [docs/api-guards.md](docs/api-guards.md): every guard, its rule and its answer
 
 - [worker/](../README.md): the app, the session check, security headers
 - [worker/db/](../db/README.md): the tables behind these routes

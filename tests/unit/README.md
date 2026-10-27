@@ -12,26 +12,11 @@ Covered now:
   series, and every text/background pair meets WCAG AA (4.5:1 for text, 3:1 for
   field borders and focus). The test parses the CSS, so a token change that
   breaks contrast fails before anyone sees it.
-- `src/crypto/` (`crypto/`) — the encryption core, which is the part of
-  Keyworth that must not have bugs:
-  - `kdf.test.ts`: noble's Argon2id against RFC 9106's test vector, and against
-    Node's native (OpenSSL) Argon2id with the production settings; the same
-    passphrase and salt give the same key, composed and decomposed accents give
-    the same key, derived keys are non-extractable, progress reaches 1, and
-    settings below OWASP's minimum or above the page limit are refused.
-  - `key-slots.test.ts`: every flow — set up, unlock with the passphrase, the
-    recovery key (however it is typed) and a remembered device; a wrong
-    passphrase, another user's slot and a swapped slot kind all fail; changing
-    the passphrase keeps the same data key; a replaced recovery key stops the
-    old one; a forgotten passphrase can be reset; one test runs the production
-    Argon2 settings end to end.
-  - `envelope.test.ts`: records decrypt back to the same value; no plaintext in
-    the envelope; 200 encryptions draw 200 different IVs; a record moved to
-    another id, kind or user, a flipped bit in the ciphertext, IV or tag, or
-    another user's key all fail; size buckets hide lengths; oversized records
-    are refused.
-  - `recovery-key.test.ts`: format, alphabet, round trips, sloppy typing,
-    malformed input.
+- `src/crypto/` (`crypto/`) — the encryption core: Argon2id against RFC 9106
+  and against Node's native implementation with the production settings, every
+  key flow and every way it must fail, bound and padded envelopes, recovery
+  keys and slot serialization. What each file proves:
+  [docs/crypto-tests.md](docs/crypto-tests.md).
 - `shared/schemas/` (`schemas.test.ts`) — accepted and rejected envelopes,
   Argon2 settings and record kinds.
 

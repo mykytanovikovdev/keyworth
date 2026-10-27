@@ -33,25 +33,12 @@ Covered now:
   every session while sign-in keeps working; `uninvite` ends sessions;
   `sessions` never returns the token; `delete` removes the account with its
   sessions and Google link; `list` reports each email's state.
-- **`keys.test.ts`**: `/api/keys` with slots made by the real `src/crypto`
-  (Argon2 at OWASP's minimum for speed): setup stores both slots once (409
-  after) and what comes back still opens the data key; malformed slots and weak
-  Argon2 settings are refused; another user sees nothing; writes from another
-  origin or without one get 403; oversized bodies 413; the 21st write in a
-  minute 429; replacing a slot needs a sign-in from the last 10 minutes;
-  "Remember this device" sets a session-only, httpOnly, SameSite=Strict
-  `__Host-` cookie, returns the device slot only to the same session with that
-  cookie, and is gone after Lock or sign-out; deleting the account removes slots,
-  records, remembered devices and counters.
-- **`vault.test.ts`**: `/api/vault`: an envelope comes back unchanged and still
-  decrypts; **no plaintext anywhere in the database** (every column of the
-  user's records and key slots, as text and raw bytes, is searched for the
-  record's content, the passphrase and the recovery key); writes need the
-  current revision (409 otherwise) and cannot change a record's kind; listing
-  by kind; deleting; malformed ids, envelopes and extra plaintext fields are
-  refused; **isolation**: another user's writes, deletes and copied envelopes
-  never touch or decrypt Alice's record; the record-count and storage quotas
-  (413); the write rate limit and its window reset.
+- **`keys.test.ts`** and **`vault.test.ts`**: wrapped keys, remembered devices
+  and encrypted records through `/api/keys` and `/api/vault`, with slots and
+  envelopes made by the real `src/crypto`: every guard (origin, size, rate,
+  freshness, revisions, quotas), **no plaintext anywhere in the database**, and
+  **isolation** between users. What each test proves:
+  [docs/storage-and-isolation.md](docs/storage-and-isolation.md).
 
 Deliberately not covered here:
 
