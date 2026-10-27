@@ -52,7 +52,7 @@ The details live in [`docs/`](docs/):
 | `envelope.ts`     | Encrypt and decrypt records                                           |
 | `padding.ts`      | Size buckets                                                          |
 | `recovery-key.ts` | Generating, formatting and parsing recovery keys                      |
-| `passphrase.ts`   | Normalization and the minimum length                                  |
+| `passphrase.ts`   | Normalization, the plain-Latin rule and the length limits             |
 | `serialize.ts`    | Key slots to and from the JSON of `/api/keys`, checked on the way in  |
 | `encoding.ts`     | base64url, UTF-8, random bytes                                        |
 | `errors.ts`       | `CryptoError` with `wrong-secret`, `tampered` or `invalid-input`      |
@@ -90,7 +90,11 @@ The details live in [`docs/`](docs/):
   `http://<LAN IP>`; `localhost` and HTTPS are fine. The benchmark page uses
   noble alone, so it also works on a phone over the local network.
 - **Normalization is part of the key.** Changing how passphrases are normalized
-  locks everyone out. NFC is permanent.
+  (NFKC, spaces, trimmed ends) or the plain-Latin rule locks everyone out.
+- **Plain Latin only** for everything typed by hand to reach the keys (the
+  passphrase and the recovery key): printable ASCII. Anything else is refused
+  with `not-latin` before any cryptography runs, so the screen can say "check
+  the keyboard layout" ([docs/argon2.md](docs/argon2.md)).
 - **zod must stay jitless** (`shared/schemas/zod.ts`): otherwise its eval probe
   shows up as a Trusted Types violation.
 - **Wiping memory is best effort.** Derived bytes are zeroed after use, but

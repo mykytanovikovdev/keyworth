@@ -15,16 +15,32 @@ that the same code works in Chromium, Firefox and WebKit is shown by
   same bytes with the **production settings** (64 MiB, 3 passes, 1 lane). This
   matters because noble's Argon2 module was outside its library's audit.
 - The same passphrase and salt give the same key; another passphrase or salt
-  gives a different one; composed and decomposed accents give the same key
-  (NFC); derived keys are non-extractable and only wrap and unwrap; progress
-  reaches 1; settings below OWASP's minimum, above the page's limits or
-  fractional are refused; a salt that is not 16 bytes is refused.
+  gives a different one; the forms one passphrase can be typed in (no-break and
+  ideographic spaces, tabs, full-width letters, spaces at the ends) give the
+  same key, while case and inner spaces count; accented, Spanish and Cyrillic
+  letters, look-alikes, emoji and invisible characters are refused with
+  `not-latin` before Argon2 runs; derived keys are non-extractable and only
+  wrap and unwrap; progress reaches 1; settings below OWASP's minimum, above
+  the page's limits or fractional are refused; a salt that is not 16 bytes is
+  refused.
+
+**The passphrase policy holds exactly** (`crypto/passphrase.test.ts`)
+
+- 11 characters are too short, 12 and 1,024 pass, 1,025 is too long; every
+  printable ASCII character is accepted; accents, Spanish, German and Cyrillic
+  letters, a Cyrillic look-alike, an emoji and an invisible character are
+  `not-latin` (reported before `too-short`); spaces at the ends do not count.
+- Normalization folds every kind of space and full-width forms, trims the
+  ends, and keeps case, inner runs of spaces and punctuation.
 
 **Key flows keep the data key safe** (`crypto/key-slots.test.ts`)
 
 - Setup returns a non-extractable data key; slots carry the settings, fresh
   salts, 12-byte IVs and 48-byte wrapped keys; the recovery key has eight groups
   of four.
+- Setup, changing the passphrase and resetting it all refuse a new passphrase
+  that is too short, only spaces (`invalid-input`) or not plain Latin
+  (`not-latin`).
 - One test runs the production Argon2 settings end to end (setup and unlock).
 - Unlock with the passphrase, the recovery key (however typed) and a remembered
   device opens the **same** data key (it decrypts what the original encrypted).

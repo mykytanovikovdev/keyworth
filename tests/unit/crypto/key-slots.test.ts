@@ -68,6 +68,39 @@ describe("setting up keys", () => {
     });
   }, 30_000);
 
+  it.each([
+    ["too short", "eleven char", "invalid-input"],
+    ["only spaces", " ".repeat(16), "invalid-input"],
+    ["not plain Latin", "mañana por la mañana", "not-latin"],
+  ])(
+    "refuses a new passphrase that is %s, in every flow that sets one",
+    async (_, passphrase, code) => {
+      const { passphraseSlot, recoverySlot, recoveryKey } = await setUp();
+
+      await expect(
+        createKeys({ userId: ALICE, passphrase, kdf: FAST_KDF }),
+      ).rejects.toMatchObject({ code });
+      await expect(
+        changePassphrase({
+          userId: ALICE,
+          slot: passphraseSlot,
+          currentPassphrase: PASSPHRASE,
+          newPassphrase: passphrase,
+          kdf: FAST_KDF,
+        }),
+      ).rejects.toMatchObject({ code });
+      await expect(
+        resetPassphrase({
+          userId: ALICE,
+          recoverySlot,
+          recoveryKey,
+          newPassphrase: passphrase,
+          kdf: FAST_KDF,
+        }),
+      ).rejects.toMatchObject({ code });
+    },
+  );
+
   it("gives a recovery key in eight groups of four", async () => {
     const { recoveryKey } = await setUp();
 

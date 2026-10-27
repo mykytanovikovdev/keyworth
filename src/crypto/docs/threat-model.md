@@ -87,7 +87,8 @@ Anthropic directly and the server sees none of it.
 - **Offline guessing after a database breach.** An attacker with the database
   can try passphrases against a passphrase slot at the cost of one Argon2id
   computation per guess (64 MiB, 3 passes). A long passphrase is the defense;
-  the minimum is 12 characters.
+  the minimum is 12 plain-Latin characters, enforced by every flow that sets
+  a passphrase.
 
 ## Assumptions
 

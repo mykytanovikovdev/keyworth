@@ -6,12 +6,18 @@ these settings, and how the settings can change. Code: `kdf.ts`, `params.ts`,
 
 ## How it works
 
-1. The passphrase is normalized to Unicode NFC (`normalizePassphrase`), so the
-   same phrase typed on two keyboards gives the same bytes. Case and spaces are
-   kept: they are part of the passphrase.
-2. `argon2idAsync` from `@noble/hashes` derives 32 bytes with the slot's salt
+1. The passphrase is normalized (`normalizePassphrase`), so the same phrase
+   typed on two keyboards gives the same bytes: NFKC turns full-width letters
+   and digits into plain ones, every kind of space (a no-break space from
+   Option+Space, a tab, an ideographic space) becomes an ordinary space, and
+   spaces at either end are dropped. Case and inner spaces are kept.
+2. What remains must be **plain Latin**: printable ASCII only (a–z, A–Z,
+   digits, the space and ASCII punctuation). Anything else is refused with
+   `not-latin` before Argon2 runs: no slot can hold it, and it usually means
+   another keyboard layout is on.
+3. `argon2idAsync` from `@noble/hashes` derives 32 bytes with the slot's salt
    (16 random bytes) and settings, reporting progress from 0 to 1.
-3. The bytes are imported as a non-extractable AES-GCM key with usages
+4. The bytes are imported as a non-extractable AES-GCM key with usages
    `wrapKey` and `unwrapKey`, and zeroed (best effort).
 
 ## Settings
@@ -36,12 +42,27 @@ against 0.09 s for Node's native OpenSSL Argon2id. The target was at most about
 untrusted: anything weaker than OWASP's minimum is refused (`invalid-input`)
 before deriving, and anything larger could hang or crash the page.
 
-**Passphrase policy** (`passphrase.ts`): at least 12 and at most 1,024
-characters, counted as graphemes (characters as people see them) after NFC. No
-strength-estimation library; the screen suggests four or more random words.
+**Passphrase policy** (`passphrase.ts`): plain Latin, at least 12 and at most
+1,024 characters after normalization. `checkPassphrase` reports the problem for
+the screen (`not-latin`, `too-short`, `too-long`); every flow that creates a
+passphrase slot (`createKeys`, `changePassphrase`, `resetPassphrase`) refuses
+the same passphrases itself. No strength-estimation library; the screen
+suggests four or more random words.
 
 ## Decisions and alternatives
 
+- **Plain Latin only (owner's decision).** Everything a person types by hand
+  to reach their keys (the passphrase, the recovery key) is printable ASCII.
+  Letters outside it arrive in different forms on different keyboards and
+  phones (precomposed or not, dead keys, autocorrect), which would make the
+  same passphrase give different keys; and a passphrase typed with a Cyrillic
+  layout should fail at once with a reason, not after a second of Argon2 as
+  "wrong passphrase". The smaller alphabet is made up for by length: four
+  random words are about 50 bits either way.
+- **Normalizing what is invisible, refusing what is not.** Spaces of every kind
+  and full-width forms look the same as their plain versions, so they are
+  folded silently; an accented or foreign letter is visibly different, so it
+  is refused with a message instead of being mapped to something else.
 - **`@noble/hashes` (plain JavaScript), approved by the owner.** The strict CSP
   keeps a script injection from stealing keys, so it should have no exceptions.
   Every WebAssembly Argon2 needs `'wasm-unsafe-eval'`, and moving it into a Web
@@ -63,7 +84,9 @@ strength-estimation library; the screen suggests four or more random words.
 
 1. New and upgraded slots use `CURRENT_KDF_PARAMS`; stored settings are
    validated before use.
-2. The passphrase is NFC-normalized and otherwise unchanged; this is permanent.
+2. The passphrase is normalized (NFKC, spaces, trimmed ends) and must be plain
+   Latin. Both are part of the key: changing either would lock everyone out, so
+   they are permanent (a change would need a new slot version).
 3. The derived key is non-extractable and only wraps and unwraps.
 
 ## Changing the settings
@@ -89,7 +112,8 @@ strength-estimation library; the screen suggests four or more random words.
 ## How it is tested
 
 `tests/unit/crypto/kdf.test.ts` (RFC 9106 vector, noble against Node's native
-Argon2id with the production settings, determinism, NFC, non-extractable keys,
+Argon2id with the production settings, determinism, the typed forms of one
+passphrase, refusal of non-Latin input before Argon2, non-extractable keys,
 progress, refused settings) and `tests/e2e/kdf-benchmark.spec.ts` (the vector
 and the production settings in Chromium, Firefox and WebKit under the real CSP).
 

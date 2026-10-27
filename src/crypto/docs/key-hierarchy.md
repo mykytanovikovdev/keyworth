@@ -6,7 +6,7 @@ How a user's data key is created, protected and opened. Code: `keys.ts`,
 ## The hierarchy
 
 ```
-passphrase ──NFC──Argon2id──► passphrase KEK ─┐
+passphrase ──normalize──Argon2id──► passphrase KEK ─┐
 recovery key ─────HKDF-SHA-256► recovery KEK ─┼─ each wraps (AES-GCM) ─► data key (DEK) ─► encrypts every record
 device key (IndexedDB, random) ───────────────┘                          random AES-256-GCM
 ```
@@ -17,7 +17,7 @@ device key (IndexedDB, random) ───────────────┘ 
   only in memory.
 - **Key-encryption keys (KEKs)** only wrap and unwrap the DEK (usages
   `wrapKey`, `unwrapKey`), and are never stored:
-  - **passphrase KEK:** Argon2id over the NFC-normalized passphrase with a
+  - **passphrase KEK:** Argon2id over the normalized, plain-Latin passphrase with a
     random 16-byte salt per slot (see [argon2.md](argon2.md));
   - **recovery KEK:** HKDF-SHA-256 over the 160-bit recovery key, a random
     16-byte salt per slot, `info = "keyworth/recovery-kek/v1"`. A slow
@@ -122,7 +122,8 @@ and
 
 - Never change an AAD string in place: existing slots would stop opening. Add
   a new version and keep accepting the old one.
-- Never change passphrase normalization (NFC): everyone would be locked out.
+- Never change passphrase normalization or the plain-Latin rule: everyone
+  would be locked out.
 - A new slot kind needs a new AAD, a schema in `shared/schemas/keys.ts`, a
   migration (the `key_slot_kind` check) and tests for swapping it with the
   existing kinds.

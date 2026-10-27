@@ -109,17 +109,64 @@ describe("derivePassphraseKek", () => {
     expect(await sameKey(base, otherSalt)).toBe(false);
   });
 
-  it("treats composed and decomposed accents as the same passphrase", async () => {
+  it("treats the forms one plain-Latin passphrase can be typed in as the same", async () => {
     const salt = randomBytes(16);
-    const composed = "café au lait, s'il vous plaît".normalize("NFC");
-    const decomposed = composed.normalize("NFD");
-    expect(composed).not.toBe(decomposed);
+    const plain = await derivePassphraseKek(
+      "purple elephant dances",
+      salt,
+      FAST_KDF,
+    );
+    const typed = [
+      // Option+Space on a Mac types a no-break space.
+      "purple\u00a0elephant\u00a0dances",
+      // East Asian input methods: an ideographic space and full-width letters.
+      "purple\u3000elephant dances",
+      "ｐｕｒｐｌｅ elephant dances",
+      "purple\telephant dances",
+      "  purple elephant dances ",
+    ];
 
-    const a = await derivePassphraseKek(composed, salt, FAST_KDF);
-    const b = await derivePassphraseKek(decomposed, salt, FAST_KDF);
-
-    expect(await sameKey(a, b)).toBe(true);
+    for (const passphrase of typed) {
+      const kek = await derivePassphraseKek(passphrase, salt, FAST_KDF);
+      expect(await sameKey(plain, kek), JSON.stringify(passphrase)).toBe(true);
+    }
   });
+
+  it("keeps case and the spaces inside the passphrase", async () => {
+    const salt = randomBytes(16);
+    const base = await derivePassphraseKek("purple elephant", salt, FAST_KDF);
+    const capital = await derivePassphraseKek(
+      "Purple elephant",
+      salt,
+      FAST_KDF,
+    );
+    const doubled = await derivePassphraseKek(
+      "purple  elephant",
+      salt,
+      FAST_KDF,
+    );
+
+    expect(await sameKey(base, capital)).toBe(false);
+    expect(await sameKey(base, doubled)).toBe(false);
+  });
+
+  it.each([
+    ["an accented letter", "café au lait, s'il vous plaît"],
+    ["a Spanish letter", "mañana por la mañana"],
+    ["a Cyrillic layout", "фиолетовый слон танцует"],
+    ["a Cyrillic look-alike", "purple elephant dаnces"],
+    ["an emoji", "purple elephant dances 🐘"],
+    ["an invisible character", "purple\u200belephant dances"],
+  ])(
+    "refuses %s before Argon2 runs",
+    async (_, passphrase) => {
+      await expect(
+        derivePassphraseKek(passphrase, randomBytes(16), CURRENT_KDF_PARAMS),
+      ).rejects.toMatchObject({ code: "not-latin" });
+    },
+    // Production settings would take a second: refusing must not run them.
+    200,
+  );
 
   it("is a non-extractable key that can only wrap and unwrap", async () => {
     const kek = await derivePassphraseKek(
