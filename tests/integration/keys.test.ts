@@ -164,9 +164,15 @@ describe("/api/keys", () => {
       [user.userId],
     );
     const limited = await write();
+    const forget = await api("/api/keys/device", {
+      cookie: user.cookie,
+      method: "DELETE",
+    });
 
     expect(allowed.status).toBe(400);
     expect(limited.status).toBe(429);
+    // Lock writes too: it counts against the same budget.
+    expect(forget.status).toBe(429);
   });
 });
 

@@ -248,7 +248,7 @@ keys.get("/device", async (c) => {
 });
 
 /** Lock, or "forget this device": the session itself stays signed in. */
-keys.delete("/device", async (c) => {
+keys.delete("/device", limitWrites, async (c) => {
   await c
     .get("db")
     .delete(deviceUnlocks)

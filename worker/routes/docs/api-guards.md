@@ -34,7 +34,8 @@ request ─► security headers (every response)
 
 **Rate limiting** keeps one row per user and bucket in `api_rate_limits`
 (window start and count), updated by a single upsert that resets the count when
-the window has passed. It runs only on writes.
+the window has passed and returns the seconds left in it (`Retry-After`). It
+runs on every write, including Lock (`DELETE /api/keys/device`).
 
 **Quotas and revisions** live in the same SQL statement as the write (the
 `WHERE` clause of the insert or update). Revisions hold under concurrency by

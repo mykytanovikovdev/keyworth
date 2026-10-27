@@ -468,4 +468,24 @@ describe("limits", () => {
     expect(limited.headers.get("retry-after")).toBe("60");
     expect(afterWindow.status).toBe(404);
   });
+
+  it("tells a limited client how long is left in the window", async () => {
+    const user = await vaultUser("retry-after");
+    await query(
+      `insert into api_rate_limits (user_id, bucket, window_start, count)
+       values ($1, 'vault', now() - interval '50 seconds', 120)`,
+      [user.userId],
+    );
+
+    const limited = await api(`/api/vault/${crypto.randomUUID()}`, {
+      cookie: user.cookie,
+      method: "DELETE",
+    });
+
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get("retry-after"))).toBeGreaterThanOrEqual(
+      9,
+    );
+    expect(Number(limited.headers.get("retry-after"))).toBeLessThanOrEqual(10);
+  });
 });

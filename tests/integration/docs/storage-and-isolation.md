@@ -58,7 +58,8 @@ uninviting, deleting and listing, as described in
   does not decrypt there.
 - Quotas (record count, storage) answer 413, and hold when six creates arrive
   at once one record below either limit (exactly one succeeds); the write rate
-  limit answers 429 with `Retry-After` and resets after its window.
+  limit answers 429 with `Retry-After` (the seconds left in the window), resets
+  after its window, and covers Lock (`DELETE /api/keys/device`).
 
 ## Invariants these tests hold
 

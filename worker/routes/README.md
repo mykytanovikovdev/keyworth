@@ -21,7 +21,7 @@ user only from the session.
 | `PUT /api/keys/recovery`   | Replace the recovery slot (a new recovery key)                                               | + sign-in in the last 10 minutes            |
 | `POST /api/keys/device`    | "Remember this device": store the device-wrapped key for this session, set the device cookie | 20 writes/min, 4 KB body                    |
 | `GET /api/keys/device`     | The device-wrapped key, only for this session with the device cookie                         |                                             |
-| `DELETE /api/keys/device`  | Lock / forget this device                                                                    |                                             |
+| `DELETE /api/keys/device`  | Lock / forget this device                                                                    | 20 writes/min                               |
 | `GET /api/vault[?kind=]`   | The user's records, oldest first                                                             |                                             |
 | `PUT /api/vault/:id`       | Create (`revision: 0`) or replace (the current revision) a record                            | 120 writes/min, 96 KB body, per-user quotas |
 | `DELETE /api/vault/:id`    | Delete a record                                                                              | 120 writes/min                              |
@@ -29,7 +29,7 @@ user only from the session.
 Responses use plain error codes: `invalid_body`, `invalid_id`, `already_set_up`
 (409), `not_set_up` (404), `session_not_fresh` (403), `conflict` (409, with the
 current `revision`), `kind_mismatch` (409), `quota_exceeded` (413), `body_too_large` (413),
-`rate_limited` (429, with `Retry-After`), `forbidden_origin` (403).
+`rate_limited` (429, with `Retry-After`: the seconds left in the window), `forbidden_origin` (403).
 
 **Remembered devices:** `POST /api/keys/device` stores the data key wrapped by a
 browser-only key under the current session and sets the session-only
