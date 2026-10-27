@@ -128,7 +128,11 @@ vault.put("/:id", limitWrites, envelopeBody, async (c) => {
     .where(and(eq(vaultRecords.userId, userId), eq(vaultRecords.id, id.data)))
     .limit(1);
   if (!current && revision !== 0) return c.json({ error: "not_found" }, 404);
-  if (current && (current.kind !== kind || current.revision !== revision)) {
+  // A kind never changes: retrying would not help, so it is not a "conflict".
+  if (current && current.kind !== kind) {
+    return c.json({ error: "kind_mismatch" }, 409);
+  }
+  if (current && current.revision !== revision) {
     // Someone else (another device) wrote first: reload and retry.
     return c.json({ error: "conflict", revision: current.revision }, 409);
   }

@@ -28,7 +28,7 @@ user only from the session.
 
 Responses use plain error codes: `invalid_body`, `invalid_id`, `already_set_up`
 (409), `not_set_up` (404), `session_not_fresh` (403), `conflict` (409, with the
-current `revision`), `quota_exceeded` (413), `body_too_large` (413),
+current `revision`), `kind_mismatch` (409), `quota_exceeded` (413), `body_too_large` (413),
 `rate_limited` (429, with `Retry-After`), `forbidden_origin` (403).
 
 **Remembered devices:** `POST /api/keys/device` stores the data key wrapped by a

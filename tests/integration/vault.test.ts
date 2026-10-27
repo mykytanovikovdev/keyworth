@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KDF_LIMITS } from "../../shared/schemas/keys.ts";
 import {
+  MAX_REVISION,
   type RecordKind,
   VAULT_LIMITS,
   type VaultRecordJson,
@@ -168,6 +169,28 @@ describe("/api/vault", () => {
     );
 
     expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "kind_mismatch" });
+  });
+
+  it("refuses revisions beyond what the database can store", async () => {
+    const user = await vaultUser("revision-range");
+    const id = crypto.randomUUID();
+    await put(user, id, { baseCurrency: "EUR" });
+
+    const [stored] = await list(user);
+    const write = (revision: number) =>
+      api(`/api/vault/${id}`, {
+        cookie: user.cookie,
+        method: "PUT",
+        body: { kind: "settings", revision, envelope: stored?.envelope },
+      });
+
+    const highest = await write(MAX_REVISION - 1);
+    const beyond = await write(MAX_REVISION);
+    const unsafe = await write(Number.MAX_SAFE_INTEGER);
+
+    expect(highest.status).toBe(409);
+    expect([beyond.status, unsafe.status]).toEqual([400, 400]);
   });
 
   it("cannot update a record that does not exist", async () => {
