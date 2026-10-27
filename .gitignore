@@ -1,7 +1,9 @@
-# Markdown: only README files are tracked; everything else is a local working doc
+# Markdown: README files and docs/*.md are tracked; everything else (CLAUDE.md,
+# PLAN.md, HANDOFF.md, notes) is a local working doc
 *.md
 !README.md
 !**/README.md
+!**/docs/*.md
 
 # Secrets
 .dev.vars
