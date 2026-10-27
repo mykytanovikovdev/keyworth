@@ -19,6 +19,14 @@ export {
 } from "./key-slots.ts";
 export { CURRENT_KDF_PARAMS, isCurrentKdf, type KdfParams } from "./params.ts";
 export {
+  deviceSlotFromJson,
+  deviceSlotToJson,
+  passphraseSlotFromJson,
+  passphraseSlotToJson,
+  recoverySlotFromJson,
+  recoverySlotToJson,
+} from "./serialize.ts";
+export {
   checkPassphrase,
   PASSPHRASE_MAX_LENGTH,
   PASSPHRASE_MIN_LENGTH,

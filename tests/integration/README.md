@@ -33,6 +33,25 @@ Covered now:
   every session while sign-in keeps working; `uninvite` ends sessions;
   `sessions` never returns the token; `delete` removes the account with its
   sessions and Google link; `list` reports each email's state.
+- **`keys.test.ts`**: `/api/keys` with slots made by the real `src/crypto`
+  (Argon2 at OWASP's minimum for speed): setup stores both slots once (409
+  after) and what comes back still opens the data key; malformed slots and weak
+  Argon2 settings are refused; another user sees nothing; writes from another
+  origin or without one get 403; oversized bodies 413; the 21st write in a
+  minute 429; replacing a slot needs a sign-in from the last 10 minutes;
+  "Remember this device" sets a session-only, httpOnly, SameSite=Strict
+  `__Host-` cookie, returns the device slot only to the same session with that
+  cookie, and is gone after Lock or sign-out; deleting the account removes slots,
+  records, remembered devices and counters.
+- **`vault.test.ts`**: `/api/vault`: an envelope comes back unchanged and still
+  decrypts; **no plaintext anywhere in the database** (every column of the
+  user's records and key slots, as text and raw bytes, is searched for the
+  record's content, the passphrase and the recovery key); writes need the
+  current revision (409 otherwise) and cannot change a record's kind; listing
+  by kind; deleting; malformed ids, envelopes and extra plaintext fields are
+  refused; **isolation**: another user's writes, deletes and copied envelopes
+  never touch or decrypt Alice's record; the record-count and storage quotas
+  (413); the write rate limit and its window reset.
 
 Deliberately not covered here:
 
@@ -103,6 +122,10 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
 
 - **The database must be running** (`npm run db:up`); the setup fails with that
   hint otherwise.
+- **Requests in this runner keep their database connections until the file
+  ends** (they share one isolate; in production each request closes its own).
+  A test that sends a hundred requests can exhaust Postgres's connections:
+  seed counters and data with `query()` instead (see the rate-limit tests).
 - **The first request in each file is slow** (about 2 seconds, more in CI):
   every file gets a fresh isolate that evaluates the Worker's modules on its
   first request. `setup.ts` makes that request in a `beforeAll` with a long

@@ -37,7 +37,8 @@ Browser (React SPA) — keys, decrypted data, calculations and agent tools live 
 Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat transit
    ├── /            static SPA (Workers Assets)
    ├── /api/auth    sign-in with Google, invite-only beta
-   ├── /api/vault   encrypted records                          (planned)
+   ├── /api/keys    wrapped data keys (never the keys themselves)
+   ├── /api/vault   encrypted records
    ├── /api/chat    pass-through to the model, never stored    (planned)
    └── /api/market  cached prices, not linked to users         (planned)
    │

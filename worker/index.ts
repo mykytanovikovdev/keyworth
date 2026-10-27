@@ -1,18 +1,11 @@
 import { Hono, type MiddlewareHandler } from "hono";
-import { createAuth, type Auth } from "./auth.ts";
-import { connect, type Database } from "./db/client.ts";
+import { createAuth } from "./auth.ts";
+import { connect } from "./db/client.ts";
+import type { AppEnv } from "./env.ts";
+import { requireSameOrigin } from "./limits.ts";
+import { keys } from "./routes/keys.ts";
+import { vault } from "./routes/vault.ts";
 import { securityHeaders } from "./security-headers.ts";
-
-interface SessionUser {
-  id: string;
-  name: string;
-  email: string;
-}
-
-interface AppEnv {
-  Bindings: Env;
-  Variables: { db: Database; auth: Auth; user: SessionUser };
-}
 
 const api = new Hono<AppEnv>();
 
@@ -43,11 +36,20 @@ const requireSession: MiddlewareHandler<AppEnv> = async (c, next) => {
   if (!session) return c.json({ error: "unauthorized" }, 401);
   const { id, name, email } = session.user;
   c.set("user", { id, name, email });
+  c.set("session", {
+    id: session.session.id,
+    createdAt: session.session.createdAt,
+  });
   return next();
 };
 api.use("*", requireSession);
+// After the session check, so a request without a session still gets 401.
+api.use("*", requireSameOrigin);
 
 api.get("/me", (c) => c.json(c.get("user")));
+// End-to-end encryption: wrapped keys and encrypted records (phase 3).
+api.route("/keys", keys);
+api.route("/vault", vault);
 
 const app = new Hono<AppEnv>();
 

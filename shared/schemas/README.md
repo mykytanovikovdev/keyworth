@@ -6,16 +6,19 @@ zod schemas for data that crosses the network, shared by the browser and the
 Worker so both sides agree on exactly one definition: the encrypted envelope,
 the Argon2id settings stored with a passphrase slot, and the kinds of vault
 records. Later phases add the plaintext schemas of each record kind (trades,
-settings…), which only the browser uses, after decryption.
+settings…), which only the browser uses, after decryption. Binary values
+(IVs, salts, wrapped keys, ciphertexts) travel as unpadded base64url with exact
+lengths, so a malformed value is rejected before anything decodes it.
 
 ## How it works
 
-| File          | Role                                                                     |
-| ------------- | ------------------------------------------------------------------------ |
-| `zod.ts`      | Configures zod (jitless) and re-exports `z`; every schema imports it     |
-| `envelope.ts` | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes |
-| `keys.ts`     | `kdfParamsSchema` and `KDF_LIMITS`: which Argon2id settings are accepted |
-| `vault.ts`    | `RECORD_KINDS`: what a record can be (part of every record's AAD)        |
+| File           | Role                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------------ |
+| `zod.ts`       | Configures zod (jitless) and re-exports `z`; every schema imports it                                         |
+| `base64url.ts` | Unpadded base64url: the codec and an exact-length schema helper                                              |
+| `envelope.ts`  | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                     |
+| `keys.ts`      | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys` |
+| `vault.ts`     | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |
 
 The envelope schema accepts only what `src/crypto/envelope.ts` can produce: a
 12-byte IV and a ciphertext whose length is one padding bucket (256 bytes to
@@ -60,4 +63,4 @@ Tests: `tests/unit/schemas.test.ts` (accepted and rejected inputs for each schem
 ## Related
 
 - [src/crypto/](../../src/crypto/README.md): produces and consumes these shapes
-- [worker/](../../worker/README.md): validates request bodies with them (phase 3, step 2)
+- [worker/routes/](../../worker/routes/README.md): validates request bodies with them

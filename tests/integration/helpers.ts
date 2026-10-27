@@ -50,6 +50,42 @@ export function uniqueUser(label: string) {
   };
 }
 
+interface ApiOptions {
+  cookie: string;
+  method?: "GET" | "POST" | "PUT" | "DELETE";
+  body?: unknown;
+  /** Sent on every state-changing request, as a browser would. */
+  origin?: string | null;
+}
+
+/** A JSON request to the app's own API, signed in with `cookie`. */
+export function api(
+  path: string,
+  { cookie, method = "GET", body, origin = BASE_URL }: ApiOptions,
+) {
+  const headers: Record<string, string> = { cookie };
+  if (method !== "GET" && origin !== null) headers.origin = origin;
+  if (body !== undefined) headers["content-type"] = "application/json";
+  return fetchWorker(path, {
+    method,
+    headers,
+    ...(body !== undefined && { body: JSON.stringify(body) }),
+  });
+}
+
+/** Signs a new invited user in and returns their cookie and id. */
+export async function signedIn(label: string) {
+  const user = uniqueUser(label);
+  await invite(user.email);
+  const { cookie } = await signInWithGoogle(user);
+  const [row] = await query<{ id: string }>(
+    'select id from "user" where email = $1',
+    [user.email],
+  );
+  if (!row) throw new Error("Sign-in did not create the user");
+  return { ...user, cookie, userId: row.id };
+}
+
 export async function invite(email: string) {
   await query("insert into allowed_emails (email) values ($1)", [
     email.toLowerCase(),

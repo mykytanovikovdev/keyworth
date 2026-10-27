@@ -1,3 +1,4 @@
+import { BASE64URL, base64urlBytes, base64urlLength } from "./base64url.ts";
 import { z } from "./zod.ts";
 
 /*
@@ -18,11 +19,6 @@ export const TAG_BYTES = 16;
 export const MIN_PADDED_BYTES = 256;
 export const MAX_PADDED_BYTES = 64 * 1024;
 
-const BASE64URL = /^[A-Za-z0-9_-]*$/;
-
-/** Length of `bytes` bytes in unpadded base64url. */
-export const base64urlLength = (bytes: number) => Math.ceil((bytes * 4) / 3);
-
 // Every possible ciphertext is one padding bucket plus the GCM tag.
 const CIPHERTEXT_LENGTHS = new Set<number>();
 for (let size = MIN_PADDED_BYTES; size <= MAX_PADDED_BYTES; size *= 2) {
@@ -32,7 +28,7 @@ for (let size = MIN_PADDED_BYTES; size <= MAX_PADDED_BYTES; size *= 2) {
 export const envelopeSchema = z.strictObject({
   v: z.literal(ENVELOPE_VERSION),
   alg: z.literal("A256GCM"),
-  iv: z.string().regex(BASE64URL).length(base64urlLength(IV_BYTES)),
+  iv: base64urlBytes(IV_BYTES),
   ct: z
     .string()
     .regex(BASE64URL)
