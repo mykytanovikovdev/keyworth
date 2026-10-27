@@ -76,7 +76,11 @@ own.
 
 - **Port 5433, not 5432:** a Postgres installed on the host often holds 5432.
 - **Ending the pool breaks things:** pg-cloudflare's read loop fails on the
-  closed socket and surfaces as an unhandled rejection.
+  closed socket and surfaces as an unhandled rejection. So does pg's idle
+  timeout (10 seconds by default), which ends idle connections by itself: both
+  the Worker's pools and the tests' `query()` set `idleTimeoutMillis: 0`.
+  Locally a test file finishes in seconds and never shows it; on CI, a file
+  that ran longer than 10 seconds failed with "This socket has been closed".
 - **pg in the Workers test runner** needs two module redirects (`pg-protocol`,
   `pg-cloudflare`) in `vitest.config.ts`.
 - **drizzle-kit's metadata files** (`drizzle/meta/*.json`) must be formatted with

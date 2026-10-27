@@ -120,6 +120,11 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
   Files also run in parallel, so `compose.yaml` raises `max_connections` to
   300; "remaining connection slots are reserved" (53300) means that budget ran
   out, not that the code is wrong.
+- **Never let pg end a connection inside workerd.** "TypeError: This socket has
+  been closed" as an unhandled error after the tests pass means a pool ended
+  one: `pool.end()`, or the idle timeout (10 seconds by default; slow CI runs
+  reach it). Pools here and in `worker/db/client.ts` set
+  `idleTimeoutMillis: 0`.
 - **The first request in each file is slow** (about 2 seconds, more in CI):
   every file gets a fresh isolate that evaluates the Worker's modules on its
   first request. `setup.ts` makes that request in a `beforeAll` with a long

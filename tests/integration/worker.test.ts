@@ -1,5 +1,7 @@
 import { DrizzleQueryError } from "drizzle-orm/errors";
+import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
+import { connect } from "../../worker/db/client.ts";
 import { describeError } from "../../worker/describe-error.ts";
 import { expectWorkerHeaders, fetchWorker } from "./helpers.ts";
 
@@ -76,5 +78,18 @@ describe("error logs", () => {
 
     expect(describeError(error)).toMatch(/^SyntaxError\n/);
     expect(describeError(error)).not.toContain("hunter2");
+  });
+});
+
+describe("database connections", () => {
+  // pg's default idle timeout ends connections after 10 seconds, which fails
+  // on the closed socket inside workerd: on CI, after a slow test file.
+  it("are never ended for being idle", () => {
+    // drizzle keeps the pool as $client; the app's type leaves it out.
+    const { $client: pool } = connect(
+      "postgres://nobody@localhost:1/none",
+    ) as unknown as { $client: Pool };
+
+    expect(pool.options.idleTimeoutMillis).toBe(0);
   });
 });
