@@ -93,7 +93,10 @@ the same runtime, assets and headers as production.
   the Worker, so a missing file gets `index.html` instead of a billable invocation.
 - **Explicit logs only.** Workers Logs is on, but automatic invocation logs are off
   and query strings are redacted: the only records are what our code logs on
-  purpose. Request bodies are never logged.
+  purpose. Request bodies are never logged, and neither are error messages: an
+  unhandled error is logged as its type, its Postgres code and its stack frames
+  (`describe-error.ts`), because a failed query's message lists the query's
+  parameters (ciphertext, wrapped keys) and a JSON error quotes the body.
 - **Security decisions** (static CSP, Trusted Types, `no-transform`, Better
   Auth, database sessions, what is stored from Google, deny by default) are
   explained in [docs/auth-and-sessions.md](docs/auth-and-sessions.md) and
@@ -120,8 +123,9 @@ the same runtime, assets and headers as production.
   `SESSION_EXPIRED` on stale deletion): [docs/auth-and-sessions.md](docs/auth-and-sessions.md).
 - `compatibility_date` cannot be newer than the workerd version bundled with
   wrangler, or local dev refuses to start.
-- Never log request bodies or put user data into error messages: `/api/chat` and
-  `/api/vault` carry it.
+- Never log request bodies, error objects or error messages (`console.error(error)`
+  prints the message): `/api/chat`, `/api/keys` and `/api/vault` carry user data.
+  Log `describeError(error)` instead.
 - Secrets are declared by name in `wrangler.jsonc` (`secrets.required`), so the
   generated types are the same on every machine and missing secrets are reported
   in local dev.

@@ -1,4 +1,6 @@
+import { DrizzleQueryError } from "drizzle-orm/errors";
 import { describe, expect, it } from "vitest";
+import { describeError } from "../../worker/describe-error.ts";
 import { expectWorkerHeaders, fetchWorker } from "./helpers.ts";
 
 describe("GET /api/health", () => {
@@ -39,4 +41,37 @@ describe("unknown routes", () => {
       expectWorkerHeaders(response);
     },
   );
+});
+
+describe("error logs", () => {
+  it("name the error, its Postgres code and where it came from, never the query's data", () => {
+    const ciphertext = "envelope-bytes-from-the-request";
+    const cause = Object.assign(new Error(`value out of range: ${ciphertext}`), {
+      code: "22003",
+    });
+    const error = new DrizzleQueryError(
+      "update vault_records set ciphertext = $1 where user_id = $2",
+      [ciphertext, "user-id"],
+      cause,
+    );
+
+    const logged = describeError(error);
+
+    expect(logged).toMatch(/^DrizzleQueryError\npostgres 22003\n\s+at /);
+    expect(logged).not.toContain(ciphertext);
+    expect(logged).not.toContain("vault_records");
+    expect(logged).not.toContain("user-id");
+  });
+
+  it("leave out a JSON parse error's quote of the body", () => {
+    let error: unknown;
+    try {
+      JSON.parse('{"passphrase": "hunter2"');
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(describeError(error)).toMatch(/^SyntaxError\n/);
+    expect(describeError(error)).not.toContain("hunter2");
+  });
 });
