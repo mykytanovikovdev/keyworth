@@ -46,9 +46,12 @@ describe("unknown routes", () => {
 describe("error logs", () => {
   it("name the error, its Postgres code and where it came from, never the query's data", () => {
     const ciphertext = "envelope-bytes-from-the-request";
-    const cause = Object.assign(new Error(`value out of range: ${ciphertext}`), {
-      code: "22003",
-    });
+    const cause = Object.assign(
+      new Error(`value out of range: ${ciphertext}`),
+      {
+        code: "22003",
+      },
+    );
     const error = new DrizzleQueryError(
       "update vault_records set ciphertext = $1 where user_id = $2",
       [ciphertext, "user-id"],
