@@ -1,3 +1,5 @@
+import { base64urlBytes } from "./base64url.ts";
+import { IV_BYTES } from "./envelope.ts";
 import { z } from "./zod.ts";
 
 /*
@@ -25,3 +27,42 @@ export const kdfParamsSchema = z.strictObject({
 });
 
 export type KdfParams = z.infer<typeof kdfParamsSchema>;
+
+/*
+ * Wrapped copies of the data key ("slots") as they travel to and from
+ * /api/keys. Every binary field has an exact length: a 16-byte salt, a 12-byte
+ * IV and the 32-byte key encrypted with AES-GCM (plus its 16-byte tag).
+ */
+
+export const SALT_BYTES = 16;
+export const WRAPPED_KEY_BYTES = 32 + 16;
+
+const wrapped = {
+  iv: base64urlBytes(IV_BYTES),
+  wrappedKey: base64urlBytes(WRAPPED_KEY_BYTES),
+};
+
+export const passphraseSlotSchema = z.strictObject({
+  kdf: kdfParamsSchema,
+  salt: base64urlBytes(SALT_BYTES),
+  ...wrapped,
+});
+
+export const recoverySlotSchema = z.strictObject({
+  salt: base64urlBytes(SALT_BYTES),
+  ...wrapped,
+});
+
+/** The server half of "Remember this device"; the device key never leaves it. */
+export const deviceSlotSchema = z.strictObject(wrapped);
+
+/** First setup: both slots at once, so a user never has only one of them. */
+export const keySetupSchema = z.strictObject({
+  passphrase: passphraseSlotSchema,
+  recovery: recoverySlotSchema,
+});
+
+export type PassphraseSlotJson = z.infer<typeof passphraseSlotSchema>;
+export type RecoverySlotJson = z.infer<typeof recoverySlotSchema>;
+export type DeviceSlotJson = z.infer<typeof deviceSlotSchema>;
+export type KeySetupJson = z.infer<typeof keySetupSchema>;

@@ -6,10 +6,10 @@ The Cloudflare Worker behind `/api/*`, built with [Hono](https://hono.dev). The 
 deployment serves the React SPA through Workers Assets, so the frontend and the API
 share one origin.
 
-The Worker is designed to only ever see encrypted envelopes and service data
-(profile, dates, usage counters, the public asset catalog). The single planned
-exception is `/api/chat`, a pass-through to the model that never stores or logs
-bodies.
+The Worker only ever sees encrypted envelopes, wrapped keys and service data
+(profile, dates, usage counters, the public asset catalog): it stores what the
+browser's encryption produces and cannot open it. The single planned exception
+is `/api/chat`, a pass-through to the model that never stores or logs bodies.
 
 It also owns sign-in: Google through [Better Auth](https://www.better-auth.com),
 an invite list for the closed beta, database sessions in an httpOnly cookie, and
@@ -33,12 +33,18 @@ Inside the Worker:
 ```
 /api/health      public, never touches the database
 /api/auth/*      Better Auth: Google sign-in and callback, session, sign-out, account deletion
-/api/*           everything else: a valid session or 401 (deny by default), e.g. /api/me
+/api/*           everything else: a valid session or 401 (deny by default), e.g. /api/me;
+                 writes also need the app's own Origin (403 otherwise)
+/api/keys        wrapped data keys and remembered devices   (routes/)
+/api/vault       encrypted records                          (routes/)
 ```
 
 | File                           | Role                                                                |
 | ------------------------------ | ------------------------------------------------------------------- |
 | `index.ts`                     | Hono app: headers, per-request database and auth, session check     |
+| `env.ts`                       | Types of the bindings and per-request values every route sees       |
+| `limits.ts`                    | Rate limits, body size, fresh-session and same-origin checks        |
+| `routes/`                      | `/api/keys` and `/api/vault` ([README](routes/README.md))           |
 | `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits    |
 | `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))      |
 | `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)      |

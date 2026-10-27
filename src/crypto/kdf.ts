@@ -13,7 +13,8 @@ import { normalizePassphrase } from "./passphrase.ts";
 export type OnProgress = (fraction: number) => void;
 
 // Key-encryption keys only wrap and unwrap the data key; they never encrypt data.
-const KEK_USAGES: KeyUsage[] = ["wrapKey", "unwrapKey"];
+// Typed as literals: the Workers types (used by the integration tests) lack KeyUsage.
+const KEK_USAGES: ("wrapKey" | "unwrapKey")[] = ["wrapKey", "unwrapKey"];
 
 function assertSalt(salt: Uint8Array): void {
   if (salt.length !== SALT_BYTES) {

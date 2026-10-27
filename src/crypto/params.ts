@@ -16,7 +16,7 @@ export const CURRENT_KDF_PARAMS: Readonly<KdfParams> = Object.freeze({
   parallelism: 1,
 });
 
-export const SALT_BYTES = 16;
+export { SALT_BYTES } from "../../shared/schemas/keys.ts";
 export const KEY_BYTES = 32;
 
 /** Settings read from a stored slot are untrusted until they pass this. */

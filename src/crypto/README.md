@@ -11,10 +11,10 @@ This module does cryptography only. Storing envelopes, talking to `/api/keys`
 and `/api/vault`, locking and unlocking the app, and the screens around them
 live elsewhere (`src/vault/` and the onboarding feature, phase 3).
 
-**Status:** the primitives and the key flows are implemented and tested
-(phase 3, step 1). Server storage (step 2) and the screens (step 3) follow; the
-threat model below describes the complete design and says which parts are
-still to come.
+**Status:** the primitives, the key flows and server storage
+(`/api/keys`, `/api/vault`, see [worker/routes/](../../worker/routes/README.md))
+are implemented and tested (phase 3, steps 1 and 2). The screens (step 3)
+follow; the threat model below describes the complete design.
 
 ## How it works
 
@@ -41,7 +41,8 @@ device key (IndexedDB) ──────────────────┘
     add nothing; HKDF is built into WebCrypto and instant.
   - **Device slot** ("Remember this device", opt-in). The KEK is a random
     non-extractable key kept in IndexedDB; the wrapped DEK is stored on the
-    server, tied to the current sign-in session (step 2).
+    server, tied to the current sign-in session and handed back only with a
+    session-only cookie (`/api/keys/device`).
 - **Wrapping** is AES-GCM `wrapKey` with a random 96-bit IV and additional
   authenticated data (AAD) that names the owner and the slot kind:
   `key-slot|<userId>|passphrase|1`, `key-slot|<userId>|recovery|1`,
@@ -112,6 +113,7 @@ A record is a JSON value encrypted into an envelope:
 | `padding.ts`      | Size buckets                                                          |
 | `recovery-key.ts` | Generating, formatting and parsing recovery keys                      |
 | `passphrase.ts`   | Normalization and the minimum length                                  |
+| `serialize.ts`    | Key slots to and from the JSON of `/api/keys`, checked on the way in  |
 | `encoding.ts`     | base64url, UTF-8, random bytes                                        |
 | `errors.ts`       | `CryptoError` with `wrong-secret`, `tampered` or `invalid-input`      |
 
