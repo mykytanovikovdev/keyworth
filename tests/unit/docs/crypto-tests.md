@@ -90,6 +90,32 @@ of range, extra fields, another version) are refused; base64url round-trips
 every byte value, rejects malformed text and accepts only the one canonical
 spelling of each byte string (unused trailing bits must be zero).
 
+**Data written today stays readable** (`crypto/compatibility.test.ts`)
+
+- Fixed ("golden") vectors made once with `node:crypto` alone, from the formats
+  in `src/crypto/docs` and never from this code: a record (with Cyrillic text,
+  whose "р" is the padding marker's byte), a passphrase slot with non-minimum
+  settings opened by the passphrase as typed (a no-break space, spaces at the
+  ends), a recovery slot opened by its written key, a device slot and a check
+  value. A change to an AAD, the HKDF label, the Argon2 inputs, the padding,
+  the recovery-key text or passphrase normalization fails here, even though
+  encryption and decryption would still agree with each other.
+- The other direction: what `src/crypto` writes (a record, a passphrase slot, a
+  check value) is opened by `node:crypto` with literal AAD strings.
+- **Never regenerate these vectors to make a test pass.** A format change needs
+  a new version that keeps reading the old one.
+
+**Properties a mutation could break unnoticed** (`crypto/hardening.test.ts`):
+the data key is non-extractable AES-256 on every path that returns one; every
+key-encryption key is AES-256, non-extractable, wrap and unwrap only; the slot
+kind is bound by the AAD even under one key-encryption key; all AADs differ
+and refuse ambiguous user ids; every wrapping gets a new IV; only an
+authentication failure becomes `wrong-secret`; salts are fresh; padding keeps
+the 0x80 byte inside UTF-8 text, fills exact power-of-two boundaries and
+refuses a missing marker; the production Argon2 settings and `KDF_LIMITS` equal
+their literal values (so tests cannot follow a weakened constant); malformed
+recovery and device slots and request bodies are refused.
+
 **Schemas** (`schemas.test.ts`): accepted and rejected envelopes (versions,
 algorithms, IV length, every padding bucket up to 64 KiB and nothing larger,
 base64url alphabet, extra fields), Argon2 settings and record kinds.
