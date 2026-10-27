@@ -15,7 +15,7 @@ lengths, so a malformed value is rejected before anything decodes it.
 | File           | Role                                                                                                         |
 | -------------- | ------------------------------------------------------------------------------------------------------------ |
 | `zod.ts`       | Configures zod (jitless) and re-exports `z`; every schema imports it                                         |
-| `base64url.ts` | Unpadded base64url: the codec and an exact-length schema helper                                              |
+| `base64url.ts` | Unpadded base64url: the codec (one canonical spelling per byte string) and an exact-length schema helper     |
 | `envelope.ts`  | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                     |
 | `keys.ts`      | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys` |
 | `vault.ts`     | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |

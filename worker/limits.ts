@@ -22,7 +22,10 @@ export function rateLimit(
 ): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
     const window = sql.raw(`interval '${String(windowSeconds)} seconds'`);
-    const result = await c.get("db").execute<{ count: number }>(sql`
+    const result = await c.get("db").execute<{
+      count: number;
+      retry_after: number;
+    }>(sql`
       insert into api_rate_limits (user_id, bucket, window_start, count)
       values (${c.get("user").id}, ${bucket}, now(), 1)
       on conflict (user_id, bucket) do update set
@@ -30,9 +33,13 @@ export function rateLimit(
                      then 1 else api_rate_limits.count + 1 end,
         window_start = case when api_rate_limits.window_start < now() - ${window}
                             then now() else api_rate_limits.window_start end
-      returning count`);
-    if ((result.rows[0]?.count ?? 0) > limit) {
-      c.header("Retry-After", String(windowSeconds));
+      returning count,
+        ceil(extract(epoch from window_start + ${window} - now()))::int
+          as retry_after`);
+    const row = result.rows[0];
+    if ((row?.count ?? 0) > limit) {
+      // Seconds until this window ends, not the window's full length.
+      c.header("Retry-After", String(Math.max(1, row?.retry_after ?? 1)));
       return c.json({ error: "rate_limited" }, 429);
     }
     return next();

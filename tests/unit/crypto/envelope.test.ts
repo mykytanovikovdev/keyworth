@@ -23,6 +23,7 @@ function ref(overrides: Partial<RecordRef> = {}): RecordRef {
     userId: ALICE,
     kind: "transaction",
     recordId: crypto.randomUUID(),
+    revision: 1,
     ...overrides,
   };
 }
@@ -85,6 +86,9 @@ describe("records", () => {
     ["another record id", (r) => ({ ...r, recordId: crypto.randomUUID() })],
     ["another kind", (r) => ({ ...r, kind: "alert" })],
     ["another user", (r) => ({ ...r, userId: BOB })],
+    // An old version written back over a newer one is stored with the next
+    // revision, which its ciphertext was not made for.
+    ["another revision", (r) => ({ ...r, revision: r.revision + 1 })],
   ])("do not decrypt when moved to %s", async (_, move) => {
     const key = await generateDataKey();
     const at = ref();
@@ -146,11 +150,52 @@ describe("records", () => {
       ref({ userId: `${ALICE}|x` }),
       ref({ recordId: "not-a-uuid" }),
       ref({ kind: "secret" as never }),
+      ref({ revision: 0 }),
+      ref({ revision: 1.5 }),
+      ref({ revision: 2 ** 31 }),
     ]) {
       await expect(encryptRecord(key, bad, trade)).rejects.toMatchObject({
         code: "invalid-input",
       });
     }
+  });
+
+  it.each([
+    ["undefined", undefined],
+    ["a function", () => 1],
+    ["a symbol", Symbol("x")],
+  ])(
+    "refuse a value JSON cannot hold (%s) instead of storing nothing",
+    async (_, value) => {
+      await expect(
+        encryptRecord(await generateDataKey(), ref(), value),
+      ).rejects.toMatchObject({ code: "invalid-input" });
+    },
+  );
+
+  it("report authenticated content that is not JSON as tampered", async () => {
+    const key = await generateDataKey();
+    const at = ref();
+    // A string's JSON is valid; cut its closing quote to make it invalid.
+    const envelope = await encryptRecord(key, at, "x");
+    const plaintext = new Uint8Array(256);
+    plaintext.set([0x22, 0x78, 0x80]);
+    const iv = fromBase64url(envelope.iv);
+    const aad = new TextEncoder().encode(
+      `record|${at.userId}|${at.kind}|${at.recordId}|${String(at.revision)}|1`,
+    );
+    const ct = await crypto.subtle.encrypt(
+      { name: "AES-GCM", iv, additionalData: aad },
+      key,
+      plaintext,
+    );
+
+    await expect(
+      decryptRecord(key, at, {
+        ...envelope,
+        ct: toBase64url(new Uint8Array(ct)),
+      }),
+    ).rejects.toMatchObject({ code: "tampered" });
   });
 });
 

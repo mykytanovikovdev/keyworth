@@ -9,6 +9,7 @@ import {
   unlockWithPassphrase,
   unlockWithRecoveryKey,
 } from "../../../src/crypto/key-slots.ts";
+import { generateDataKey, verifyKeyCheck } from "../../../src/crypto/keys.ts";
 import { CURRENT_KDF_PARAMS } from "../../../src/crypto/params.ts";
 import { ALICE, BOB, FAST_KDF } from "./fixtures.ts";
 
@@ -17,6 +18,7 @@ const record = {
   userId: ALICE,
   kind: "settings",
   recordId: crypto.randomUUID(),
+  revision: 1,
 } as const;
 
 function setUp() {
@@ -38,6 +40,30 @@ describe("setting up keys", () => {
     expect(dataKey.extractable).toBe(false);
     expect(dataKey.usages.toSorted()).toEqual(["decrypt", "encrypt"]);
     await expect(crypto.subtle.exportKey("raw", dataKey)).rejects.toThrow();
+  });
+
+  it("returns a check value that only this data key and this user pass", async () => {
+    const { dataKey, keyCheck, passphraseSlot } = await setUp();
+    const unlocked = await unlockWithPassphrase({
+      userId: ALICE,
+      slot: passphraseSlot,
+      passphrase: PASSPHRASE,
+    });
+
+    await expect(verifyKeyCheck(dataKey, ALICE, keyCheck)).resolves.toBe(
+      undefined,
+    );
+    await expect(
+      verifyKeyCheck(unlocked.dataKey, ALICE, keyCheck),
+    ).resolves.toBe(undefined);
+    await expect(
+      verifyKeyCheck(await generateDataKey(), ALICE, keyCheck),
+    ).rejects.toMatchObject({ code: "wrong-secret" });
+    await expect(verifyKeyCheck(dataKey, BOB, keyCheck)).rejects.toMatchObject({
+      code: "wrong-secret",
+    });
+    expect(keyCheck.iv).toHaveLength(12);
+    expect(keyCheck.tag).toHaveLength(16);
   });
 
   it("stores the settings it used and a fresh salt in the passphrase slot", async () => {
@@ -68,11 +94,44 @@ describe("setting up keys", () => {
     });
   }, 30_000);
 
-  it("gives a recovery key in eight groups of four", async () => {
+  it.each([
+    ["too short", "eleven char", "invalid-input"],
+    ["only spaces", " ".repeat(16), "invalid-input"],
+    ["not plain Latin", "mañana por la mañana", "not-latin"],
+  ])(
+    "refuses a new passphrase that is %s, in every flow that sets one",
+    async (_, passphrase, code) => {
+      const { passphraseSlot, recoverySlot, recoveryKey } = await setUp();
+
+      await expect(
+        createKeys({ userId: ALICE, passphrase, kdf: FAST_KDF }),
+      ).rejects.toMatchObject({ code });
+      await expect(
+        changePassphrase({
+          userId: ALICE,
+          slot: passphraseSlot,
+          currentPassphrase: PASSPHRASE,
+          newPassphrase: passphrase,
+          kdf: FAST_KDF,
+        }),
+      ).rejects.toMatchObject({ code });
+      await expect(
+        resetPassphrase({
+          userId: ALICE,
+          recoverySlot,
+          recoveryKey,
+          newPassphrase: passphrase,
+          kdf: FAST_KDF,
+        }),
+      ).rejects.toMatchObject({ code });
+    },
+  );
+
+  it("gives a recovery key in nine groups of four, the last a check group", async () => {
     const { recoveryKey } = await setUp();
 
     expect(recoveryKey).toMatch(
-      /^([0-9A-HJKMNP-TV-Z]{4}-){7}[0-9A-HJKMNP-TV-Z]{4}$/,
+      /^([0-9A-HJKMNP-TV-Z]{4}-){8}[0-9A-HJKMNP-TV-Z]{4}$/,
     );
   });
 });

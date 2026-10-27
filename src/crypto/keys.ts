@@ -1,4 +1,5 @@
 import {
+  MAX_REVISION,
   RECORD_ID,
   recordKindSchema,
   type RecordKind,
@@ -51,17 +52,36 @@ export function deviceAad(userId: string): Bytes {
   return utf8(`device|${userId}|${String(AAD_VERSION)}`);
 }
 
-/** Binds a record's ciphertext to its owner, its kind and its id. */
+export function keyCheckAad(userId: string): Bytes {
+  assertUserId(userId);
+  return utf8(`key-check|${userId}|${String(AAD_VERSION)}`);
+}
+
+/**
+ * Binds a record's ciphertext to its owner, its kind, its id and its revision.
+ * The revision makes an old version of a record fail as `tampered` when it is
+ * written back over a newer one: the server stores every write with the next
+ * revision, which the old ciphertext was not made for.
+ */
 export function recordAad(
   userId: string,
   kind: RecordKind,
   recordId: string,
+  revision: number,
 ): Bytes {
   assertUserId(userId);
-  if (!recordKindSchema.safeParse(kind).success || !RECORD_ID.test(recordId)) {
+  if (
+    !recordKindSchema.safeParse(kind).success ||
+    !RECORD_ID.test(recordId) ||
+    !Number.isInteger(revision) ||
+    revision < 1 ||
+    revision > MAX_REVISION
+  ) {
     throw new CryptoError("invalid-input", "Malformed record reference.");
   }
-  return utf8(`record|${userId}|${kind}|${recordId}|${String(AAD_VERSION)}`);
+  return utf8(
+    `record|${userId}|${kind}|${recordId}|${String(revision)}|${String(AAD_VERSION)}`,
+  );
 }
 
 /** generateKey's result for a symmetric algorithm, never a key pair. */
@@ -108,11 +128,55 @@ export async function wrapDataKey(
   return { iv, wrappedKey: new Uint8Array(wrapped) };
 }
 
+/** Proof that a data key is this account's: an AES-GCM tag over nothing. */
+export interface KeyCheck {
+  iv: Bytes;
+  /** The 16-byte tag; with an empty plaintext there is nothing else. */
+  tag: Bytes;
+}
+
+/** Made once, at setup, and stored with the slots. */
+export async function createKeyCheck(
+  dataKey: CryptoKey,
+  userId: string,
+): Promise<KeyCheck> {
+  const additionalData = keyCheckAad(userId);
+  const iv = randomBytes(IV_BYTES);
+  const tag = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData },
+    dataKey,
+    new Uint8Array(0),
+  );
+  return { iv, tag: new Uint8Array(tag) };
+}
+
+/**
+ * Confirms that a data key belongs to this account before anything is
+ * encrypted with it: after an unlock, and when another tab hands a key over.
+ * Fails with `wrong-secret` for any other key.
+ */
+export async function verifyKeyCheck(
+  dataKey: CryptoKey,
+  userId: string,
+  check: KeyCheck,
+): Promise<void> {
+  const additionalData = keyCheckAad(userId);
+  await onAuthFailure(
+    crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: check.iv, additionalData },
+      dataKey,
+      check.tag,
+    ),
+    "wrong-secret",
+    "This data key does not belong to this account.",
+  );
+}
+
 /**
  * Opens a wrapped data key. Fails with `wrong-secret` when the key-encryption
  * key or the AAD does not match, which is how a wrong passphrase shows up.
  */
-export function unwrapDataKey(
+export async function unwrapDataKey(
   wrapped: WrappedKey,
   kek: CryptoKey,
   aad: Bytes,

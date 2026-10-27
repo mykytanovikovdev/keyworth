@@ -1,5 +1,6 @@
 import { Hono, type MiddlewareHandler } from "hono";
 import { createAuth } from "./auth.ts";
+import { describeError } from "./describe-error.ts";
 import { connect } from "./db/client.ts";
 import type { AppEnv } from "./env.ts";
 import { requireSameOrigin } from "./limits.ts";
@@ -59,9 +60,11 @@ app.route("/api", api);
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 
+// Never the error itself or the request: see describe-error.ts.
 app.onError((error, c) => {
-  // Never log request bodies: /api/chat and /api/vault carry user data.
-  console.error(`Unhandled error on ${c.req.method} ${c.req.path}`, error);
+  console.error(
+    `Unhandled error on ${c.req.method} ${c.req.path}\n${describeError(error)}`,
+  );
   return c.json({ error: "internal_error" }, 500);
 });
 

@@ -16,12 +16,18 @@ import { CryptoError, onAuthFailure } from "./errors.ts";
 import { recordAad } from "./keys.ts";
 import { pad, unpad } from "./padding.ts";
 
-/** Which record a ciphertext belongs to; all three go into the AAD. */
+/** Which record a ciphertext belongs to; all four go into the AAD. */
 export interface RecordRef {
   userId: string;
   kind: RecordKind;
   /** A UUID made in the browser before encryption (crypto.randomUUID()). */
   recordId: string;
+  /**
+   * The revision the record has once this ciphertext is stored: when writing,
+   * the revision sent to `PUT /api/vault/:id` plus one (1 for a new record);
+   * when reading, the revision the server returned with it.
+   */
+  revision: number;
 }
 
 /**
@@ -34,12 +40,18 @@ export async function encryptRecord(
   ref: RecordRef,
   value: unknown,
 ): Promise<Envelope> {
-  const aad = recordAad(ref.userId, ref.kind, ref.recordId);
+  const aad = recordAad(ref.userId, ref.kind, ref.recordId, ref.revision);
+  // undefined, a function or a symbol has no JSON form: storing "nothing"
+  // would replace a good record with one that never decrypts.
+  const json = JSON.stringify(value) as string | undefined;
+  if (json === undefined) {
+    throw new CryptoError("invalid-input", "This value cannot be stored.");
+  }
   const iv = randomBytes(IV_BYTES);
   const ciphertext = await crypto.subtle.encrypt(
     { name: "AES-GCM", iv, additionalData: aad },
     dataKey,
-    pad(utf8(JSON.stringify(value))),
+    pad(utf8(json)),
   );
   return {
     v: ENVELOPE_VERSION,
@@ -51,8 +63,9 @@ export async function encryptRecord(
 
 /**
  * Decrypts an envelope and parses the JSON inside. Fails with `tampered` when
- * the ciphertext was changed or belongs to another user, kind or id. The
- * caller still validates the value against the kind's schema.
+ * the ciphertext was changed, belongs to another user, kind, id or revision,
+ * or does not hold JSON. The caller still validates the value against the
+ * kind's schema.
  */
 export async function decryptRecord(
   dataKey: CryptoKey,
@@ -63,7 +76,7 @@ export async function decryptRecord(
   if (!parsed.success) {
     throw new CryptoError("invalid-input", "Not a supported envelope.");
   }
-  const aad = recordAad(ref.userId, ref.kind, ref.recordId);
+  const aad = recordAad(ref.userId, ref.kind, ref.recordId, ref.revision);
   const plaintext = await onAuthFailure(
     crypto.subtle.decrypt(
       {
@@ -77,5 +90,13 @@ export async function decryptRecord(
     "tampered",
     "This record does not decrypt.",
   );
-  return JSON.parse(fromUtf8(unpad(new Uint8Array(plaintext)))) as unknown;
+  const json = unpad(new Uint8Array(plaintext));
+  try {
+    return JSON.parse(fromUtf8(json)) as unknown;
+  } catch (error) {
+    // Authenticated, so written with this key: by a bug, not by an attacker.
+    throw new CryptoError("tampered", "This record does not hold JSON.", {
+      cause: error,
+    });
+  }
 }

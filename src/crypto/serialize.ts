@@ -1,14 +1,18 @@
 import {
   type DeviceSlotJson,
   deviceSlotSchema,
+  type KeyCheckJson,
+  keyCheckSchema,
   type PassphraseSlotJson,
   passphraseSlotSchema,
   type RecoverySlotJson,
   recoverySlotSchema,
+  SLOT_VERSION,
 } from "../../shared/schemas/keys.ts";
 import { fromBase64url, toBase64url } from "./encoding.ts";
 import { CryptoError } from "./errors.ts";
 import type { DeviceSlot, PassphraseSlot, RecoverySlot } from "./key-slots.ts";
+import type { KeyCheck } from "./keys.ts";
 
 /*
  * Key slots as JSON for /api/keys, and back. Slots read from the server are
@@ -31,6 +35,7 @@ function parse<T>(
 
 export function passphraseSlotToJson(slot: PassphraseSlot): PassphraseSlotJson {
   return {
+    v: SLOT_VERSION,
     kdf: { ...slot.kdf },
     salt: toBase64url(slot.salt),
     iv: toBase64url(slot.iv),
@@ -51,6 +56,7 @@ export function passphraseSlotFromJson(value: unknown): PassphraseSlot {
 
 export function recoverySlotToJson(slot: RecoverySlot): RecoverySlotJson {
   return {
+    v: SLOT_VERSION,
     salt: toBase64url(slot.salt),
     iv: toBase64url(slot.iv),
     wrappedKey: toBase64url(slot.wrappedKey),
@@ -77,4 +83,17 @@ export function deviceSlotFromJson(value: unknown): DeviceSlot {
     iv: fromBase64url(json.iv),
     wrappedKey: fromBase64url(json.wrappedKey),
   };
+}
+
+export function keyCheckToJson(check: KeyCheck): KeyCheckJson {
+  return {
+    v: SLOT_VERSION,
+    iv: toBase64url(check.iv),
+    tag: toBase64url(check.tag),
+  };
+}
+
+export function keyCheckFromJson(value: unknown): KeyCheck {
+  const json = parse(keyCheckSchema, value);
+  return { iv: fromBase64url(json.iv), tag: fromBase64url(json.tag) };
 }

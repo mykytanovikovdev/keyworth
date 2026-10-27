@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { KDF_LIMITS } from "../../shared/schemas/keys.ts";
 import {
+  MAX_REVISION,
   type RecordKind,
   VAULT_LIMITS,
   type VaultRecordJson,
@@ -9,6 +10,7 @@ import {
   createKeys,
   decryptRecord,
   encryptRecord,
+  keyCheckToJson,
   passphraseSlotToJson,
   recoverySlotToJson,
 } from "../../src/crypto/index.ts";
@@ -16,7 +18,7 @@ import { api, fetchWorker, query, signedIn } from "./helpers.ts";
 
 const PASSPHRASE = "purple elephant dances at noon";
 const RECOVERY_SECRET_PATTERN =
-  /^([0-9A-HJKMNP-TV-Z]{4}-){7}[0-9A-HJKMNP-TV-Z]{4}$/;
+  /^([0-9A-HJKMNP-TV-Z]{4}-){8}[0-9A-HJKMNP-TV-Z]{4}$/;
 
 /** A signed-in user with keys set up, as the browser would leave them. */
 async function vaultUser(label: string) {
@@ -38,6 +40,7 @@ async function vaultUser(label: string) {
     body: {
       passphrase: passphraseSlotToJson(keys.passphraseSlot),
       recovery: recoverySlotToJson(keys.recoverySlot),
+      check: keyCheckToJson(keys.keyCheck),
     },
   });
   return { ...user, ...keys };
@@ -56,7 +59,8 @@ async function put(
 ) {
   const envelope = await encryptRecord(
     user.dataKey,
-    { userId: user.userId, kind, recordId: id },
+    // Stored with the revision after the one sent.
+    { userId: user.userId, kind, recordId: id, revision: revision + 1 },
     value,
   );
   return api(`/api/vault/${id}`, {
@@ -93,6 +97,7 @@ describe("/api/vault", () => {
       userId: user.userId,
       kind: "settings",
       recordId: id,
+      revision: record?.revision ?? 0,
     } as const;
     expect(await decryptRecord(user.dataKey, ref, record?.envelope)).toEqual({
       baseCurrency: "EUR",
@@ -149,10 +154,37 @@ describe("/api/vault", () => {
       userId: user.userId,
       kind: "settings",
       recordId: id,
+      revision: record?.revision ?? 0,
     } as const;
     expect(await decryptRecord(user.dataKey, ref, record?.envelope)).toEqual({
       baseCurrency: "USD",
     });
+  });
+
+  it("an old version written back over a newer one does not decrypt", async () => {
+    const user = await vaultUser("replay");
+    const id = crypto.randomUUID();
+    await put(user, id, { baseCurrency: "EUR" });
+    const [first] = await list(user);
+    await put(user, id, { baseCurrency: "USD" }, { revision: 1 });
+
+    // A stolen session cannot read records, but could save and resend them.
+    const replayed = await api(`/api/vault/${id}`, {
+      cookie: user.cookie,
+      method: "PUT",
+      body: { kind: "settings", revision: 2, envelope: first?.envelope },
+    });
+    const [record] = await list(user);
+
+    expect(replayed.status).toBe(200);
+    expect(record?.revision).toBe(3);
+    await expect(
+      decryptRecord(
+        user.dataKey,
+        { userId: user.userId, kind: "settings", recordId: id, revision: 3 },
+        record?.envelope,
+      ),
+    ).rejects.toMatchObject({ code: "tampered" });
   });
 
   it("does not let a record change its kind", async () => {
@@ -168,6 +200,28 @@ describe("/api/vault", () => {
     );
 
     expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: "kind_mismatch" });
+  });
+
+  it("refuses revisions beyond what the database can store", async () => {
+    const user = await vaultUser("revision-range");
+    const id = crypto.randomUUID();
+    await put(user, id, { baseCurrency: "EUR" });
+
+    const [stored] = await list(user);
+    const write = (revision: number) =>
+      api(`/api/vault/${id}`, {
+        cookie: user.cookie,
+        method: "PUT",
+        body: { kind: "settings", revision, envelope: stored?.envelope },
+      });
+
+    const highest = await write(MAX_REVISION - 1);
+    const beyond = await write(MAX_REVISION);
+    const unsafe = await write(Number.MAX_SAFE_INTEGER);
+
+    expect(highest.status).toBe(409);
+    expect([beyond.status, unsafe.status]).toEqual([400, 400]);
   });
 
   it("cannot update a record that does not exist", async () => {
@@ -226,7 +280,7 @@ describe("/api/vault", () => {
     const id = crypto.randomUUID();
     const envelope = await encryptRecord(
       user.dataKey,
-      { userId: user.userId, kind: "settings", recordId: id },
+      { userId: user.userId, kind: "settings", recordId: id, revision: 1 },
       {},
     );
 
@@ -260,7 +314,7 @@ describe("/api/vault", () => {
     const id = crypto.randomUUID();
     const envelope = await encryptRecord(
       user.dataKey,
-      { userId: user.userId, kind: "settings", recordId: id },
+      { userId: user.userId, kind: "settings", recordId: id, revision: 1 },
       {},
     );
 
@@ -282,13 +336,9 @@ describe("isolation", () => {
     const id = crypto.randomUUID();
     await put(alice, id, { owner: "alice" });
 
+    // Before Bob has a record of his own under this id, so only Alice's exists.
+    const bobUpdatesAlices = await put(bob, id, {}, { revision: 1 });
     const bobCreates = await put(bob, id, { owner: "bob" });
-    const bobUpdatesAlices = await put(
-      bob,
-      crypto.randomUUID(),
-      {},
-      { revision: 1 },
-    );
     const bobDeletes = await api(`/api/vault/${id}`, {
       cookie: bob.cookie,
       method: "DELETE",
@@ -308,6 +358,7 @@ describe("isolation", () => {
       userId: alice.userId,
       kind: "settings",
       recordId: id,
+      revision: aliceRecord?.revision ?? 0,
     } as const;
     expect(
       await decryptRecord(alice.dataKey, ref, aliceRecord?.envelope),
@@ -329,7 +380,12 @@ describe("isolation", () => {
     });
     const [copied] = await list(bob);
 
-    const ref = { userId: bob.userId, kind: "settings", recordId: id } as const;
+    const ref = {
+      userId: bob.userId,
+      kind: "settings",
+      recordId: id,
+      revision: 1,
+    } as const;
     await expect(
       decryptRecord(bob.dataKey, ref, copied?.envelope),
     ).rejects.toMatchObject({
@@ -369,6 +425,56 @@ describe("limits", () => {
     expect(response.status).toBe(413);
   });
 
+  it("holds the record limit when creates arrive at once", async () => {
+    const user = await vaultUser("count-race");
+    await query(
+      `insert into vault_records (user_id, id, kind, revision, envelope_version, iv, ciphertext)
+       select $1, gen_random_uuid(), 'transaction', 1, 1, decode(repeat('00', 12), 'hex'),
+              decode(repeat('00', 272), 'hex')
+         from generate_series(1, $2::int)`,
+      [user.userId, VAULT_LIMITS.maxRecords - 1],
+    );
+
+    const responses = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        put(user, crypto.randomUUID(), { at: "once" }),
+      ),
+    );
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([201, 413, 413, 413, 413, 413]);
+    const [stored] = await query<{ count: string }>(
+      "select count(*) from vault_records where user_id = $1",
+      [user.userId],
+    );
+    expect(Number(stored?.count)).toBe(VAULT_LIMITS.maxRecords);
+  });
+
+  it("holds the storage limit when creates arrive at once", async () => {
+    const user = await vaultUser("bytes-race");
+    // Room for exactly one record of the smallest size (272 bytes).
+    await query(
+      `insert into vault_records (user_id, id, kind, revision, envelope_version, iv, ciphertext)
+       values ($1, gen_random_uuid(), 'message', 1, 1, decode(repeat('00', 12), 'hex'),
+               decode(repeat('00', $2::int), 'hex'))`,
+      [user.userId, VAULT_LIMITS.maxBytes - 300],
+    );
+
+    const responses = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        put(user, crypto.randomUUID(), { at: "once" }),
+      ),
+    );
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([201, 413, 413, 413, 413, 413]);
+    const [stored] = await query<{ bytes: string }>(
+      "select sum(octet_length(ciphertext)) as bytes from vault_records where user_id = $1",
+      [user.userId],
+    );
+    expect(Number(stored?.bytes)).toBeLessThanOrEqual(VAULT_LIMITS.maxBytes);
+  });
+
   it("limits writes to 120 a minute per user, and the window resets", async () => {
     const user = await vaultUser("rate");
     // Seeding the counter instead of sending 120 requests: in this runner every
@@ -394,5 +500,25 @@ describe("limits", () => {
     expect(limited.status).toBe(429);
     expect(limited.headers.get("retry-after")).toBe("60");
     expect(afterWindow.status).toBe(404);
+  });
+
+  it("tells a limited client how long is left in the window", async () => {
+    const user = await vaultUser("retry-after");
+    await query(
+      `insert into api_rate_limits (user_id, bucket, window_start, count)
+       values ($1, 'vault', now() - interval '50 seconds', 120)`,
+      [user.userId],
+    );
+
+    const limited = await api(`/api/vault/${crypto.randomUUID()}`, {
+      cookie: user.cookie,
+      method: "DELETE",
+    });
+
+    expect(limited.status).toBe(429);
+    expect(Number(limited.headers.get("retry-after"))).toBeGreaterThanOrEqual(
+      9,
+    );
+    expect(Number(limited.headers.get("retry-after"))).toBeLessThanOrEqual(10);
   });
 });

@@ -33,7 +33,12 @@ export async function query<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  const pool = new Pool({ connectionString: env.HYPERDRIVE.connectionString });
+  // No idle timeout, like the Worker's pools (worker/db/client.ts): ending an
+  // idle connection inside workerd fails on the closed socket.
+  const pool = new Pool({
+    connectionString: env.HYPERDRIVE.connectionString,
+    idleTimeoutMillis: 0,
+  });
   const result = await pool.query(sql, params);
   return result.rows as T[];
 }

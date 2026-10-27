@@ -37,7 +37,11 @@ Covered now:
   and encrypted records through `/api/keys` and `/api/vault`, with slots and
   envelopes made by the real `src/crypto`: every guard (origin, size, rate,
   freshness, revisions, quotas), **no plaintext anywhere in the database**, and
-  **isolation** between users. What each test proves:
+  **isolation** between users.
+- **`isolation.test.ts`**: the same guards with well-formed but meaningless
+  bytes (the server cannot tell them from ciphertext), aimed at each guard's
+  exact condition: user scope, the device token, Origin on every method,
+  every limit and its boundary. What each test proves:
   [docs/storage-and-isolation.md](docs/storage-and-isolation.md).
 
 Deliberately not covered here:
@@ -113,6 +117,14 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
   ends** (they share one isolate; in production each request closes its own).
   A test that sends a hundred requests can exhaust Postgres's connections:
   seed counters and data with `query()` instead (see the rate-limit tests).
+  Files also run in parallel, so `compose.yaml` raises `max_connections` to
+  300; "remaining connection slots are reserved" (53300) means that budget ran
+  out, not that the code is wrong.
+- **Never let pg end a connection inside workerd.** "TypeError: This socket has
+  been closed" as an unhandled error after the tests pass means a pool ended
+  one: `pool.end()`, or the idle timeout (10 seconds by default; slow CI runs
+  reach it). Pools here and in `worker/db/client.ts` set
+  `idleTimeoutMillis: 0`.
 - **The first request in each file is slow** (about 2 seconds, more in CI):
   every file gets a fresh isolate that evaluates the Worker's modules on its
   first request. `setup.ts` makes that request in a `beforeAll` with a long

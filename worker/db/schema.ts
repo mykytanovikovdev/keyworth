@@ -90,6 +90,8 @@ export const userKeySlots = pgTable(
   {
     userId: ownedBy(),
     kind: text("kind", { enum: ["passphrase", "recovery"] }).notNull(),
+    // The slot format (its AAD and, for the passphrase, its normalization).
+    version: smallint("version").notNull().default(1),
     // Argon2id settings, stored with the slot so they can change later.
     kdf: jsonb("kdf").$type<KdfParams>(),
     salt: bytes("salt").notNull(),
@@ -101,6 +103,7 @@ export const userKeySlots = pgTable(
   (table) => [
     primaryKey({ columns: [table.userId, table.kind] }),
     check("key_slot_kind", sql`${table.kind} in ('passphrase', 'recovery')`),
+    check("key_slot_version", sql`${table.version} = 1`),
     check(
       "key_slot_kdf_on_passphrase_only",
       sql`(${table.kind} = 'passphrase') = (${table.kdf} is not null)`,
@@ -108,6 +111,28 @@ export const userKeySlots = pgTable(
     check("key_slot_salt_length", byteLength(table.salt, 16)),
     check("key_slot_iv_length", byteLength(table.iv, 12)),
     check("key_slot_wrapped_key_length", byteLength(table.wrappedKey, 48)),
+  ],
+);
+
+/**
+ * The data key's check value: AES-GCM over nothing, with the data key and an
+ * AAD naming the user, so only 16 bytes of tag. The browser verifies it after
+ * opening or receiving a data key, to make sure the key belongs to this
+ * account; it reveals nothing about the key. Written once, with the slots.
+ */
+export const userKeyChecks = pgTable(
+  "user_key_checks",
+  {
+    userId: ownedBy().primaryKey(),
+    version: smallint("version").notNull().default(1),
+    iv: bytes("iv").notNull(),
+    tag: bytes("tag").notNull(),
+    createdAt: createdAt(),
+  },
+  (table) => [
+    check("key_check_version", sql`${table.version} = 1`),
+    check("key_check_iv_length", byteLength(table.iv, 12)),
+    check("key_check_tag_length", byteLength(table.tag, 16)),
   ],
 );
 
@@ -144,8 +169,9 @@ export const vaultRecords = pgTable(
 /**
  * The server half of "Remember this device": the data key wrapped by a key
  * that exists only on that device. It belongs to one sign-in session, so
- * signing out, revoking the session or its expiry deletes it; the browser must
- * also present the session-only cookie whose hash is stored here.
+ * signing out or revoking the session deletes it (an expired session's row
+ * goes when Better Auth next sees that session); the browser must also present
+ * the session-only cookie whose hash is stored here.
  */
 export const deviceUnlocks = pgTable(
   "device_unlocks",

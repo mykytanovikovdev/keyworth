@@ -10,6 +10,8 @@ import {
 import {
   deviceSlotFromJson,
   deviceSlotToJson,
+  keyCheckFromJson,
+  keyCheckToJson,
   passphraseSlotFromJson,
   passphraseSlotToJson,
   recoverySlotFromJson,
@@ -21,7 +23,7 @@ const PASSPHRASE = "purple elephant dances at noon";
 
 describe("key slots as JSON", () => {
   it("round-trip without losing a byte", async () => {
-    const { passphraseSlot, recoverySlot } = await createKeys({
+    const { passphraseSlot, recoverySlot, keyCheck } = await createKeys({
       userId: ALICE,
       passphrase: PASSPHRASE,
       kdf: FAST_KDF,
@@ -43,6 +45,25 @@ describe("key slots as JSON", () => {
     expect(deviceSlotFromJson(deviceSlotToJson(device.deviceSlot))).toEqual(
       device.deviceSlot,
     );
+    expect(keyCheckFromJson(keyCheckToJson(keyCheck))).toEqual(keyCheck);
+  });
+
+  it("carry their format version", async () => {
+    const { passphraseSlot, recoverySlot, keyCheck } = await createKeys({
+      userId: ALICE,
+      passphrase: PASSPHRASE,
+      kdf: FAST_KDF,
+    });
+
+    expect(passphraseSlotToJson(passphraseSlot).v).toBe(1);
+    expect(recoverySlotToJson(recoverySlot).v).toBe(1);
+    expect(keyCheckToJson(keyCheck).v).toBe(1);
+    for (const parse of [
+      () => recoverySlotFromJson({ ...recoverySlotToJson(recoverySlot), v: 2 }),
+      () => keyCheckFromJson({ ...keyCheckToJson(keyCheck), v: undefined }),
+    ]) {
+      expect(parse).toThrow(expect.objectContaining({ code: "invalid-input" }));
+    }
   });
 
   it("refuse anything a server should not have sent", async () => {
@@ -60,6 +81,7 @@ describe("key slots as JSON", () => {
       { ...json, kdf: { ...json.kdf, memoryKiB: 1024 } },
       { ...json, kdf: { ...json.kdf, memoryKiB: 4 * 1024 * 1024 } },
       { ...json, extra: true },
+      { ...json, v: 2 },
     ]) {
       expect(() => passphraseSlotFromJson(bad)).toThrow(
         expect.objectContaining({ code: "invalid-input" }),
@@ -78,5 +100,13 @@ describe("base64url", () => {
 
   it.each(["a", "abcde", "ab+c", "ab/c", "ab=="])("rejects %s", (text) => {
     expect(decodeBase64url(text)).toBeNull();
+  });
+
+  it("accepts only the one spelling of each byte string", () => {
+    // "AQ" is [0x01]; "AR" decodes to the same byte with an unused bit set.
+    expect(decodeBase64url("AQ")).toEqual(Uint8Array.of(1));
+    expect(decodeBase64url("AR")).toBeNull();
+    expect(decodeBase64url("AAB")).toBeNull();
+    expect(decodeBase64url("AAA")).toEqual(Uint8Array.of(0, 0));
   });
 });

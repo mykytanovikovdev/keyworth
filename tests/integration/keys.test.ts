@@ -1,16 +1,19 @@
 import { describe, expect, it } from "vitest";
-import { KDF_LIMITS } from "../../shared/schemas/keys.ts";
+import { KDF_LIMITS, type KeysJson } from "../../shared/schemas/keys.ts";
 import {
   changePassphrase,
   createKeys,
   deviceSlotFromJson,
   deviceSlotToJson,
   type KdfParams,
+  keyCheckFromJson,
+  keyCheckToJson,
   passphraseSlotFromJson,
   passphraseSlotToJson,
   recoverySlotToJson,
   unlockWithDevice,
   unlockWithPassphrase,
+  verifyKeyCheck,
 } from "../../src/crypto/index.ts";
 import {
   api,
@@ -40,6 +43,7 @@ async function setUp(label: string) {
   const body = {
     passphrase: passphraseSlotToJson(keys.passphraseSlot),
     recovery: recoverySlotToJson(keys.recoverySlot),
+    check: keyCheckToJson(keys.keyCheck),
   };
   return { user, keys, body };
 }
@@ -47,11 +51,7 @@ async function setUp(label: string) {
 async function storedKeys(cookie: string) {
   const response = await api("/api/keys", { cookie });
   expect(response.status).toBe(200);
-  return (
-    await response.json<{
-      keys: { passphrase: unknown; recovery: unknown } | null;
-    }>()
-  ).keys;
+  return (await response.json<KeysJson>()).keys;
 }
 
 describe("/api/keys", () => {
@@ -65,7 +65,7 @@ describe("/api/keys", () => {
     expect(await storedKeys(user.cookie)).toBeNull();
   });
 
-  it("stores both slots once, and they still open the data key", async () => {
+  it("stores both slots and the check value once, and they still open the data key", async () => {
     const { user, body } = await setUp("setup");
 
     const created = await api("/api/keys", {
@@ -89,6 +89,64 @@ describe("/api/keys", () => {
       passphrase: PASSPHRASE,
     });
     expect(dataKey.extractable).toBe(false);
+    await verifyKeyCheck(dataKey, user.userId, keyCheckFromJson(stored?.check));
+  });
+
+  it("sets up all three or nothing: over a leftover slot it writes nothing", async () => {
+    const { user, body } = await setUp("partial");
+    await query(
+      `insert into user_key_slots (user_id, kind, kdf, salt, iv, wrapped_key)
+       values ($1, 'passphrase', $2, decode(repeat('01', 16), 'hex'),
+               decode(repeat('01', 12), 'hex'), decode(repeat('01', 48), 'hex'))`,
+      [user.userId, JSON.stringify(FAST_KDF)],
+    );
+
+    const response = await api("/api/keys", {
+      cookie: user.cookie,
+      method: "POST",
+      body,
+    });
+
+    expect(response.status).toBe(409);
+    expect(
+      await query("select kind from user_key_slots where user_id = $1", [
+        user.userId,
+      ]),
+    ).toEqual([{ kind: "passphrase" }]);
+    expect(
+      await query("select 1 from user_key_checks where user_id = $1", [
+        user.userId,
+      ]),
+    ).toEqual([]);
+  });
+
+  it("lets exactly one of several setups at once win, all of it", async () => {
+    const user = await signedIn("setup-race");
+    const bodies = await Promise.all(
+      [1, 2, 3].map(async () => {
+        const keys = await createKeys({
+          userId: user.userId,
+          passphrase: PASSPHRASE,
+          kdf: FAST_KDF,
+        });
+        return {
+          passphrase: passphraseSlotToJson(keys.passphraseSlot),
+          recovery: recoverySlotToJson(keys.recoverySlot),
+          check: keyCheckToJson(keys.keyCheck),
+        };
+      }),
+    );
+
+    const responses = await Promise.all(
+      bodies.map((body) =>
+        api("/api/keys", { cookie: user.cookie, method: "POST", body }),
+      ),
+    );
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([201, 409, 409]);
+    // Whichever won, its slots and its check value were stored together.
+    expect(bodies).toContainEqual(await storedKeys(user.cookie));
   });
 
   it("refuses malformed slots and Argon2 settings below OWASP's minimum", async () => {
@@ -96,6 +154,8 @@ describe("/api/keys", () => {
 
     for (const bad of [
       { ...body, recovery: undefined },
+      { ...body, check: undefined },
+      { ...body, recovery: { ...body.recovery, v: 2 } },
       { ...body, passphrase: { ...body.passphrase, iv: "AAAA" } },
       {
         ...body,
@@ -164,9 +224,15 @@ describe("/api/keys", () => {
       [user.userId],
     );
     const limited = await write();
+    const forget = await api("/api/keys/device", {
+      cookie: user.cookie,
+      method: "DELETE",
+    });
 
     expect(allowed.status).toBe(400);
     expect(limited.status).toBe(429);
+    // Lock writes too: it counts against the same budget.
+    expect(forget.status).toBe(429);
   });
 });
 
@@ -185,7 +251,10 @@ describe("replacing a slot", () => {
     const response = await api("/api/keys/passphrase", {
       cookie: user.cookie,
       method: "PUT",
-      body: passphraseSlotToJson(next),
+      body: {
+        expectedIv: body.passphrase.iv,
+        slot: passphraseSlotToJson(next),
+      },
     });
 
     expect(response.status).toBe(200);
@@ -211,7 +280,9 @@ describe("replacing a slot", () => {
       const response = await api(path, {
         cookie: user.cookie,
         method: "PUT",
-        body: path.endsWith("passphrase") ? body.passphrase : body.recovery,
+        body: path.endsWith("passphrase")
+          ? { expectedIv: body.passphrase.iv, slot: body.passphrase }
+          : { expectedIv: body.recovery.iv, slot: body.recovery },
       });
       expect(response.status).toBe(403);
       expect(await response.json()).toEqual({ error: "session_not_fresh" });
@@ -224,10 +295,64 @@ describe("replacing a slot", () => {
     const response = await api("/api/keys/recovery", {
       cookie: user.cookie,
       method: "PUT",
-      body: body.recovery,
+      body: { expectedIv: body.recovery.iv, slot: body.recovery },
     });
 
     expect(response.status).toBe(404);
+  });
+
+  it("replaces only the slot the browser read; a second writer gets 409", async () => {
+    const { user, body } = await setUp("replace-race");
+    await api("/api/keys", { cookie: user.cookie, method: "POST", body });
+    const change = (newPassphrase: string) =>
+      changePassphrase({
+        userId: user.userId,
+        slot: passphraseSlotFromJson(body.passphrase),
+        currentPassphrase: PASSPHRASE,
+        newPassphrase,
+        kdf: FAST_KDF,
+      }).then(passphraseSlotToJson);
+    const first = await change("the first new passphrase");
+    const second = await change("the second new passphrase");
+    const put = (slot: typeof first) =>
+      api("/api/keys/passphrase", {
+        cookie: user.cookie,
+        method: "PUT",
+        body: { expectedIv: body.passphrase.iv, slot },
+      });
+
+    const won = await put(first);
+    const lost = await put(second);
+    // The same request again, as after a lost answer: 409 naming its own IV.
+    const retried = await put(first);
+
+    expect(won.status).toBe(200);
+    expect(lost.status).toBe(409);
+    expect(await lost.json()).toEqual({ error: "conflict", iv: first.iv });
+    expect(retried.status).toBe(409);
+    expect(await retried.json()).toEqual({ error: "conflict", iv: first.iv });
+    expect((await storedKeys(user.cookie))?.passphrase).toEqual(first);
+  });
+
+  it("never replaces another user's slot, even given its IV", async () => {
+    const alice = await setUp("replace-alice");
+    const bob = await setUp("replace-bob");
+    await api("/api/keys", {
+      cookie: alice.user.cookie,
+      method: "POST",
+      body: alice.body,
+    });
+
+    const response = await api("/api/keys/recovery", {
+      cookie: bob.user.cookie,
+      method: "PUT",
+      body: { expectedIv: alice.body.recovery.iv, slot: bob.body.recovery },
+    });
+
+    expect(response.status).toBe(404);
+    expect((await storedKeys(alice.user.cookie))?.recovery).toEqual(
+      alice.body.recovery,
+    );
   });
 });
 
@@ -329,9 +454,41 @@ describe("remembering a device", () => {
 });
 
 describe("deleting the account", () => {
-  it("removes the user's slots, records and remembered devices", async () => {
-    const { user, body } = await setUp("cascade");
+  it("removes the user's slots, check value, records and remembered devices", async () => {
+    const { user, body, keys } = await setUp("cascade");
     await api("/api/keys", { cookie: user.cookie, method: "POST", body });
+    const { device } = await unlockWithPassphrase({
+      userId: user.userId,
+      slot: keys.passphraseSlot,
+      passphrase: PASSPHRASE,
+      remember: true,
+    });
+    if (!device) throw new Error("Expected a remembered device");
+    await api("/api/keys/device", {
+      cookie: user.cookie,
+      method: "POST",
+      body: deviceSlotToJson(device.deviceSlot),
+    });
+    await query(
+      `insert into vault_records (user_id, id, kind, revision, envelope_version, iv, ciphertext)
+       values ($1, gen_random_uuid(), 'settings', 1, 1, decode(repeat('00', 12), 'hex'),
+               decode(repeat('00', 272), 'hex'))`,
+      [user.userId],
+    );
+    const tables = [
+      "user_key_slots",
+      "user_key_checks",
+      "vault_records",
+      "device_unlocks",
+      "api_rate_limits",
+    ];
+    for (const table of tables) {
+      // Every table really held something before the account was deleted.
+      expect(
+        await query(`select 1 from ${table} where user_id = $1`, [user.userId]),
+        table,
+      ).not.toEqual([]);
+    }
 
     const response = await api("/api/auth/delete-user", {
       cookie: user.cookie,
@@ -340,12 +497,7 @@ describe("deleting the account", () => {
     });
 
     expect(response.status).toBe(200);
-    for (const table of [
-      "user_key_slots",
-      "vault_records",
-      "device_unlocks",
-      "api_rate_limits",
-    ]) {
+    for (const table of tables) {
       expect(
         await query(`select 1 from ${table} where user_id = $1`, [user.userId]),
       ).toEqual([]);

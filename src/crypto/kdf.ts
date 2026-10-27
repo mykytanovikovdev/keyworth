@@ -7,7 +7,7 @@ import {
   type KdfParams,
   SALT_BYTES,
 } from "./params.ts";
-import { normalizePassphrase } from "./passphrase.ts";
+import { isPlainLatin, normalizePassphrase } from "./passphrase.ts";
 
 /** Called with 0…1 while Argon2 runs, so the unlock screen shows real progress. */
 export type OnProgress = (fraction: number) => void;
@@ -35,7 +35,12 @@ export async function derivePassphraseKek(
 ): Promise<CryptoKey> {
   assertKdfParams(params);
   assertSalt(salt);
-  const password = utf8(normalizePassphrase(passphrase));
+  const normalized = normalizePassphrase(passphrase);
+  // No slot can hold anything else, so this can only be the wrong keyboard.
+  if (!isPlainLatin(normalized)) {
+    throw new CryptoError("not-latin", "Use plain Latin characters only.");
+  }
+  const password = utf8(normalized);
   const raw = await argon2idAsync(password, salt, {
     t: params.passes,
     m: params.memoryKiB,
@@ -43,10 +48,12 @@ export async function derivePassphraseKek(
     dkLen: KEY_BYTES,
     ...(onProgress && { onProgress }),
   });
+  // A copy in a plain ArrayBuffer, the form WebCrypto's types accept.
+  const keyBytes = Uint8Array.from(raw);
   try {
     return await crypto.subtle.importKey(
       "raw",
-      Uint8Array.from(raw),
+      keyBytes,
       "AES-GCM",
       false,
       KEK_USAGES,
@@ -54,6 +61,7 @@ export async function derivePassphraseKek(
   } finally {
     // Best effort: JavaScript cannot guarantee that no copy remains elsewhere.
     raw.fill(0);
+    keyBytes.fill(0);
     password.fill(0);
   }
 }

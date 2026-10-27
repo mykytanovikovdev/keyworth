@@ -1,4 +1,8 @@
+import { DrizzleQueryError } from "drizzle-orm/errors";
+import type { Pool } from "pg";
 import { describe, expect, it } from "vitest";
+import { connect } from "../../worker/db/client.ts";
+import { describeError } from "../../worker/describe-error.ts";
 import { expectWorkerHeaders, fetchWorker } from "./helpers.ts";
 
 describe("GET /api/health", () => {
@@ -39,4 +43,53 @@ describe("unknown routes", () => {
       expectWorkerHeaders(response);
     },
   );
+});
+
+describe("error logs", () => {
+  it("name the error, its Postgres code and where it came from, never the query's data", () => {
+    const ciphertext = "envelope-bytes-from-the-request";
+    const cause = Object.assign(
+      new Error(`value out of range: ${ciphertext}`),
+      {
+        code: "22003",
+      },
+    );
+    const error = new DrizzleQueryError(
+      "update vault_records set ciphertext = $1 where user_id = $2",
+      [ciphertext, "user-id"],
+      cause,
+    );
+
+    const logged = describeError(error);
+
+    expect(logged).toMatch(/^DrizzleQueryError\npostgres 22003\n\s+at /);
+    expect(logged).not.toContain(ciphertext);
+    expect(logged).not.toContain("vault_records");
+    expect(logged).not.toContain("user-id");
+  });
+
+  it("leave out a JSON parse error's quote of the body", () => {
+    let error: unknown;
+    try {
+      JSON.parse('{"passphrase": "hunter2"');
+    } catch (caught) {
+      error = caught;
+    }
+
+    expect(describeError(error)).toMatch(/^SyntaxError\n/);
+    expect(describeError(error)).not.toContain("hunter2");
+  });
+});
+
+describe("database connections", () => {
+  // pg's default idle timeout ends connections after 10 seconds, which fails
+  // on the closed socket inside workerd: on CI, after a slow test file.
+  it("are never ended for being idle", () => {
+    // drizzle keeps the pool as $client; the app's type leaves it out.
+    const { $client: pool } = connect(
+      "postgres://nobody@localhost:1/none",
+    ) as unknown as { $client: Pool };
+
+    expect(pool.options.idleTimeoutMillis).toBe(0);
+  });
 });

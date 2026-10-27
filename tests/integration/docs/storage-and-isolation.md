@@ -27,19 +27,27 @@ uninviting, deleting and listing, as described in
 
 **Wrapped keys** (`keys.test.ts`) — with slots made by the real `src/crypto`:
 
-- Setup stores both slots once (409 after), and what comes back still opens the
-  data key with the passphrase.
+- Setup stores both slots and the check value once (409 after), and what comes
+  back still opens the data key with the passphrase and passes the check.
+- Setup is all or nothing: over a leftover slot it writes nothing (409, no check
+  value, no second slot); of three setups sent at once exactly one wins, and
+  its slots and check value are the ones stored together.
 - Malformed slots and Argon2 settings below OWASP's minimum are refused; Bob
   never sees Alice's keys.
 - Writes from another origin or with no origin: 403; oversized bodies: 413; the
   21st key write in a minute: 429.
 - Replacing a slot works with a recent sign-in and is refused (403
   `session_not_fresh`) with an older one; a slot that was never set up: 404.
+- Replacing names the slot it replaces by its IV: a second writer from the same
+  starting point gets 409 with the stored IV, and so does a retry of the
+  request that already went through (its own new IV), so a lost answer is
+  recognisable; Bob cannot replace Alice's slot even with its IV (404).
 - "Remember this device": a session-only, httpOnly, Secure, SameSite=Strict
   `__Host-` cookie; the device slot is returned only to the same session with
   that cookie and opens the data key; another sign-in with the same cookie gets
   nothing; Lock and sign-out remove it.
-- Deleting the account removes slots, records, remembered devices and counters.
+- Deleting the account removes slots, the check value, records, remembered
+  devices and counters (each table is checked to hold something first).
 
 **Encrypted records** (`vault.test.ts`)
 
@@ -49,14 +57,37 @@ uninviting, deleting and listing, as described in
   the passphrase and the recovery key.
 - Revisions: an update needs the current revision (409 with the current one
   otherwise); re-creating an existing record is refused; a record cannot change
-  its kind; updating a missing record: 404.
+  its kind (`kind_mismatch`); updating a missing record: 404; a revision the
+  32-bit column cannot hold is refused (400), not a 500; an old version written
+  back over a newer one is stored but no longer decrypts (`tampered`).
 - Listing by kind, deleting once, malformed ids, envelopes and extra plaintext
   fields refused, writes from another origin refused.
 - **Isolation:** Bob's writes under Alice's record id create his own record;
   Bob cannot update or delete Alice's record; an envelope copied into Bob's vault
   does not decrypt there.
-- Quotas (record count, storage) answer 413; the write rate limit answers 429
-  with `Retry-After` and resets after its window.
+- Quotas (record count, storage) answer 413, and hold when six creates arrive
+  at once one record below either limit (exactly one succeeds); the write rate
+  limit answers 429 with `Retry-After` (the seconds left in the window), resets
+  after its window, and covers Lock (`DELETE /api/keys/device`).
+
+**Each guard's exact condition** (`isolation.test.ts`) — with well-formed but
+meaningless bytes, aimed at what a broken guard would let through:
+
+- Bob cannot update (under either kind) or delete Alice's record by its id, and
+  the stored row is unchanged; under one id shared by both, an update touches
+  only the writer's row. Replacing one's own slots leaves another user's alone.
+- Remembered devices: a well-formed but wrong token gets nothing; Bob with
+  Alice's device cookie gets nothing and his Lock keeps her row; Lock in one
+  session keeps another session's device; remembering again replaces the row
+  and the old cookie stops working.
+- Every Origin that is not exactly the app's (a trailing slash, upper case, an
+  explicit port, http, a longer domain, `null`, empty) is refused on DELETE as
+  on PUT, and a Referer alone is not enough; nothing changes.
+- A record body over 96 KB: 413. Record writes, remembering a device and
+  replacing a slot are each rate-limited; with three writes left in the window,
+  exactly three of six simultaneous writes pass. A replaced record's old size
+  counts once against the storage limit (same size passes, larger fails,
+  smaller passes).
 
 ## Invariants these tests hold
 
@@ -82,7 +113,9 @@ with the screens).
 - **Requests in this runner keep their database connections until the file
   ends** (they share one isolate). Sending a hundred requests exhausts
   Postgres's connections, so rate limits and quotas are tested by seeding the
-  counter or the rows with `query()` and sending one request.
+  counter or the rows with `query()` and sending one request (races send six
+  at once, no more). `compose.yaml` sets `max_connections` to 300 because
+  files run in parallel.
 - A `beforeAll` warm-up (`setup.ts`) keeps the Worker's cold start out of each
   file's first test.
 

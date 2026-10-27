@@ -34,14 +34,21 @@ export const VAULT_LIMITS = Object.freeze({
   maxBytes: 50 * 1024 * 1024,
 });
 
+/** Revisions are stored in a 32-bit integer column. */
+export const MAX_REVISION = 2_147_483_647;
+
 /**
  * Body of `PUT /api/vault/:id`. `revision` is the revision the browser last
- * saw: 0 to create the record, otherwise the current one. A stale revision is
- * refused (409), so two devices cannot silently overwrite each other.
+ * saw: 0 to create the record, otherwise the current one; the record is stored
+ * with the next one. A stale revision is refused (409), so two devices cannot
+ * silently overwrite each other.
  */
 export const vaultWriteSchema = z.strictObject({
   kind: recordKindSchema,
-  revision: z.int().min(0),
+  revision: z
+    .int()
+    .min(0)
+    .max(MAX_REVISION - 1),
   envelope: envelopeSchema,
 });
 

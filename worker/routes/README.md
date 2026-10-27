@@ -15,21 +15,21 @@ user only from the session.
 
 | Route                      | Does                                                                                         | Guards                                      |
 | -------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| `GET /api/keys`            | Both wrapped keys, or `{ keys: null }` before setup                                          |                                             |
-| `POST /api/keys`           | First setup: passphrase and recovery slots together; 409 if done                             | 20 writes/min, 4 KB body                    |
-| `PUT /api/keys/passphrase` | Replace the passphrase slot (new passphrase or newer Argon2 settings)                        | + sign-in in the last 10 minutes            |
-| `PUT /api/keys/recovery`   | Replace the recovery slot (a new recovery key)                                               | + sign-in in the last 10 minutes            |
+| `GET /api/keys`            | Both wrapped keys and the check value, or `{ keys: null }` before setup                      |                                             |
+| `POST /api/keys`           | First setup: the check value and both slots in one transaction; 409 if done                  | 20 writes/min, 4 KB body                    |
+| `PUT /api/keys/passphrase` | Replace the passphrase slot named by its IV (new passphrase or newer Argon2 settings)        | + sign-in in the last 10 minutes            |
+| `PUT /api/keys/recovery`   | Replace the recovery slot named by its IV (a new recovery key)                               | + sign-in in the last 10 minutes            |
 | `POST /api/keys/device`    | "Remember this device": store the device-wrapped key for this session, set the device cookie | 20 writes/min, 4 KB body                    |
 | `GET /api/keys/device`     | The device-wrapped key, only for this session with the device cookie                         |                                             |
-| `DELETE /api/keys/device`  | Lock / forget this device                                                                    |                                             |
+| `DELETE /api/keys/device`  | Lock / forget this device                                                                    | 20 writes/min                               |
 | `GET /api/vault[?kind=]`   | The user's records, oldest first                                                             |                                             |
 | `PUT /api/vault/:id`       | Create (`revision: 0`) or replace (the current revision) a record                            | 120 writes/min, 96 KB body, per-user quotas |
 | `DELETE /api/vault/:id`    | Delete a record                                                                              | 120 writes/min                              |
 
 Responses use plain error codes: `invalid_body`, `invalid_id`, `already_set_up`
-(409), `not_set_up` (404), `session_not_fresh` (403), `conflict` (409, with the
-current `revision`), `quota_exceeded` (413), `body_too_large` (413),
-`rate_limited` (429, with `Retry-After`), `forbidden_origin` (403).
+(409), `not_set_up` (404), `session_not_fresh` (403), `conflict` (409: for a record with the
+current `revision`, for a key slot with the stored `iv`), `kind_mismatch` (409), `quota_exceeded` (413), `body_too_large` (413),
+`rate_limited` (429, with `Retry-After`: the seconds left in the window), `forbidden_origin` (403).
 
 **Remembered devices:** `POST /api/keys/device` stores the data key wrapped by a
 browser-only key under the current session and sets the session-only

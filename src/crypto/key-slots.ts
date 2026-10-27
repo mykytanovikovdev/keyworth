@@ -1,13 +1,14 @@
 import { type Bytes, randomBytes } from "./encoding.ts";
-import { CryptoError } from "./errors.ts";
 import {
   deriveRecoveryKek,
   derivePassphraseKek,
   type OnProgress,
 } from "./kdf.ts";
 import {
+  createKeyCheck,
   deviceAad,
   generateDataKey,
+  type KeyCheck,
   generateDeviceKey,
   keySlotAad,
   unwrapDataKey,
@@ -15,6 +16,7 @@ import {
   wrapDataKey,
 } from "./keys.ts";
 import { CURRENT_KDF_PARAMS, type KdfParams, SALT_BYTES } from "./params.ts";
+import { assertNewPassphrase } from "./passphrase.ts";
 import { generateRecoveryKey, parseRecoveryKey } from "./recovery-key.ts";
 
 /*
@@ -72,13 +74,11 @@ async function newPassphraseSlot(
   kdf: KdfParams,
   onProgress?: OnProgress,
 ): Promise<{ slot: PassphraseSlot; kek: CryptoKey }> {
+  // Built first: a malformed user id is refused before Argon2 runs.
+  const aad = keySlotAad(userId, "passphrase");
   const salt = randomBytes(SALT_BYTES);
   const kek = await derivePassphraseKek(passphrase, salt, kdf, onProgress);
-  const wrapped = await wrapDataKey(
-    dataKey,
-    kek,
-    keySlotAad(userId, "passphrase"),
-  );
+  const wrapped = await wrapDataKey(dataKey, kek, aad);
   return {
     slot: { kind: "passphrase", kdf: { ...kdf }, salt, ...wrapped },
     kek,
@@ -121,10 +121,8 @@ async function recoveryKek(
   slot: RecoverySlot,
   recoveryKey: string,
 ): Promise<CryptoKey> {
+  // Refuses malformed, non-Latin and mistyped keys before any cryptography.
   const bytes = parseRecoveryKey(recoveryKey);
-  if (!bytes) {
-    throw new CryptoError("invalid-input", "This is not a recovery key.");
-  }
   try {
     return await deriveRecoveryKek(bytes, slot.salt);
   } finally {
@@ -142,9 +140,12 @@ export async function createKeys({
   dataKey: CryptoKey;
   passphraseSlot: PassphraseSlot;
   recoverySlot: RecoverySlot;
+  /** Stored with the slots; proves later that a data key is this one. */
+  keyCheck: KeyCheck;
   /** Shown to the user once; never stored or sent anywhere. */
   recoveryKey: string;
 }> {
+  assertNewPassphrase(passphrase);
   const extractable = await generateDataKey();
   const { slot: passphraseSlot, kek } = await newPassphraseSlot(
     userId,
@@ -162,7 +163,8 @@ export async function createKeys({
     kek,
     keySlotAad(userId, "passphrase"),
   );
-  return { dataKey, passphraseSlot, recoverySlot, recoveryKey };
+  const keyCheck = await createKeyCheck(dataKey, userId);
+  return { dataKey, passphraseSlot, recoverySlot, keyCheck, recoveryKey };
 }
 
 export async function unlockWithPassphrase({
@@ -179,8 +181,8 @@ export async function unlockWithPassphrase({
   remember?: boolean;
   onProgress?: OnProgress;
 }): Promise<{ dataKey: CryptoKey; device?: RememberedDevice }> {
-  const kek = await passphraseKek(slot, passphrase, onProgress);
   const aad = keySlotAad(userId, "passphrase");
+  const kek = await passphraseKek(slot, passphrase, onProgress);
   if (!remember) return { dataKey: await unwrapDataKey(slot, kek, aad) };
   const extractable = await unwrapDataKey(slot, kek, aad, {
     extractable: true,
@@ -231,6 +233,8 @@ export async function changePassphrase({
   currentPassphrase: string;
   newPassphrase: string;
 } & WithProgress): Promise<PassphraseSlot> {
+  assertNewPassphrase(newPassphrase);
+  const aad = keySlotAad(userId, "passphrase");
   const kek = await passphraseKek(
     slot,
     currentPassphrase,
@@ -239,14 +243,9 @@ export async function changePassphrase({
         onProgress(f / 2);
       }),
   );
-  const extractable = await unwrapDataKey(
-    slot,
-    kek,
-    keySlotAad(userId, "passphrase"),
-    {
-      extractable: true,
-    },
-  );
+  const extractable = await unwrapDataKey(slot, kek, aad, {
+    extractable: true,
+  });
   const { slot: next } = await newPassphraseSlot(
     userId,
     extractable,
@@ -260,7 +259,10 @@ export async function changePassphrase({
   return next;
 }
 
-/** A new recovery key; the old one stops working once the slot is replaced. */
+/**
+ * A new recovery key. Once the slot is replaced the old key no longer opens
+ * it, but it still opens any copy of the old slot (the data key is the same).
+ */
 export async function replaceRecoveryKey({
   userId,
   passphraseSlot,
@@ -272,13 +274,11 @@ export async function replaceRecoveryKey({
   passphrase: string;
   onProgress?: OnProgress;
 }): Promise<{ recoverySlot: RecoverySlot; recoveryKey: string }> {
+  const aad = keySlotAad(userId, "passphrase");
   const kek = await passphraseKek(passphraseSlot, passphrase, onProgress);
-  const extractable = await unwrapDataKey(
-    passphraseSlot,
-    kek,
-    keySlotAad(userId, "passphrase"),
-    { extractable: true },
-  );
+  const extractable = await unwrapDataKey(passphraseSlot, kek, aad, {
+    extractable: true,
+  });
   const { slot: recoverySlot, recoveryKey } = await newRecoverySlot(
     userId,
     extractable,
@@ -303,6 +303,7 @@ export async function resetPassphrase({
   dataKey: CryptoKey;
   passphraseSlot: PassphraseSlot;
 }> {
+  assertNewPassphrase(newPassphrase);
   const kek = await recoveryKek(recoverySlot, recoveryKey);
   const aad = keySlotAad(userId, "recovery");
   const extractable = await unwrapDataKey(recoverySlot, kek, aad, {

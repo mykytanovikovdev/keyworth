@@ -14,6 +14,9 @@ export const TEST_DATABASE_OWNER_URL = `postgres://keyworth_owner:keyworth_owner
 
 const migrationsFolder = resolve(import.meta.dirname, "../../drizzle");
 
+const EMPTY =
+  'TRUNCATE "user", allowed_emails, blocked_emails, verification, rate_limit CASCADE';
+
 /** Applies every migration and empties all tables. */
 export async function prepareTestDatabase(): Promise<void> {
   const pool = new Pool({ connectionString: TEST_DATABASE_OWNER_URL });
@@ -26,10 +29,13 @@ export async function prepareTestDatabase(): Promise<void> {
         { cause: error },
       );
     }
+    // Emptied before migrating too: a migration may refuse to run over data
+    // left by an earlier run (0005 does, over old key slots).
+    await pool.query(`DO $$ BEGIN
+      IF to_regclass('public.user_key_slots') IS NOT NULL THEN ${EMPTY}; END IF;
+    END $$`);
     await migrate(drizzle(pool), { migrationsFolder });
-    await pool.query(
-      'TRUNCATE "user", allowed_emails, blocked_emails, verification, rate_limit CASCADE',
-    );
+    await pool.query(EMPTY);
   } finally {
     await pool.end();
   }
