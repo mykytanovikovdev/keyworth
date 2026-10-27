@@ -46,6 +46,11 @@ Covered now:
   - themes: set by `theme-init.js` before the app's JavaScript runs (the bundle
     is blocked in that test), a choice survives a reload, "System" clears it, and
     the page follows a live change of the system setting.
+- **`kdf-benchmark.spec.ts`** (`/design/kdf` in Chromium, Firefox, WebKit): the
+  encryption core's Argon2id (`@noble/hashes`) matches RFC 9106's test vector in
+  each engine and runs with the production settings under the real CSP and
+  Trusted Types with **zero violations or errors**. The measured time is added to
+  the report as an `argon2id` annotation, one per browser.
 
 Not covered yet: the real round trip through Google (checked by hand), and
 encryption setup, unlock and chat, which arrive

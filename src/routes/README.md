@@ -7,12 +7,13 @@ and the pages that belong to no feature (home, not found).
 
 ## How it works
 
-| File               | Role                                                            |
-| ------------------ | --------------------------------------------------------------- |
-| `router.tsx`       | Every route, declared in code, and the router factory           |
-| `AppShell.tsx`     | The signed-in frame: header (mark, theme, settings) and content |
-| `HomePage.tsx`     | The signed-in start page (a placeholder until the portfolio)    |
-| `NotFoundPage.tsx` | Any unknown path                                                |
+| File                   | Role                                                            |
+| ---------------------- | --------------------------------------------------------------- |
+| `router.tsx`           | Every route, declared in code, and the router factory           |
+| `AppShell.tsx`         | The signed-in frame: header (mark, theme, settings) and content |
+| `HomePage.tsx`         | The signed-in start page (a placeholder until the portfolio)    |
+| `NotFoundPage.tsx`     | Any unknown path                                                |
+| `KdfBenchmarkPage.tsx` | `/design/kdf`: times Argon2id on this device (developer tool)   |
 
 ```
 /            ┐ app layout: no session → redirect to /sign-in
@@ -20,6 +21,7 @@ and the pages that belong to no feature (home, not found).
 /sign-in       a session → redirect to /
 /privacy, /terms
 /design        only in dev and design builds
+/design/kdf    the same; Argon2id timing (see src/crypto/README.md)
 ```
 
 `src/App.tsx` creates the query client and the router, and passes the router's

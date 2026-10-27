@@ -52,7 +52,7 @@ export default defineConfig({
       : [
           ...desktopBrowsers.map(([name, device]) => ({
             name: `design-${name}`,
-            testMatch: "design-system.spec.ts",
+            testMatch: ["design-system.spec.ts", "kdf-benchmark.spec.ts"],
             grepInvert: /@ios/,
             use: { ...device, baseURL: designUrl },
           })),

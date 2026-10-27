@@ -101,12 +101,23 @@ const designRoute =
       })
     : null;
 
+// Same condition: a developer tool that times Argon2id on this device.
+const kdfBenchmarkRoute =
+  import.meta.env.DEV || import.meta.env.MODE === "design"
+    ? createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/design/kdf",
+        component: lazyRouteComponent(() => import("./KdfBenchmarkPage.tsx")),
+      })
+    : null;
+
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([homeRoute, settingsRoute]),
   signInRoute,
   privacyRoute,
   termsRoute,
   ...(designRoute ? [designRoute] : []),
+  ...(kdfBenchmarkRoute ? [kdfBenchmarkRoute] : []),
 ]);
 
 export function createAppRouter(queryClient: QueryClient) {

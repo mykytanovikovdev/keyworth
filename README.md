@@ -47,13 +47,14 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
 
 | Layer    | Choice                                                                                            |
 | -------- | ------------------------------------------------------------------------------------------------- |
-| Frontend | React 19, Vite 8, TypeScript (strict)                                                             |
+| Frontend | React 19, Vite 8, TypeScript (strict), TanStack Router and Query                                  |
 | UI       | Tailwind CSS 4 on semantic tokens, React Aria Components, Lucide icons, anime.js, the Onest font  |
 | API      | Hono on Cloudflare Workers; static files via Workers Assets                                       |
 | Auth     | Better Auth: Google sign-in, database sessions, invite list                                       |
 | Data     | PostgreSQL 18 (Neon in production, Docker locally) through Hyperdrive, Drizzle ORM and migrations |
 | Tests    | Vitest (Node and workerd + Postgres), Playwright (Chromium, Firefox, WebKit), axe, screenshots    |
-| Planned  | TanStack Router/Query, AI SDK with Claude Haiku, WebCrypto + Argon2id                             |
+| Crypto   | WebCrypto (AES-256-GCM, HKDF), Argon2id from @noble/hashes (plain JavaScript), zod schemas        |
+| Planned  | AI SDK with Claude Haiku                                                                          |
 
 ## Getting started
 
@@ -105,18 +106,20 @@ For end-to-end tests, install the browsers once:
 ## Project structure
 
 ```
-src/        React SPA; src/ui/ is the design system
+src/        React SPA; src/ui/ is the design system, src/crypto/ the encryption core
+shared/     zod schemas shared by the browser and the Worker
 worker/     Cloudflare Worker (Hono): API, sign-in, security headers; db/ is the database
 drizzle/    SQL migrations
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
-scripts/    project tooling (license check, visual test runner)
+scripts/    project tooling (user management, license check, visual test runner)
 tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 .github/    CI, deployment and Dependabot
 ```
 
 Every major folder has its own README explaining what it does, why it is built
 that way, and its pitfalls: [design system](src/ui/README.md),
+[encryption](src/crypto/README.md), [shared schemas](shared/schemas/README.md),
 [worker](worker/README.md), [database](worker/db/README.md), [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).
 
@@ -153,14 +156,18 @@ so dependencies are treated as part of the attack surface:
 
 ## Security
 
-**Encryption model (in progress).** The server never stores financial data in
-plaintext and never receives the passphrase or the data key. Each record is an
-AES-256-GCM envelope `{ v, alg, iv, ct }` with a fresh random IV, bound to its
-owner, record type and record ID through additional authenticated data, so a
-record cannot be swapped for another user's or moved to another row. The full
-design and an honest threat model — what is protected, what the operator can still
-see, and what it does not protect against — will be documented in
-`src/crypto/README.md`.
+**Encryption model (core in place, storage and screens in progress).** The
+server never stores financial data in plaintext and never receives the
+passphrase, the recovery key or the data key. A random AES-256-GCM data key,
+made in the browser, encrypts every record; the server stores it only wrapped by
+keys derived from the passphrase (Argon2id, 64 MiB, 3 passes) and from a
+160-bit recovery key. Each record is an envelope `{ v, alg, iv, ct }` with a
+fresh random IV, padded to a size bucket and bound to its owner, record type and
+record ID through additional authenticated data, so it cannot be swapped for
+another user's or moved to another row. Argon2id runs as plain JavaScript, so
+the CSP needs no WebAssembly exception. The design and an honest threat model —
+what is protected, what the operator can still see, and what it does not
+protect against — are in [src/crypto/README.md](src/crypto/README.md).
 
 **Sign-in (in place).** Google accounts only, for an invite list kept in the
 database. Sessions live in the database and in an httpOnly, Secure, SameSite
