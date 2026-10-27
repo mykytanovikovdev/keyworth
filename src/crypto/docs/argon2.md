@@ -95,11 +95,14 @@ suggests four or more random words.
    (`npm run dev -- --host --port 5180 --strictPort`, then
    `http://<computer's LAN address>:5180/design/kdf` on the phone).
 2. Existing slots keep working: their settings are stored with them.
-   `isCurrentKdf` reports an old slot, and the app rewraps it with
-   `changePassphrase` using the same passphrase.
+   `kdfNeedsUpgrade` reports a slot weaker than the current settings (less
+   memory or fewer passes; stronger ones are left alone), and the app rewraps
+   it with `changePassphrase` using the same passphrase.
 3. Replacing a slot needs a sign-in from the last 10 minutes, so the upgrade
-   must run right after a Google sign-in, or the server must allow
-   same-passphrase upgrades explicitly. Decide this before the first change.
+   runs only at an unlock within 10 minutes of a Google sign-in; otherwise it
+   waits for the next one. There is deliberately no "same passphrase"
+   exception: the server cannot tell a same-passphrase rewrap from a new
+   passphrase set by a stolen session.
 
 ## Edge cases
 

@@ -101,4 +101,12 @@ describe("base64url", () => {
   it.each(["a", "abcde", "ab+c", "ab/c", "ab=="])("rejects %s", (text) => {
     expect(decodeBase64url(text)).toBeNull();
   });
+
+  it("accepts only the one spelling of each byte string", () => {
+    // "AQ" is [0x01]; "AR" decodes to the same byte with an unused bit set.
+    expect(decodeBase64url("AQ")).toEqual(Uint8Array.of(1));
+    expect(decodeBase64url("AR")).toBeNull();
+    expect(decodeBase64url("AAB")).toBeNull();
+    expect(decodeBase64url("AAA")).toEqual(Uint8Array.of(0, 0));
+  });
 });

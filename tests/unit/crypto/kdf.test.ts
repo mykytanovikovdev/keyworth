@@ -12,6 +12,7 @@ import {
 import {
   CURRENT_KDF_PARAMS,
   type KdfParams,
+  kdfNeedsUpgrade,
 } from "../../../src/crypto/params.ts";
 import { FAST_KDF } from "./fixtures.ts";
 
@@ -219,5 +220,28 @@ describe("derivePassphraseKek", () => {
     await expect(
       derivePassphraseKek("purple elephant dances", randomBytes(8), FAST_KDF),
     ).rejects.toMatchObject({ code: "invalid-input" });
+  });
+});
+
+describe("kdfNeedsUpgrade", () => {
+  it("flags settings weaker than the current ones and leaves stronger ones alone", () => {
+    expect(kdfNeedsUpgrade(CURRENT_KDF_PARAMS)).toBe(false);
+    expect(kdfNeedsUpgrade(FAST_KDF)).toBe(true);
+    expect(
+      kdfNeedsUpgrade({
+        ...CURRENT_KDF_PARAMS,
+        passes: CURRENT_KDF_PARAMS.passes - 1,
+      }),
+    ).toBe(true);
+    expect(
+      kdfNeedsUpgrade({
+        ...CURRENT_KDF_PARAMS,
+        memoryKiB: CURRENT_KDF_PARAMS.memoryKiB * 2,
+        passes: CURRENT_KDF_PARAMS.passes + 1,
+      }),
+    ).toBe(false);
+    expect(kdfNeedsUpgrade({ ...CURRENT_KDF_PARAMS, parallelism: 2 })).toBe(
+      false,
+    );
   });
 });

@@ -26,11 +26,14 @@ export function assertKdfParams(params: unknown): asserts params is KdfParams {
   }
 }
 
-/** False when a slot was made with older settings and should be rewrapped. */
-export function isCurrentKdf(params: KdfParams): boolean {
+/**
+ * True when a slot's settings are weaker than the current ones (less memory or
+ * fewer passes), so it should be rewrapped. Stronger or merely different
+ * settings are left alone: rewrapping them would weaken the slot.
+ */
+export function kdfNeedsUpgrade(params: KdfParams): boolean {
   return (
-    params.memoryKiB === CURRENT_KDF_PARAMS.memoryKiB &&
-    params.passes === CURRENT_KDF_PARAMS.passes &&
-    params.parallelism === CURRENT_KDF_PARAMS.parallelism
+    params.memoryKiB < CURRENT_KDF_PARAMS.memoryKiB ||
+    params.passes < CURRENT_KDF_PARAMS.passes
   );
 }

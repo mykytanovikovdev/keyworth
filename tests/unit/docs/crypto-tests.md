@@ -86,7 +86,9 @@ accepted; one changed character, two swapped ones and a wrong check group are
 malformed text (too short, no check group, too long, U, punctuation, empty) is
 `invalid-input`. Slots and the check value survive the JSON round trip byte for
 byte and carry format version 1; malformed slots (lengths, Argon2 settings out
-of range, extra fields, another version) are refused; base64url round-trips every byte value and rejects malformed text.
+of range, extra fields, another version) are refused; base64url round-trips
+every byte value, rejects malformed text and accepts only the one canonical
+spelling of each byte string (unused trailing bits must be zero).
 
 **Schemas** (`schemas.test.ts`): accepted and rejected envelopes (versions,
 algorithms, IV length, every padding bucket up to 64 KiB and nothing larger,

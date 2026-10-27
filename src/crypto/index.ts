@@ -18,7 +18,11 @@ export {
   unlockWithRecoveryKey,
 } from "./key-slots.ts";
 export { type KeyCheck, verifyKeyCheck } from "./keys.ts";
-export { CURRENT_KDF_PARAMS, isCurrentKdf, type KdfParams } from "./params.ts";
+export {
+  CURRENT_KDF_PARAMS,
+  type KdfParams,
+  kdfNeedsUpgrade,
+} from "./params.ts";
 export {
   deviceSlotFromJson,
   deviceSlotToJson,

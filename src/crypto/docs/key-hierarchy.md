@@ -143,8 +143,9 @@ within limits, format version `v: 1`).
 ## Edge cases
 
 - **Upgrading Argon2 settings** rewraps the passphrase slot with the same
-  passphrase, which the server accepts only with a recent sign-in. Do it right
-  after a Google sign-in, or allow same-passphrase upgrades explicitly.
+  passphrase, which the server accepts only with a recent sign-in, so it runs
+  at an unlock within 10 minutes of a Google sign-in
+  ([argon2.md](argon2.md)).
 - **A forgotten passphrase** is reset with the recovery key: the recovery slot
   opens the DEK, a new passphrase wraps it, and the recovery key keeps working.
 - **Both secrets lost:** nothing can open the DEK; the data is gone.

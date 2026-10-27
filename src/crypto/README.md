@@ -139,7 +139,8 @@ const value = await decryptRecord(dataKey, ref, envelope); // validate with the 
   engine.
 - Changing the Argon2 settings: update `CURRENT_KDF_PARAMS`, measure on a phone,
   keep `KDF_LIMITS` in `shared/schemas/keys.ts` consistent; existing slots are
-  upgraded at the next unlock.
+  rewrapped at the first unlock within 10 minutes of a Google sign-in
+  ([docs/argon2.md](docs/argon2.md)).
 
 ## Related
 

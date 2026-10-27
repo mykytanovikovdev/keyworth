@@ -1,4 +1,9 @@
-import { BASE64URL, base64urlBytes, base64urlLength } from "./base64url.ts";
+import {
+  BASE64URL,
+  base64urlBytes,
+  base64urlLength,
+  isCanonicalBase64url,
+} from "./base64url.ts";
 import { z } from "./zod.ts";
 
 /*
@@ -34,7 +39,8 @@ export const envelopeSchema = z.strictObject({
     .regex(BASE64URL)
     .refine((ct) => CIPHERTEXT_LENGTHS.has(ct.length), {
       message: "Ciphertext length is not a padding bucket plus the tag",
-    }),
+    })
+    .refine(isCanonicalBase64url, { message: "Not canonical base64url" }),
 });
 
 export type Envelope = z.infer<typeof envelopeSchema>;
