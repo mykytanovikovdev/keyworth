@@ -5,8 +5,10 @@ import {
   type OnProgress,
 } from "./kdf.ts";
 import {
+  createKeyCheck,
   deviceAad,
   generateDataKey,
+  type KeyCheck,
   generateDeviceKey,
   keySlotAad,
   unwrapDataKey,
@@ -138,6 +140,8 @@ export async function createKeys({
   dataKey: CryptoKey;
   passphraseSlot: PassphraseSlot;
   recoverySlot: RecoverySlot;
+  /** Stored with the slots; proves later that a data key is this one. */
+  keyCheck: KeyCheck;
   /** Shown to the user once; never stored or sent anywhere. */
   recoveryKey: string;
 }> {
@@ -159,7 +163,8 @@ export async function createKeys({
     kek,
     keySlotAad(userId, "passphrase"),
   );
-  return { dataKey, passphraseSlot, recoverySlot, recoveryKey };
+  const keyCheck = await createKeyCheck(dataKey, userId);
+  return { dataKey, passphraseSlot, recoverySlot, keyCheck, recoveryKey };
 }
 
 export async function unlockWithPassphrase({

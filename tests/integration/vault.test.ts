@@ -10,6 +10,7 @@ import {
   createKeys,
   decryptRecord,
   encryptRecord,
+  keyCheckToJson,
   passphraseSlotToJson,
   recoverySlotToJson,
 } from "../../src/crypto/index.ts";
@@ -39,6 +40,7 @@ async function vaultUser(label: string) {
     body: {
       passphrase: passphraseSlotToJson(keys.passphraseSlot),
       recovery: recoverySlotToJson(keys.recoverySlot),
+      check: keyCheckToJson(keys.keyCheck),
     },
   });
   return { ...user, ...keys };

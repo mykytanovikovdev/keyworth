@@ -38,6 +38,9 @@ that the same code works in Chromium, Firefox and WebKit is shown by
 - Setup returns a non-extractable data key; slots carry the settings, fresh
   salts, 12-byte IVs and 48-byte wrapped keys; the recovery key has nine groups
   of four, the last a check group.
+- Setup returns a check value that the data key passes, as does the key
+  opened again by unlocking; another data key or another user's id fails it
+  with `wrong-secret`.
 - Setup, changing the passphrase and resetting it all refuse a new passphrase
   that is too short, only spaces (`invalid-input`) or not plain Latin
   (`not-latin`).
@@ -81,9 +84,9 @@ keep working; round trips; sloppy typing (case, spaces, look-alikes) and pasting
 accepted; one changed character, two swapped ones and a wrong check group are
 `mistyped`; a Cyrillic look-alike or an accented letter is `not-latin`;
 malformed text (too short, no check group, too long, U, punctuation, empty) is
-`invalid-input`. Slots survive the JSON round trip byte for byte;
-malformed slots (lengths, Argon2 settings out of range, extra fields) are
-refused; base64url round-trips every byte value and rejects malformed text.
+`invalid-input`. Slots and the check value survive the JSON round trip byte for
+byte and carry format version 1; malformed slots (lengths, Argon2 settings out
+of range, extra fields, another version) are refused; base64url round-trips every byte value and rejects malformed text.
 
 **Schemas** (`schemas.test.ts`): accepted and rejected envelopes (versions,
 algorithms, IV length, every padding bucket up to 64 KiB and nothing larger,

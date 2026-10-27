@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
-import { Hono } from "hono";
+import { TransactionRollbackError } from "drizzle-orm/errors";
+import { type Context, Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import type { CookieOptions } from "hono/utils/cookie";
 import {
@@ -8,11 +9,12 @@ import {
 } from "../../shared/schemas/base64url.ts";
 import {
   deviceSlotSchema,
+  type KeysJson,
   keySetupSchema,
-  passphraseSlotSchema,
-  recoverySlotSchema,
+  passphraseReplaceSchema,
+  recoveryReplaceSchema,
 } from "../../shared/schemas/keys.ts";
-import { deviceUnlocks, userKeySlots } from "../db/schema.ts";
+import { deviceUnlocks, userKeyChecks, userKeySlots } from "../db/schema.ts";
 import type { AppEnv } from "../env.ts";
 import {
   maxBody,
@@ -46,119 +48,158 @@ const wrapped = (row: { iv: Uint8Array; wrappedKey: Uint8Array }) => ({
   wrappedKey: encodeBase64url(row.wrappedKey),
 });
 
-/** `{ keys: null }` before setup; otherwise both slots. */
+/** `{ keys: null }` before setup; otherwise both slots and the check value. */
 keys.get("/", async (c) => {
-  const rows = await c
-    .get("db")
-    .select()
-    .from(userKeySlots)
-    .where(eq(userKeySlots.userId, c.get("user").id));
+  const db = c.get("db");
+  const userId = c.get("user").id;
+  const [rows, [check]] = await Promise.all([
+    db.select().from(userKeySlots).where(eq(userKeySlots.userId, userId)),
+    db.select().from(userKeyChecks).where(eq(userKeyChecks.userId, userId)),
+  ]);
   const passphrase = rows.find((row) => row.kind === "passphrase");
   const recovery = rows.find((row) => row.kind === "recovery");
-  if (!passphrase?.kdf || !recovery) return c.json({ keys: null });
-  return c.json({
+  if (!passphrase?.kdf || !recovery || !check) {
+    return c.json<KeysJson>({ keys: null });
+  }
+  return c.json<KeysJson>({
     keys: {
       passphrase: {
+        v: 1,
         kdf: passphrase.kdf,
         salt: encodeBase64url(passphrase.salt),
         ...wrapped(passphrase),
       },
-      recovery: { salt: encodeBase64url(recovery.salt), ...wrapped(recovery) },
+      recovery: {
+        v: 1,
+        salt: encodeBase64url(recovery.salt),
+        ...wrapped(recovery),
+      },
+      check: {
+        v: 1,
+        iv: encodeBase64url(check.iv),
+        tag: encodeBase64url(check.tag),
+      },
     },
   });
 });
 
-/** First setup: both slots in one statement, or 409 if they already exist. */
+/**
+ * First setup: the check value and both slots in one transaction, so a user
+ * has all three or none. 409 if they exist; a browser whose first request went
+ * through but whose answer was lost sees 409 on retry and compares the stored
+ * passphrase slot's IV with the one it sent.
+ */
 keys.post("/", limitWrites, smallBody, async (c) => {
   const body = keySetupSchema.safeParse(await readJson(c));
   if (!body.success) return c.json({ error: "invalid_body" }, 400);
-  const { passphrase, recovery } = body.data;
+  const { passphrase, recovery, check } = body.data;
   const userId = c.get("user").id;
-  const inserted = await c
-    .get("db")
-    .insert(userKeySlots)
-    .values([
-      {
-        userId,
-        kind: "passphrase",
-        kdf: passphrase.kdf,
-        salt: bytes(passphrase.salt),
-        iv: bytes(passphrase.iv),
-        wrappedKey: bytes(passphrase.wrappedKey),
-      },
-      {
-        userId,
-        kind: "recovery",
-        salt: bytes(recovery.salt),
-        iv: bytes(recovery.iv),
-        wrappedKey: bytes(recovery.wrappedKey),
-      },
-    ])
-    .onConflictDoNothing()
-    .returning({ kind: userKeySlots.kind });
-  // Both rows or neither: they are only ever created together here.
-  if (inserted.length === 0) return c.json({ error: "already_set_up" }, 409);
+  try {
+    await c.get("db").transaction(async (tx) => {
+      const checks = await tx
+        .insert(userKeyChecks)
+        .values({ userId, iv: bytes(check.iv), tag: bytes(check.tag) })
+        .onConflictDoNothing()
+        .returning({ userId: userKeyChecks.userId });
+      const slots = await tx
+        .insert(userKeySlots)
+        .values([
+          {
+            userId,
+            kind: "passphrase",
+            kdf: passphrase.kdf,
+            salt: bytes(passphrase.salt),
+            iv: bytes(passphrase.iv),
+            wrappedKey: bytes(passphrase.wrappedKey),
+          },
+          {
+            userId,
+            kind: "recovery",
+            salt: bytes(recovery.salt),
+            iv: bytes(recovery.iv),
+            wrappedKey: bytes(recovery.wrappedKey),
+          },
+        ])
+        .onConflictDoNothing()
+        .returning({ kind: userKeySlots.kind });
+      // Anything less than all three means keys exist: write none of it.
+      if (checks.length !== 1 || slots.length !== 2) tx.rollback();
+    });
+  } catch (error) {
+    if (error instanceof TransactionRollbackError) {
+      return c.json({ error: "already_set_up" }, 409);
+    }
+    throw error;
+  }
   return c.json({ ok: true }, 201);
 });
 
-/** A new passphrase (or newer Argon2 settings); needs a recent sign-in. */
+/**
+ * Replaces one slot, only if it is still the one the browser read (the same
+ * IV); otherwise 409 with the stored IV. Needs a recent sign-in.
+ */
+async function replaceSlot(
+  c: Context<AppEnv>,
+  kind: "passphrase" | "recovery",
+  expectedIv: string,
+  values: Partial<typeof userKeySlots.$inferInsert>,
+) {
+  const db = c.get("db");
+  const owned = and(
+    eq(userKeySlots.userId, c.get("user").id),
+    eq(userKeySlots.kind, kind),
+  );
+  const updated = await db
+    .update(userKeySlots)
+    .set({ ...values, updatedAt: new Date() })
+    .where(and(owned, eq(userKeySlots.iv, bytes(expectedIv))))
+    .returning({ kind: userKeySlots.kind });
+  if (updated.length > 0) return c.json({ ok: true });
+  const [current] = await db
+    .select({ iv: userKeySlots.iv })
+    .from(userKeySlots)
+    .where(owned)
+    .limit(1);
+  if (!current) return c.json({ error: "not_set_up" }, 404);
+  return c.json({ error: "conflict", iv: encodeBase64url(current.iv) }, 409);
+}
+
+/** A new passphrase (or newer Argon2 settings). */
 keys.put(
   "/passphrase",
   limitWrites,
   requireFreshSession,
   smallBody,
   async (c) => {
-    const body = passphraseSlotSchema.safeParse(await readJson(c));
+    const body = passphraseReplaceSchema.safeParse(await readJson(c));
     if (!body.success) return c.json({ error: "invalid_body" }, 400);
-    const updated = await c
-      .get("db")
-      .update(userKeySlots)
-      .set({
-        kdf: body.data.kdf,
-        salt: bytes(body.data.salt),
-        iv: bytes(body.data.iv),
-        wrappedKey: bytes(body.data.wrappedKey),
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(userKeySlots.userId, c.get("user").id),
-          eq(userKeySlots.kind, "passphrase"),
-        ),
-      )
-      .returning({ kind: userKeySlots.kind });
-    if (updated.length === 0) return c.json({ error: "not_set_up" }, 404);
-    return c.json({ ok: true });
+    const { slot, expectedIv } = body.data;
+    return replaceSlot(c, "passphrase", expectedIv, {
+      version: slot.v,
+      kdf: slot.kdf,
+      salt: bytes(slot.salt),
+      iv: bytes(slot.iv),
+      wrappedKey: bytes(slot.wrappedKey),
+    });
   },
 );
 
-/** A new recovery key; the old one stops working. Needs a recent sign-in. */
+/** A new recovery key. The old one stops opening the stored slot. */
 keys.put(
   "/recovery",
   limitWrites,
   requireFreshSession,
   smallBody,
   async (c) => {
-    const body = recoverySlotSchema.safeParse(await readJson(c));
+    const body = recoveryReplaceSchema.safeParse(await readJson(c));
     if (!body.success) return c.json({ error: "invalid_body" }, 400);
-    const updated = await c
-      .get("db")
-      .update(userKeySlots)
-      .set({
-        salt: bytes(body.data.salt),
-        iv: bytes(body.data.iv),
-        wrappedKey: bytes(body.data.wrappedKey),
-        updatedAt: new Date(),
-      })
-      .where(
-        and(
-          eq(userKeySlots.userId, c.get("user").id),
-          eq(userKeySlots.kind, "recovery"),
-        ),
-      )
-      .returning({ kind: userKeySlots.kind });
-    if (updated.length === 0) return c.json({ error: "not_set_up" }, 404);
-    return c.json({ ok: true });
+    const { slot, expectedIv } = body.data;
+    return replaceSlot(c, "recovery", expectedIv, {
+      version: slot.v,
+      salt: bytes(slot.salt),
+      iv: bytes(slot.iv),
+      wrappedKey: bytes(slot.wrappedKey),
+    });
   },
 );
 

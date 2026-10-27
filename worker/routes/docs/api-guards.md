@@ -29,7 +29,8 @@ request ─► security headers (every response)
 | Schema             | every body and id                                    | Exact shapes from `shared/schemas` (lengths, buckets, Argon2 limits, no extra fields)      | 400 `invalid_body` / `invalid_id` / `invalid_kind`               |
 | Revision           | `PUT /api/vault/:id`                                 | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change  | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
 | Quotas             | `PUT /api/vault/:id`                                 | At most 20,000 records and 50 MiB of ciphertext per user, checked in the writing statement | 413 `quota_exceeded`                                             |
-| One-time setup     | `POST /api/keys`                                     | Both slots once                                                                            | 409 `already_set_up`                                             |
+| One-time setup     | `POST /api/keys`                                     | The check value and both slots once, in one transaction: all three or none                 | 409 `already_set_up`                                             |
+| Expected slot      | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery` | `expectedIv` must equal the stored slot's IV                                               | 409 `conflict` + stored `iv`, or 404                             |
 | Device unlock      | `GET /api/keys/device`                               | Same session **and** the device cookie's token hash                                        | 404 `not_remembered`                                             |
 
 **Rate limiting** keeps one row per user and bucket in `api_rate_limits`
@@ -71,6 +72,11 @@ more query tells which rule refused it.
   (taken by origin and freshness).
 - **Revisions instead of last-write-wins:** two devices must not silently
   overwrite each other's record.
+- **Slots named by their IV when replaced** (a compare-and-swap): two tabs that
+  each create a new recovery key would otherwise leave the user holding a key
+  that no longer opens anything, without knowing it. Every wrapping has a fresh
+  random IV, so the IV identifies the slot without a separate version counter,
+  and a retry after a lost answer recognises its own write in the 409.
 
 ## Edge cases
 

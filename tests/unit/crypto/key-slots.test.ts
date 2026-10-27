@@ -9,6 +9,7 @@ import {
   unlockWithPassphrase,
   unlockWithRecoveryKey,
 } from "../../../src/crypto/key-slots.ts";
+import { generateDataKey, verifyKeyCheck } from "../../../src/crypto/keys.ts";
 import { CURRENT_KDF_PARAMS } from "../../../src/crypto/params.ts";
 import { ALICE, BOB, FAST_KDF } from "./fixtures.ts";
 
@@ -39,6 +40,30 @@ describe("setting up keys", () => {
     expect(dataKey.extractable).toBe(false);
     expect(dataKey.usages.toSorted()).toEqual(["decrypt", "encrypt"]);
     await expect(crypto.subtle.exportKey("raw", dataKey)).rejects.toThrow();
+  });
+
+  it("returns a check value that only this data key and this user pass", async () => {
+    const { dataKey, keyCheck, passphraseSlot } = await setUp();
+    const unlocked = await unlockWithPassphrase({
+      userId: ALICE,
+      slot: passphraseSlot,
+      passphrase: PASSPHRASE,
+    });
+
+    await expect(verifyKeyCheck(dataKey, ALICE, keyCheck)).resolves.toBe(
+      undefined,
+    );
+    await expect(
+      verifyKeyCheck(unlocked.dataKey, ALICE, keyCheck),
+    ).resolves.toBe(undefined);
+    await expect(
+      verifyKeyCheck(await generateDataKey(), ALICE, keyCheck),
+    ).rejects.toMatchObject({ code: "wrong-secret" });
+    await expect(verifyKeyCheck(dataKey, BOB, keyCheck)).rejects.toMatchObject({
+      code: "wrong-secret",
+    });
+    expect(keyCheck.iv).toHaveLength(12);
+    expect(keyCheck.tag).toHaveLength(16);
   });
 
   it("stores the settings it used and a fresh salt in the passphrase slot", async () => {

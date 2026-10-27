@@ -113,6 +113,9 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
   ends** (they share one isolate; in production each request closes its own).
   A test that sends a hundred requests can exhaust Postgres's connections:
   seed counters and data with `query()` instead (see the rate-limit tests).
+  Files also run in parallel, so `compose.yaml` raises `max_connections` to
+  300; "remaining connection slots are reserved" (53300) means that budget ran
+  out, not that the code is wrong.
 - **The first request in each file is slow** (about 2 seconds, more in CI):
   every file gets a fresh isolate that evaluates the Worker's modules on its
   first request. `setup.ts` makes that request in a `beforeAll` with a long

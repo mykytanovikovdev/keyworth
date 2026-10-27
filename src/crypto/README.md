@@ -46,7 +46,7 @@ The details live in [`docs/`](docs/):
 | ----------------- | --------------------------------------------------------------------- |
 | `index.ts`        | The public surface; import from here                                  |
 | `key-slots.ts`    | The key flows: set up, unlock, change, replace, reset, remember       |
-| `keys.ts`         | DEK and device key generation, wrap/unwrap, every AAD                 |
+| `keys.ts`         | DEK and device key generation, wrap/unwrap, every AAD, check value    |
 | `kdf.ts`          | Argon2id (passphrase) and HKDF (recovery key) to non-extractable KEKs |
 | `params.ts`       | The approved Argon2 settings; validation of stored ones               |
 | `envelope.ts`     | Encrypt and decrypt records                                           |

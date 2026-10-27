@@ -52,6 +52,11 @@ export function deviceAad(userId: string): Bytes {
   return utf8(`device|${userId}|${String(AAD_VERSION)}`);
 }
 
+export function keyCheckAad(userId: string): Bytes {
+  assertUserId(userId);
+  return utf8(`key-check|${userId}|${String(AAD_VERSION)}`);
+}
+
 /**
  * Binds a record's ciphertext to its owner, its kind, its id and its revision.
  * The revision makes an old version of a record fail as `tampered` when it is
@@ -121,6 +126,50 @@ export async function wrapDataKey(
     additionalData: aad,
   });
   return { iv, wrappedKey: new Uint8Array(wrapped) };
+}
+
+/** Proof that a data key is this account's: an AES-GCM tag over nothing. */
+export interface KeyCheck {
+  iv: Bytes;
+  /** The 16-byte tag; with an empty plaintext there is nothing else. */
+  tag: Bytes;
+}
+
+/** Made once, at setup, and stored with the slots. */
+export async function createKeyCheck(
+  dataKey: CryptoKey,
+  userId: string,
+): Promise<KeyCheck> {
+  const additionalData = keyCheckAad(userId);
+  const iv = randomBytes(IV_BYTES);
+  const tag = await crypto.subtle.encrypt(
+    { name: "AES-GCM", iv, additionalData },
+    dataKey,
+    new Uint8Array(0),
+  );
+  return { iv, tag: new Uint8Array(tag) };
+}
+
+/**
+ * Confirms that a data key belongs to this account before anything is
+ * encrypted with it: after an unlock, and when another tab hands a key over.
+ * Fails with `wrong-secret` for any other key.
+ */
+export async function verifyKeyCheck(
+  dataKey: CryptoKey,
+  userId: string,
+  check: KeyCheck,
+): Promise<void> {
+  const additionalData = keyCheckAad(userId);
+  await onAuthFailure(
+    crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: check.iv, additionalData },
+      dataKey,
+      check.tag,
+    ),
+    "wrong-secret",
+    "This data key does not belong to this account.",
+  );
 }
 
 /**
