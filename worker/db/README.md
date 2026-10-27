@@ -8,9 +8,10 @@ database for development and tests.
 
 The database holds only what the server is allowed to see in plaintext: the
 Google profile (name, email), sessions, the invite and block lists and
-rate-limit counters.
-Financial data arrives in phase 3, and only as encrypted envelopes. Queries that
-belong to a feature live with that feature, not here.
+rate-limit counters. Everything financial is stored only encrypted: wrapped
+copies of each user's data key and encrypted records, which the server cannot
+open. Queries that belong to a feature live with that feature (for example
+`worker/routes/`), not here.
 
 ## How it works
 
@@ -45,17 +46,23 @@ own.
 
 **Tables:**
 
-| Table            | Holds                                            | Notes                                             |
-| ---------------- | ------------------------------------------------ | ------------------------------------------------- |
-| `user`           | Name and email from Google                       | No avatar URL                                     |
-| `session`        | Session tokens, expiry, IP address, user agent   | Deleted with the user                             |
-| `account`        | The link between a user and their Google account | No Google tokens: they are stripped before saving |
-| `verification`   | Short-lived OAuth state                          | Better Auth cleans it up                          |
-| `rate_limit`     | Request counters per IP and path                 | Workers have no shared memory                     |
-| `allowed_emails` | The invite list                                  | Lowercase only (`CHECK`)                          |
-| `blocked_emails` | Emails that may never sign in, with a reason     | Lowercase only; checked at every sign-in          |
+| Table             | Holds                                                                                            | Notes                                                 |
+| ----------------- | ------------------------------------------------------------------------------------------------ | ----------------------------------------------------- |
+| `user`            | Name and email from Google                                                                       | No avatar URL                                         |
+| `session`         | Session tokens, expiry, IP address, user agent                                                   | Deleted with the user                                 |
+| `account`         | The link between a user and their Google account                                                 | No Google tokens: they are stripped before saving     |
+| `verification`    | Short-lived OAuth state                                                                          | Better Auth cleans it up                              |
+| `rate_limit`      | Request counters per IP and path                                                                 | Workers have no shared memory                         |
+| `allowed_emails`  | The invite list                                                                                  | Lowercase only (`CHECK`)                              |
+| `blocked_emails`  | Emails that may never sign in, with a reason                                                     | Lowercase only; checked at every sign-in              |
+| `user_key_slots`  | The data key wrapped by the passphrase and by the recovery key, Argon2 settings, salts           | Ciphertext only; exact byte lengths (`CHECK`)         |
+| `vault_records`   | Encrypted records: kind, revision, IV, ciphertext, dates                                         | Keyed by (user, id); content unreadable to the server |
+| `device_unlocks`  | "Remember this device": the data key wrapped by a device-only key, the hash of the device cookie | Deleted with its session                              |
+| `api_rate_limits` | Write counters per user for the app's own routes                                                 | One row per user and bucket                           |
 
-Every timestamp is `timestamp with time zone`.
+Every timestamp is `timestamp with time zone`. Every table with user data
+references `user.id` with `on delete cascade` (`device_unlocks` also
+`session.id`), so deleting an account deletes all of it.
 
 ## Why this way
 
