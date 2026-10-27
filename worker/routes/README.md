@@ -58,8 +58,6 @@ model: [src/crypto/docs/remember-device.md](../../src/crypto/docs/remember-devic
 - **Raising the Argon2 settings later** needs a fresh session to rewrap the
   passphrase slot: run the upgrade right after a sign-in, or allow
   same-passphrase upgrades explicitly.
-- **GET routes are not rate-limited** and `GET /api/vault` returns everything at
-  once: revisit in the phase 8 audit and before chat history grows.
 
 ## How to work with it
 

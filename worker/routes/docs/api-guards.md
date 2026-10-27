@@ -65,10 +65,6 @@ them. When nothing was written, one more query tells which rule refused it.
 ## Edge cases
 
 - **A stolen session can delete records** (it cannot read them). Export (phase 4) is the defense.
-- **GET routes are not rate-limited** (session required, one query each);
-  revisit in the phase 8 audit.
-- **`GET /api/vault` returns all records of a kind at once;** add paging before
-  chat history grows large.
 - **In the Workers test runner every request keeps its database connection
   until the test file ends,** so tests seed rate-limit counters instead of
   sending a hundred requests.

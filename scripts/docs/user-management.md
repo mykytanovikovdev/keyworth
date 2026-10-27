@@ -44,9 +44,9 @@ Create rule**:
 - **IP access rules:** one IP address, range, ASN or country per rule, with a
   note saying why.
 
-Prefer blocking the account: friends in Russia reach the app through a shared
-VPN address, and blocking it would lock them out too. An IP rule is for an
-ongoing attack and is removed once it ends. `sessions <email>` shows which
+Prefer blocking the account: people behind a shared VPN or a carrier's NAT
+share one address, and blocking it would lock out everyone behind it. An IP rule
+is for an ongoing attack and is removed once it ends. `sessions <email>` shows which
 addresses an account uses.
 
 ## Invariants
