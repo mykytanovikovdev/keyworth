@@ -164,10 +164,11 @@ passphrase, the recovery key or the data key. A random AES-256-GCM data key,
 made in the browser, encrypts every record; the server stores it only wrapped by
 keys derived from the passphrase (Argon2id, 64 MiB, 3 passes) and from a
 160-bit recovery key. Each record is an envelope `{ v, alg, iv, ct }` with a
-fresh random IV, padded to a size bucket and bound to its owner, record type and
-record ID through additional authenticated data, so it cannot be swapped for
-another user's or moved to another row. Argon2id runs as plain JavaScript, so
-the CSP needs no WebAssembly exception. The design and an honest threat model —
+fresh random IV, padded to a size bucket and bound to its owner, record type,
+record ID and revision through additional authenticated data, so it cannot be
+swapped for another user's, moved to another row or written back over a newer
+version. Argon2id runs as plain JavaScript, so the CSP needs no WebAssembly
+exception. The design and an honest threat model —
 what is protected, what the operator can still see, and what it does not
 protect against — are in [src/crypto/README.md](src/crypto/README.md) and the
 [threat model](src/crypto/docs/threat-model.md).

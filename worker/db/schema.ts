@@ -169,8 +169,9 @@ export const vaultRecords = pgTable(
 /**
  * The server half of "Remember this device": the data key wrapped by a key
  * that exists only on that device. It belongs to one sign-in session, so
- * signing out, revoking the session or its expiry deletes it; the browser must
- * also present the session-only cookie whose hash is stored here.
+ * signing out or revoking the session deletes it (an expired session's row
+ * goes when Better Auth next sees that session); the browser must also present
+ * the session-only cookie whose hash is stored here.
  */
 export const deviceUnlocks = pgTable(
   "device_unlocks",

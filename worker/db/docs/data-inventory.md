@@ -31,8 +31,14 @@ sign in again and get an empty account) or still blocked.
   agent).
 - How much each user stores: the number of records per kind, their size buckets
   (256 bytes … 64 KiB), revisions and dates.
-- That a user has set up encryption, with which Argon2 settings, and whether
-  devices are remembered.
+- That a user has set up encryption, with which Argon2 settings, and when the
+  passphrase or the recovery key was last replaced (`updated_at` of a slot).
+- Whether and when a device was remembered, and in which session, so from
+  which IP address and browser.
+- When a user last wrote (`api_rate_limits.window_start`) and, from the
+  requests, when they unlock (the vault is loaded at every unlock).
+- Sessions keep their IP address and browser until they are deleted: on sign-out
+  or revocation, or, once expired, when Better Auth next sees them.
 - Nothing about the content of records or about the keys that open them.
 
 ## Invariants

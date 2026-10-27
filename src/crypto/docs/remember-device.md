@@ -38,35 +38,44 @@ it with the device key from IndexedDB.
 
 **Forgetting:**
 
-| Event                      | Effect                                                                                       |
-| -------------------------- | -------------------------------------------------------------------------------------------- |
-| Lock                       | `DELETE /api/keys/device` deletes the row and the cookie; the browser deletes the device key |
-| Sign out                   | The session row is deleted, and the device row with it                                       |
-| Session revoked or expired | The same (`npm run users -- revoke`, "Sign out everywhere")                                  |
-| Browser closed             | The session-only cookie is gone; the server refuses                                          |
-| Account deleted            | Everything goes with the user                                                                |
+| Event           | Effect                                                                                                               |
+| --------------- | -------------------------------------------------------------------------------------------------------------------- |
+| Lock            | `DELETE /api/keys/device` deletes the row and the cookie; the browser deletes the device key                         |
+| Sign out        | The session row is deleted, and the device row with it                                                               |
+| Session revoked | The same (`npm run users -- revoke`, "Sign out everywhere")                                                          |
+| Session expired | Refused at once (no session, no device half); both rows are deleted when Better Auth next sees that session's cookie |
+| Browser closed  | The session-only cookie is gone; the server refuses                                                                  |
+| Account deleted | Everything goes with the user                                                                                        |
 
 ## Why it is safe enough
 
-- **A database dump** has wrapped DEKs but no device keys.
-- **The browser's files** have the device key but not a live session, the
-  session-only cookie and the server half together.
+- **A database dump alone** has wrapped DEKs but no device keys.
+- **The browser's files alone** have the device key but not the server half,
+  which the server gives only to that session with its device cookie. Both
+  together (the database and the files) do open the DEK while the device row
+  exists: see the threat model.
 - **A stolen session cookie** without the device cookie gets 404; the device
   row is bound to one session, so another session with the same device cookie
   gets nothing either.
-- **Revocation is central:** signing out anywhere, "Sign out everywhere" or an
-  owner's `revoke` ends every remembered device at once.
+- **Revocation is central:** signing out ends that session's remembered
+  device; "Sign out everywhere" or an owner's `revoke` ends every one at once.
 
 ## What it costs (in the threat model)
 
 - **XSS:** while a device is remembered, an injected script can use the DEK at
-  any time, not just while the user is in the app.
+  any time, and can also copy it: the device key may unwrap the DEK, and the
+  caller of `unwrapKey` chooses whether the result is extractable. One
+  injection then gives the raw DEK for good; Lock does not undo it.
 - **An unlocked computer with the browser open** gives access without the
   passphrase.
 - **"Until the browser closes" is not guaranteed:** browsers that restore the
   previous session (Chrome and Firefox with "continue where you left off") keep
-  session cookies across restarts. The remembered state then lasts longer, but
-  never longer than the sign-in session. The checkbox's hint says so.
+  session cookies across restarts, and phones rarely close a browser at all.
+  The remembered state then lasts as long as the sign-in session, which renews
+  itself with use (seven days from the last visit), so for someone who visits
+  every week it does not end on its own. The checkbox's hint says so.
+- **The browser's files are worth more:** they hold the device key, and in
+  Chromium and Firefox IndexedDB is not encrypted on disk.
 
 ## Invariants
 
@@ -74,7 +83,8 @@ it with the device key from IndexedDB.
 2. The device key is non-extractable and never leaves IndexedDB.
 3. The server half is bound to one session and to the hash of a token that
    exists only in a session-only, httpOnly cookie.
-4. Lock removes both halves; ending the session removes the server half.
+4. Lock removes both halves; signing out or revoking the session removes the
+   server half, and an expired session's half is never returned.
 
 ## Decisions and alternatives
 

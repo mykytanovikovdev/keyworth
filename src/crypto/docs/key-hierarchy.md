@@ -137,8 +137,10 @@ within limits, format version `v: 1`).
   screen warns once and offers Download, Copy and Print.
 - **Passkeys (WebAuthn PRF)** as a third wrapping: backlog; the slot table
   allows another kind.
-- **Rotating the DEK itself** (re-encrypting everything) is not implemented;
-  needed only if a DEK were exposed.
+- **Rotating the DEK itself** (re-encrypting everything) is not implemented.
+  Changing the passphrase or the recovery key keeps the DEK, so it does not
+  lock out someone who already has the old secret and a copy of its wrapped
+  key ([threat-model.md](threat-model.md)).
 
 ## Edge cases
 

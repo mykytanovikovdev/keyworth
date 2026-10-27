@@ -80,7 +80,12 @@ more query tells which rule refused it.
 
 ## Edge cases
 
-- **A stolen session can delete records** (it cannot read them). Export (phase 4) is the defense.
+- **A stolen session cannot read records, but can delete or overwrite them,**
+  download the passphrase slot for offline guessing and use up the user's
+  limits; signed in within 10 minutes, it can replace the wrapped keys. These
+  are stated in the
+  [threat model](../../../src/crypto/docs/threat-model.md); Export (phase 4)
+  is the defense against losing records.
 - **In the Workers test runner every request keeps its database connection
   until the test file ends,** so tests seed rate-limit counters instead of
   sending a hundred requests.

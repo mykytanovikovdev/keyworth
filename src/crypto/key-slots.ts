@@ -259,7 +259,10 @@ export async function changePassphrase({
   return next;
 }
 
-/** A new recovery key; the old one stops working once the slot is replaced. */
+/**
+ * A new recovery key. Once the slot is replaced the old key no longer opens
+ * it, but it still opens any copy of the old slot (the data key is the same).
+ */
 export async function replaceRecoveryKey({
   userId,
   passphraseSlot,

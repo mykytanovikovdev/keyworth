@@ -40,7 +40,9 @@ against 0.09 s for Node's native OpenSSL Argon2id. The target was at most about
 **Accepted stored settings** (`KDF_LIMITS`): memory 19–256 MiB, passes 2–10,
 1–4 lanes, Argon2id version 19 only. Settings come back from the server and are
 untrusted: anything weaker than OWASP's minimum is refused (`invalid-input`)
-before deriving, and anything larger could hang or crash the page.
+before deriving, and the upper limits keep a malicious server from hanging or
+crashing the page for long (the largest accepted settings are about 13 times
+the current work: several seconds on a phone).
 
 **Passphrase policy** (`passphrase.ts`): plain Latin, at least 12 and at most
 1,024 characters after normalization. `checkPassphrase` reports the problem for

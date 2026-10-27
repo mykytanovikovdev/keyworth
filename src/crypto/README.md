@@ -68,9 +68,16 @@ The details live in [`docs/`](docs/):
 - **One data key, several wrappings:** a new passphrase rewraps one key; no
   record is re-encrypted ([key-hierarchy.md](docs/key-hierarchy.md)).
 - **Bound ciphertext and size buckets:** records cannot be moved between users,
-  kinds or rows, and their length is hidden ([envelopes.md](docs/envelopes.md)).
-- **Honest limits:** a malicious deployment, XSS while unlocked, server rollback
-  and lost secrets are stated as not protected
+  kinds or rows, or replayed over a newer version, and their length is hidden
+  ([envelopes.md](docs/envelopes.md)).
+- **Plain Latin for everything typed by hand:** the passphrase and the recovery
+  key are printable ASCII; the recovery key carries a check group so a typo is
+  named as one ([argon2.md](docs/argon2.md),
+  [key-hierarchy.md](docs/key-hierarchy.md)).
+- **Honest limits:** a malicious deployment, script injection (which, with a
+  remembered device, can copy the data key), what a stolen session can still
+  do, an unchanged data key after a passphrase change, server rollback and
+  lost secrets are stated as not protected
   ([threat-model.md](docs/threat-model.md)).
 
 ## Pitfalls & gotchas
