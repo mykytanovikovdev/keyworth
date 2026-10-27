@@ -57,7 +57,8 @@ async function put(
 ) {
   const envelope = await encryptRecord(
     user.dataKey,
-    { userId: user.userId, kind, recordId: id },
+    // Stored with the revision after the one sent.
+    { userId: user.userId, kind, recordId: id, revision: revision + 1 },
     value,
   );
   return api(`/api/vault/${id}`, {
@@ -94,6 +95,7 @@ describe("/api/vault", () => {
       userId: user.userId,
       kind: "settings",
       recordId: id,
+      revision: record?.revision ?? 0,
     } as const;
     expect(await decryptRecord(user.dataKey, ref, record?.envelope)).toEqual({
       baseCurrency: "EUR",
@@ -150,10 +152,37 @@ describe("/api/vault", () => {
       userId: user.userId,
       kind: "settings",
       recordId: id,
+      revision: record?.revision ?? 0,
     } as const;
     expect(await decryptRecord(user.dataKey, ref, record?.envelope)).toEqual({
       baseCurrency: "USD",
     });
+  });
+
+  it("an old version written back over a newer one does not decrypt", async () => {
+    const user = await vaultUser("replay");
+    const id = crypto.randomUUID();
+    await put(user, id, { baseCurrency: "EUR" });
+    const [first] = await list(user);
+    await put(user, id, { baseCurrency: "USD" }, { revision: 1 });
+
+    // A stolen session cannot read records, but could save and resend them.
+    const replayed = await api(`/api/vault/${id}`, {
+      cookie: user.cookie,
+      method: "PUT",
+      body: { kind: "settings", revision: 2, envelope: first?.envelope },
+    });
+    const [record] = await list(user);
+
+    expect(replayed.status).toBe(200);
+    expect(record?.revision).toBe(3);
+    await expect(
+      decryptRecord(
+        user.dataKey,
+        { userId: user.userId, kind: "settings", recordId: id, revision: 3 },
+        record?.envelope,
+      ),
+    ).rejects.toMatchObject({ code: "tampered" });
   });
 
   it("does not let a record change its kind", async () => {
@@ -249,7 +278,7 @@ describe("/api/vault", () => {
     const id = crypto.randomUUID();
     const envelope = await encryptRecord(
       user.dataKey,
-      { userId: user.userId, kind: "settings", recordId: id },
+      { userId: user.userId, kind: "settings", recordId: id, revision: 1 },
       {},
     );
 
@@ -283,7 +312,7 @@ describe("/api/vault", () => {
     const id = crypto.randomUUID();
     const envelope = await encryptRecord(
       user.dataKey,
-      { userId: user.userId, kind: "settings", recordId: id },
+      { userId: user.userId, kind: "settings", recordId: id, revision: 1 },
       {},
     );
 
@@ -331,6 +360,7 @@ describe("isolation", () => {
       userId: alice.userId,
       kind: "settings",
       recordId: id,
+      revision: aliceRecord?.revision ?? 0,
     } as const;
     expect(
       await decryptRecord(alice.dataKey, ref, aliceRecord?.envelope),
@@ -352,7 +382,12 @@ describe("isolation", () => {
     });
     const [copied] = await list(bob);
 
-    const ref = { userId: bob.userId, kind: "settings", recordId: id } as const;
+    const ref = {
+      userId: bob.userId,
+      kind: "settings",
+      recordId: id,
+      revision: 1,
+    } as const;
     await expect(
       decryptRecord(bob.dataKey, ref, copied?.envelope),
     ).rejects.toMatchObject({

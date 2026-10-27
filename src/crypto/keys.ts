@@ -1,4 +1,5 @@
 import {
+  MAX_REVISION,
   RECORD_ID,
   recordKindSchema,
   type RecordKind,
@@ -51,17 +52,31 @@ export function deviceAad(userId: string): Bytes {
   return utf8(`device|${userId}|${String(AAD_VERSION)}`);
 }
 
-/** Binds a record's ciphertext to its owner, its kind and its id. */
+/**
+ * Binds a record's ciphertext to its owner, its kind, its id and its revision.
+ * The revision makes an old version of a record fail as `tampered` when it is
+ * written back over a newer one: the server stores every write with the next
+ * revision, which the old ciphertext was not made for.
+ */
 export function recordAad(
   userId: string,
   kind: RecordKind,
   recordId: string,
+  revision: number,
 ): Bytes {
   assertUserId(userId);
-  if (!recordKindSchema.safeParse(kind).success || !RECORD_ID.test(recordId)) {
+  if (
+    !recordKindSchema.safeParse(kind).success ||
+    !RECORD_ID.test(recordId) ||
+    !Number.isInteger(revision) ||
+    revision < 1 ||
+    revision > MAX_REVISION
+  ) {
     throw new CryptoError("invalid-input", "Malformed record reference.");
   }
-  return utf8(`record|${userId}|${kind}|${recordId}|${String(AAD_VERSION)}`);
+  return utf8(
+    `record|${userId}|${kind}|${recordId}|${String(revision)}|${String(AAD_VERSION)}`,
+  );
 }
 
 /** generateKey's result for a symmetric algorithm, never a key pair. */
@@ -112,7 +127,7 @@ export async function wrapDataKey(
  * Opens a wrapped data key. Fails with `wrong-secret` when the key-encryption
  * key or the AAD does not match, which is how a wrong passphrase shows up.
  */
-export function unwrapDataKey(
+export async function unwrapDataKey(
   wrapped: WrappedKey,
   kek: CryptoKey,
   aad: Bytes,

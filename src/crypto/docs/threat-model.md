@@ -80,8 +80,11 @@ Anthropic directly and the server sees none of it.
   can recover it, by design.
 - **Deletion and rollback by the server.** The server cannot read or forge
   records, but it can delete one, or return an older version of the same record
-  (the AAD still matches). Detecting this would need per-device version tracking
-  that works on one device only; release 1 does not attempt it.
+  together with its older revision (the AAD still matches). Detecting this would
+  need per-device version tracking that works on one device only; release 1
+  does not attempt it. A client writing through the API cannot do the same: an
+  old version written back is stored with a newer revision and fails as
+  `tampered` ([envelopes.md](envelopes.md)).
 - **A stolen session deleting records.** Deleting needs only a session. Export
   (phase 4) is the defense.
 - **Offline guessing after a database breach.** An attacker with the database

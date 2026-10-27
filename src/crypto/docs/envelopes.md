@@ -21,30 +21,41 @@ On the server the envelope is stored as columns of `vault_records`
 
 ## Encryption (`encryptRecord`)
 
-1. `JSON.stringify(value)`, then UTF-8.
+1. `JSON.stringify(value)`, then UTF-8. A value with no JSON form (`undefined`,
+   a function, a symbol) is refused with `invalid-input` instead of storing an
+   empty record that would never decrypt.
 2. **Padding** (`padding.ts`): append a `0x80` byte and zeros up to the next
    power of two, at least 256 and at most 65,536 bytes. Longer plaintext
    (≥ 65,536 bytes) is refused with `invalid-input`.
 3. AES-256-GCM with the DEK, a fresh random 96-bit IV, and the AAD
-   `record|<userId>|<kind>|<recordId>|1`.
+   `record|<userId>|<kind>|<recordId>|<revision>|1`.
 
 Decryption (`decryptRecord`) validates the envelope against the schema, decrypts
 (a failed tag throws `tampered`), removes the padding (malformed padding throws
-`tampered`), decodes strict UTF-8 and parses JSON. The caller then validates the
-value against the schema of its kind.
+`tampered`), decodes strict UTF-8 and parses JSON (content that is not UTF-8 or
+not JSON also throws `tampered`, never a raw `TypeError` or `SyntaxError`). The
+caller then validates the value against the schema of its kind.
 
 ## The AAD
 
-- `userId`: the session's user (letters and digits; checked against
-  `^[A-Za-z0-9_-]{1,64}$`);
+- `userId`: the session's user (checked against `^[A-Za-z0-9_-]{1,64}$`;
+  Better Auth's ids are 32 letters and digits);
 - `kind`: one of `settings`, `transaction`, `conversation`, `message`, `alert`
   (`shared/schemas/vault.ts`);
 - `recordId`: a lower-case UUID version 4, made by the browser
   (`crypto.randomUUID()`) **before** encryption, because it is part of the AAD;
+- `revision`: the revision the record has once this ciphertext is stored. The
+  server stores every write with the revision after the one sent (1 for a new
+  record), so the browser encrypts for `sent + 1` and decrypts with the
+  revision the server returns;
 - `1`: the AAD format version.
 
 No field can contain `|`, so the joined string is unambiguous. A record moved
-to another user, kind or id does not decrypt. On the server the primary key is
+to another user, kind, id or revision does not decrypt. The revision matters
+against replay: an old version saved earlier (through a stolen session, say)
+and written back over a newer one is stored with the next revision, which its
+ciphertext was not made for, so it fails as `tampered` instead of silently
+bringing old data back. On the server the primary key is
 `(user_id, id)`, so two users' ids never clash.
 
 ## What the server validates
@@ -58,7 +69,7 @@ before anything is stored.
 ## Invariants
 
 1. A fresh random IV for every encryption; no code path accepts an IV as input.
-2. The AAD always names the owner, kind and id of the record.
+2. The AAD always names the owner, kind, id and revision of the record.
 3. Padding is checked only after AES-GCM has authenticated the whole block, so
    it cannot act as a padding oracle.
 4. The server never receives plaintext; every stored ciphertext is a padding
@@ -74,6 +85,9 @@ before anything is stored.
   large record's space is acceptable at this scale.
 - **Columns instead of a JSON blob:** exact byte sizes for limits and checks;
   base64url only on the wire.
+- **The revision in the AAD**, added before the first record was stored: it
+  costs nothing (every write is a new encryption anyway) and turns replay by
+  anyone who can write but not read into a detectable error.
 - **The AAD as a `|`-joined string with strict validation** rather than a
   length-prefixed encoding: every field has a fixed character set, so it is
   unambiguous and easy to read.
@@ -82,18 +96,25 @@ before anything is stored.
 
 - **Version upgrades:** a future envelope version must be added alongside
   version 1, never in place of it, or stored records become unreadable.
-- **Rollback:** the server can return an older envelope of the same record (the
-  AAD still matches); see the [threat model](threat-model.md).
+- **Rollback by the server** is still possible: the server can return an older
+  envelope together with its older revision, and the AAD matches. Only the
+  server's own answers can do that, not a client writing through the API; see
+  the [threat model](threat-model.md).
+- **A deleted record written back** is stored again with revision 1, so its
+  first version (and only that one) decrypts again. Record ids are never
+  reused, so the interface treats an id it deleted as gone.
 - **Large chat histories** will need splitting into several records before they
   reach the 64 KiB bucket limit.
 
 ## How it is tested
 
 `tests/unit/crypto/envelope.test.ts` (round trip, no plaintext in the envelope,
-200 distinct IVs, moved records, flipped bits in the ciphertext, IV and tag,
-other users' keys, size buckets, limits), `tests/unit/schemas.test.ts` and
-`tests/integration/vault.test.ts` (no plaintext anywhere in the database,
-copied envelopes do not decrypt for another user).
+200 distinct IVs, records moved to another user, kind, id or revision, flipped
+bits in the ciphertext, IV and tag, other users' keys, values JSON cannot hold,
+authenticated content that is not JSON, size buckets, limits),
+`tests/unit/schemas.test.ts` and `tests/integration/vault.test.ts` (no plaintext
+anywhere in the database, copied envelopes do not decrypt for another user, an
+old version written back over a newer one does not decrypt).
 
 ## How to change it safely
 

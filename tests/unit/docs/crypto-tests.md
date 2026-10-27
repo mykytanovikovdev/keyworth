@@ -61,9 +61,12 @@ that the same code works in Chromium, Firefox and WebKit is shown by
 - Round trip; a valid envelope with none of the plaintext in it; 200
   encryptions give 200 different IVs and ciphertexts.
 - Refused with `tampered`: another user's data key, a record moved to another
-  id, kind or user, one flipped bit in the ciphertext, the IV or the tag.
-  Refused with `invalid-input`: another envelope version or algorithm, extra
-  fields, malformed references that would make an ambiguous AAD.
+  id, kind, user or revision, one flipped bit in the ciphertext, the IV or the
+  tag, authenticated content that is not JSON (checked against a literal AAD
+  string, so the AAD format itself is pinned). Refused with `invalid-input`:
+  another envelope version or algorithm, extra fields, malformed references
+  that would make an ambiguous AAD (including revisions 0, 1.5 and 2³¹), values
+  JSON cannot hold (`undefined`, a function, a symbol).
 - Padding: short records all land in the 256-byte bucket (272 bytes with the
   tag), buckets grow by powers of two, oversized records are refused, the
   largest allowed record survives intact.

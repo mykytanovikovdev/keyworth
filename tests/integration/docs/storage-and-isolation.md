@@ -50,7 +50,8 @@ uninviting, deleting and listing, as described in
 - Revisions: an update needs the current revision (409 with the current one
   otherwise); re-creating an existing record is refused; a record cannot change
   its kind (`kind_mismatch`); updating a missing record: 404; a revision the
-  32-bit column cannot hold is refused (400), not a 500.
+  32-bit column cannot hold is refused (400), not a 500; an old version written
+  back over a newer one is stored but no longer decrypts (`tampered`).
 - Listing by kind, deleting once, malformed ids, envelopes and extra plaintext
   fields refused, writes from another origin refused.
 - **Isolation:** Bob's writes under Alice's record id create his own record;

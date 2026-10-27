@@ -17,6 +17,7 @@ const record = {
   userId: ALICE,
   kind: "settings",
   recordId: crypto.randomUUID(),
+  revision: 1,
 } as const;
 
 function setUp() {
