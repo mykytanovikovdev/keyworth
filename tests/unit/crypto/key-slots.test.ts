@@ -101,11 +101,11 @@ describe("setting up keys", () => {
     },
   );
 
-  it("gives a recovery key in eight groups of four", async () => {
+  it("gives a recovery key in nine groups of four, the last a check group", async () => {
     const { recoveryKey } = await setUp();
 
     expect(recoveryKey).toMatch(
-      /^([0-9A-HJKMNP-TV-Z]{4}-){7}[0-9A-HJKMNP-TV-Z]{4}$/,
+      /^([0-9A-HJKMNP-TV-Z]{4}-){8}[0-9A-HJKMNP-TV-Z]{4}$/,
     );
   });
 });

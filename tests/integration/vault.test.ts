@@ -17,7 +17,7 @@ import { api, fetchWorker, query, signedIn } from "./helpers.ts";
 
 const PASSPHRASE = "purple elephant dances at noon";
 const RECOVERY_SECRET_PATTERN =
-  /^([0-9A-HJKMNP-TV-Z]{4}-){7}[0-9A-HJKMNP-TV-Z]{4}$/;
+  /^([0-9A-HJKMNP-TV-Z]{4}-){8}[0-9A-HJKMNP-TV-Z]{4}$/;
 
 /** A signed-in user with keys set up, as the browser would leave them. */
 async function vaultUser(label: string) {

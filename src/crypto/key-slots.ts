@@ -1,5 +1,4 @@
 import { type Bytes, randomBytes } from "./encoding.ts";
-import { CryptoError } from "./errors.ts";
 import {
   deriveRecoveryKek,
   derivePassphraseKek,
@@ -120,10 +119,8 @@ async function recoveryKek(
   slot: RecoverySlot,
   recoveryKey: string,
 ): Promise<CryptoKey> {
+  // Refuses malformed, non-Latin and mistyped keys before any cryptography.
   const bytes = parseRecoveryKey(recoveryKey);
-  if (!bytes) {
-    throw new CryptoError("invalid-input", "This is not a recovery key.");
-  }
   try {
     return await deriveRecoveryKek(bytes, slot.salt);
   } finally {

@@ -46,12 +46,25 @@ is validated (`^[A-Za-z0-9_-]{1,64}$`) before it goes into an AAD.
 
 ## The recovery key
 
-160 random bits written as 32 characters of Crockford's Base32 in eight groups
-of four (`XXXX-XXXX-…`). The alphabet leaves out I, L, O and U; parsing accepts
-any case, spaces, missing dashes, and maps O to 0 and I/L to 1. Text that cannot
-be a recovery key fails with `invalid-input` before any cryptography; a
-well-formed but wrong key fails with `wrong-secret`. It is shown once and never
-stored or sent anywhere; the user can issue a new one in Settings.
+160 random bits written as 32 characters of Crockford's Base32, followed by a
+four-character check group: nine groups of four (`XXXX-XXXX-…-CCCC`). The
+alphabet leaves out I, L, O and U. The check group is the first 20 bits of
+SHA-256 over the label `keyworth/recovery-check/v1` and the key; it is not a
+secret and only catches typing mistakes.
+
+Parsing (`parseRecoveryKey`) accepts what people type or paste: any case, spaces
+or no dashes, any kind of dash, a minus sign or a soft hyphen, full-width forms,
+and maps O to 0 and I/L to 1. Before any cryptography it refuses:
+
+- characters other than plain Latin with `not-latin` (a Cyrillic "С" typed for a
+  "C" with another keyboard layout on; the same plain-Latin rule as passphrases);
+- text that is not 36 characters of the alphabet with `invalid-input`;
+- a check group that does not match with `mistyped`: a typo, which the screen
+  can name as such instead of "wrong key".
+
+A well-formed key that belongs to another account fails with `wrong-secret`. The
+key is shown once and never stored or sent anywhere; the user can issue a new
+one in Settings.
 
 ## Flows (`key-slots.ts`)
 

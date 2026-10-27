@@ -36,8 +36,8 @@ that the same code works in Chromium, Firefox and WebKit is shown by
 **Key flows keep the data key safe** (`crypto/key-slots.test.ts`)
 
 - Setup returns a non-extractable data key; slots carry the settings, fresh
-  salts, 12-byte IVs and 48-byte wrapped keys; the recovery key has eight groups
-  of four.
+  salts, 12-byte IVs and 48-byte wrapped keys; the recovery key has nine groups
+  of four, the last a check group.
 - Setup, changing the passphrase and resetting it all refuse a new passphrase
   that is too short, only spaces (`invalid-input`) or not plain Latin
   (`not-latin`).
@@ -69,9 +69,16 @@ that the same code works in Chromium, Firefox and WebKit is shown by
   largest allowed record survives intact.
 
 **Recovery keys and serialization** (`crypto/recovery-key.test.ts`,
-`crypto/serialize.test.ts`): 160 bits as 32 characters without I, L, O or U;
-known bytes encode the same way; round trips; sloppy typing is accepted;
-malformed text is refused. Slots survive the JSON round trip byte for byte;
+`crypto/serialize.test.ts`): 160 bits as 32 characters without I, L, O or U,
+every bit used (across 64 keys each of the 160 bits takes both values), and a
+check group that matches one computed independently with Node's SHA-256; three
+fixed byte strings encode to fixed texts and back, so keys people wrote down
+keep working; round trips; sloppy typing (case, spaces, look-alikes) and pasting
+(every kind of dash, a minus sign, a soft hyphen, full-width forms) are
+accepted; one changed character, two swapped ones and a wrong check group are
+`mistyped`; a Cyrillic look-alike or an accented letter is `not-latin`;
+malformed text (too short, no check group, too long, U, punctuation, empty) is
+`invalid-input`. Slots survive the JSON round trip byte for byte;
 malformed slots (lengths, Argon2 settings out of range, extra fields) are
 refused; base64url round-trips every byte value and rejects malformed text.
 
