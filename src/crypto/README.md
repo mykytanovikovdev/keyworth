@@ -137,10 +137,13 @@ A record is a JSON value encrypted into an envelope:
   they could be with WASM. That costs an attacker a factor of a few, roughly
   two bits of passphrase entropy.
 - **64 MiB, 3 passes, 1 lane.** RFC 9106's second recommended option, about
-  three times OWASP's minimum (19 MiB, 2 passes). Measured with these settings:
-  0.7 s in Chromium, 0.9 s in Firefox and 1.1 s in WebKit on a recent Mac. One
-  lane because JavaScript computes lanes one after another anyway; more lanes
-  would not slow an attacker down.
+  three times OWASP's minimum (19 MiB, 2 passes). The target was at most about
+  1.5 s on a phone. Measured with these settings (`/design/kdf`, October 2026):
+  0.62 s in Safari on an iPhone (iOS 18.7, median of five), 0.7 s in Chromium,
+  0.9 s in Firefox and 1.1 s in Playwright's WebKit on a recent Mac. Older or
+  cheaper phones will be slower, which the headroom allows for. One lane because
+  JavaScript computes lanes one after another anyway; more lanes would not slow
+  an attacker down.
 - **AES-GCM wrapping instead of AES-KW.** AES-KW (RFC 3394) has no AAD, so a
   wrapped key could not be bound to its owner and slot kind.
 - **One DEK, several wrappings.** Changing the passphrase rewraps one key in a
