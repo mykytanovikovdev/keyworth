@@ -64,37 +64,20 @@ through `.wrangler/deploy/config.json`, not `wrangler.jsonc` directly.
 `npm run preview` serves that build with `wrangler dev --config dist/keyworth/wrangler.json`:
 the same runtime, assets and headers as production.
 
-### Sign-in and sessions
+### Sign-in, access and headers
 
-1. The SPA asks `POST /api/auth/sign-in/social` for Google's URL; Better Auth
-   stores the OAuth state and sends the browser to Google.
-2. Google redirects back to `/api/auth/callback/google`. Better Auth exchanges
-   the code for the user's profile, then the database hooks in `auth.ts` decide:
-   the email must be verified by Google and on the invite list, both when the
-   account is created and at every later sign-in.
-3. Accepted: a session row and a signed `__Secure-better-auth.session_token`
-   cookie (httpOnly, Secure, SameSite=Lax), then a redirect to the app.
-   Refused: a redirect to `/sign-in?error=NOT_INVITED`, and nothing is stored.
-4. Every other `/api/*` request reads the session from the cookie and the
-   database. The user comes only from there, never from a request body or URL.
-
-### Security headers
-
-Two sources, because two different layers produce responses:
-
-- **Page and assets (`public/_headers`).** The CSP that actually protects the
-  encryption key lives here:
-  `default-src 'none'; script-src 'self'; style-src 'self' 'sha256-38Rh…' 'sha256-gYiS…'; img-src 'self'; font-src 'self'; connect-src 'self'; manifest-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'; require-trusted-types-for 'script'; trusted-types 'none'`
-  (the two hashes are explained below).
-  Plus HSTS, `nosniff`, a deny-by-default `Permissions-Policy`, COOP/COEP/CORP
-  (the page is cross-origin isolated), `X-Frame-Options: DENY`, and `noindex`
-  until release 1.
-- **Worker responses (`security-headers.ts`).** JSON is never a document, so the
-  CSP is just `default-src 'none'; frame-ancestors 'none'`, with
-  `Cache-Control: no-store` so no proxy or browser cache keeps user data.
-
-The e2e suite asserts the exact values of both sets against the production build,
-and after every deploy against the live site.
+- **Sign-in:** Google through Better Auth, for invited and not blocked emails
+  only (checked at account creation and every sign-in); database sessions in an
+  httpOnly cookie; every route after the session check needs a session (401),
+  and every write needs the app's own `Origin` (403). Details:
+  [docs/auth-and-sessions.md](docs/auth-and-sessions.md).
+- **Security headers:** the page's strict CSP with Trusted Types and
+  cross-origin isolation comes from `public/_headers`; every Worker response
+  gets its own from `security-headers.ts`. Details and the exceptions policy:
+  [docs/security-headers.md](docs/security-headers.md).
+- **The app's own routes** (`/api/keys`, `/api/vault`) and their guards:
+  [routes/README.md](routes/README.md),
+  [routes/docs/api-guards.md](routes/docs/api-guards.md).
 
 ## Why this way
 
@@ -108,54 +91,13 @@ and after every deploy against the live site.
   `/api/auth/callback/*` are navigations, so sign-in would silently break. The
   pattern form also turns off `Sec-Fetch-Mode` guessing: only `/api/*` ever reaches
   the Worker, so a missing file gets `index.html` instead of a billable invocation.
-- **Static CSP without nonces.** There are no inline scripts, so a fixed policy
-  in `_headers` is enough and costs no Worker invocation per page load. The
-  price: libraries that inject `<style>` tags with variable content at runtime
-  are not usable.
-- **Two style hashes for React Aria.** React Aria (`src/ui`) inserts two
-  `<style>` blocks whose text never changes: `touch-action` for pressable
-  elements (no double-tap zoom delay) and `overscroll-behavior` while a dialog
-  is open on iOS. A `'sha256-…'` source allows exactly that text and nothing
-  else, so `'unsafe-inline'` stays off. Style attributes (`style="…"`) remain
-  blocked: hashes do not apply to them. Details and how to update the hashes:
-  [src/ui/README.md](../src/ui/README.md#pitfalls--gotchas).
-- **`Cache-Control: no-transform` on pages and assets.** On a zone (unlike
-  `workers.dev`), Cloudflare can rewrite HTML at the edge: its Web Analytics
-  beacon, email obfuscation, Rocket Loader. When keyworth.app went live, the
-  beacon was injected into the page; the CSP blocked it, and the post-deploy
-  smoke test caught the violation. `no-transform` tells the edge not to touch the
-  response, so the page arrives exactly as built and no third-party script is
-  ever inserted.
-- **Trusted Types (`require-trusted-types-for 'script'`).** The browser refuses
-  string assignments to DOM injection sinks such as `innerHTML`, at the engine
-  level, even if a bug or a dependency tries one. React does not need these sinks;
-  ESLint bans them in our code as well.
-- **`Referrer-Policy: same-origin` for the page, not `no-referrer`.** With
-  `no-referrer`, browsers send `Origin: null` on same-origin `POST` requests, and
-  Better Auth checks `Origin` for CSRF protection, so sign-in and sign-out would
-  fail. `same-origin` still sends nothing to other sites.
-- **Better Auth.** It runs on Workers with Hono, keeps sessions in our own
-  database (so they can be revoked at once), and brings CSRF origin checks and
-  rate limiting for its routes. Rejected: writing OAuth and session handling by
-  hand (easy to get subtly wrong), and Lucia, which its author deprecated.
-- **Database sessions, no cookie cache.** Each request checks the session row,
-  so signing out, deleting the account or revoking a session takes effect on the
-  next request. It costs one query per request.
-- **Only what sign-in needs is stored.** Google's access, refresh and ID tokens
-  would let a database reader act on the user's Google account; Keyworth never
-  calls Google APIs, so the hooks drop them before saving, along with the avatar
-  URL (the page cannot load it anyway: `img-src 'self'`).
-- **Deleting the account needs a sign-in from the last 10 minutes.** A stolen
-  session cookie alone cannot erase someone's data.
-- **Deny by default.** The session check sits in front of every route except
-  health and auth, so a new route is protected unless it is deliberately made
-  public. Without a session, an unknown route answers 401, not 404, and does not
-  reveal what exists.
-- **A fresh auth instance per request.** Bindings and secrets arrive with each
-  request in Workers, so `createAuth(db, env)` runs inside the middleware.
 - **Explicit logs only.** Workers Logs is on, but automatic invocation logs are off
   and query strings are redacted: the only records are what our code logs on
   purpose. Request bodies are never logged.
+- **Security decisions** (static CSP, Trusted Types, `no-transform`, Better
+  Auth, database sessions, what is stored from Google, deny by default) are
+  explained in [docs/auth-and-sessions.md](docs/auth-and-sessions.md) and
+  [docs/security-headers.md](docs/security-headers.md).
 - **Rejected:** a separate API domain (CORS and cookie complexity), Pages Functions
   (Cloudflare steers new projects to Workers with static assets), a meta-framework
   (the app is deliberately an SPA plus a small API).
@@ -170,33 +112,19 @@ and after every deploy against the live site.
   then sees a foreign origin and refuses every POST that carries the session
   cookie (`403 INVALID_ORIGIN`): sign-out and account deletion break while
   reads keep working. `npm run dev` (the Vite plugin) does not rewrite.
+- **CSP exceptions** need the owner's approval and a justification in
+  [docs/security-headers.md](docs/security-headers.md). Current ones: the two
+  React Aria style hashes. There is **no CSP in `npm run dev`**: run
+  `npm run test:e2e` to see violations.
+- **Sign-in pitfalls** (`BETTER_AUTH_URL`, hook refusals need a `code`,
+  `SESSION_EXPIRED` on stale deletion): [docs/auth-and-sessions.md](docs/auth-and-sessions.md).
 - `compatibility_date` cannot be newer than the workerd version bundled with
   wrangler, or local dev refuses to start.
 - Never log request bodies or put user data into error messages: `/api/chat` and
   `/api/vault` carry it.
-- `_headers` is not applied in `npm run dev` (and the React dev server needs an
-  inline script), so there is **no CSP in dev**. CSP problems only show up in the
-  production build: run `npm run test:e2e`, which fails on any CSP violation.
-- `_headers` never applies to Worker responses and `security-headers.ts` never
-  applies to static files. A new header usually belongs in both.
-- Every CSP exception must be justified in this README. Current ones: the two
-  React Aria style hashes (above). None other is planned: Argon2id runs as plain
-  JavaScript, so `'wasm-unsafe-eval'` is not needed (see
-  [src/crypto/README.md](../src/crypto/README.md)). `'unsafe-eval'` and
-  `'unsafe-inline'` are never allowed.
-- `BETTER_AUTH_URL` must be the origin the browser uses: Better Auth builds the
-  OAuth redirect URI and its trusted origin from it. It is a var in
-  `wrangler.jsonc` for production and overridden in `.dev.vars` locally.
 - Secrets are declared by name in `wrangler.jsonc` (`secrets.required`), so the
   generated types are the same on every machine and missing secrets are reported
   in local dev.
-- A database hook that refuses sign-in must throw an `APIError` **with a
-  `code`**; only then does Better Auth's callback redirect to the error page
-  instead of answering with JSON.
-- Account deletion with a session older than 10 minutes fails with
-  `400 SESSION_EXPIRED`; the client then asks the user to sign in again.
-- Better Auth rate-limits only its own routes (`/api/auth/*`); other routes get
-  their limits when they are added.
 - `npm run build:design` (the `/design` page) also rewrites
   `.wrangler/deploy/config.json`, so a bare `wrangler deploy` right after it would
   deploy the design build. `npm run deploy` and CI always rebuild production first.
@@ -215,26 +143,13 @@ and after every deploy against the live site.
 - Local secrets go in `.dev.vars` (copy `.dev.vars.example`); production
   secrets via `npx wrangler secret put <NAME>`. Local sign-in with real Google
   also needs the localhost redirect URI on the OAuth client.
-- The database: [db/README.md](db/README.md). Invites, blocks and account
-  deletion: `npm run users` ([db/README.md](db/README.md#managing-users)).
-
-### Blocking by IP address
-
-IP addresses are blocked at Cloudflare's edge, before the Worker runs, not in
-code. In the dashboard, open the `keyworth.app` zone, then **Security →
-Security rules → Create rule**:
-
-- **Custom rules** (what Cloudflare recommends; the free plan includes a few):
-  for example the expression `(ip.src in {203.0.113.7 198.51.100.0/24})` with
-  the action **Block**. A rule can also match an ASN or a country.
-- **IP access rules**: one IP address, range, ASN or country per rule, with a
-  note saying why.
-
-Prefer blocking the account (`npm run users -- block`): friends in Russia reach
-the app through a shared VPN address, and blocking it would lock them out too.
-An IP rule is for an ongoing attack, and is removed once it ends.
+- The database: [db/README.md](db/README.md). Invites, blocks, account
+  deletion and blocking IP addresses at Cloudflare:
+  [scripts/docs/user-management.md](../scripts/docs/user-management.md).
 
 ## Related
+
+- [docs/](docs/): sign-in and sessions, security headers and the CSP
 
 - [Root README](../README.md)
 - [Design system](../src/ui/README.md) — why the CSP allows two style hashes

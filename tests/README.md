@@ -5,20 +5,20 @@ details.
 
 ## What is covered (and what is not)
 
-| Folder                                  | Runner            | Runs in                                                | Covers                                                 |
-| --------------------------------------- | ----------------- | ------------------------------------------------------ | ------------------------------------------------------ |
-| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic, the encryption core, shared schemas        |
-| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes and headers, Google sign-in, isolation   |
-| [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes |
-|                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe    |
-|                                         |                   | the same, with the local test database                 | Sign-in pages, sign-out, account deletion              |
-| [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design`, sign-in and settings         |
+| Folder                                  | Runner            | Runs in                                                | Covers                                                                      |
+| --------------------------------------- | ----------------- | ------------------------------------------------------ | --------------------------------------------------------------------------- |
+| [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic, the encryption core, shared schemas                             |
+| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes, sign-in, encrypted storage, isolation                        |
+| [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes                      |
+|                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe; Argon2id under the CSP |
+|                                         |                   | the same, with the local test database                 | Sign-in pages, sign-out, account deletion                                   |
+| [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design`, sign-in, settings, deletion                       |
 
 Planned, each arriving with the code it tests:
 
 - `unit/` grows with `shared/metrics` and `shared/money` (phase 4).
-- `e2e/` grows with sign-in, encryption setup, unlock and recording a trade
-  through chat (phase 2+).
+- `e2e/` grows with encryption setup, unlock and recovery (phase 3) and
+  recording a trade through chat (phase 7).
 - `visual/` grows with the app's screens as they are built.
 - `agent/` — the chat agent with a scripted mock model from `ai/test`:
   deterministic, runs in CI (phases 5–7).
@@ -26,8 +26,10 @@ Planned, each arriving with the code it tests:
   saved for comparison when the prompt changes (phase 9).
 
 Not covered on purpose: third-party services (Google, Anthropic, price APIs) are
-never called from automated tests. Encryption tests are mandatory and always run
-in CI once phase 3 lands.
+never called from automated tests. Encryption tests are mandatory and run in CI
+on every push: the core in `unit/crypto/`, storage, isolation and "no plaintext
+in the database" in `integration/keys.test.ts` and `integration/vault.test.ts`,
+and Argon2id in every browser engine in `e2e/kdf-benchmark.spec.ts`.
 
 ## How to run
 

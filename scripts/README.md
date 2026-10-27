@@ -69,9 +69,9 @@ Rejected alternatives:
   a one-off, add a `LICENSE_EXCEPTIONS` entry with the reason.
 - Tests: [`tests/unit/license-policy.test.ts`](../tests/unit/license-policy.test.ts).
 - `npm run users -- <command>` — targets `DATABASE_URL` when set, the local
-  database otherwise, and always prints which one first. Commands and when to
-  use which: [worker/db/README.md](../worker/db/README.md#managing-users).
-  Tests: [`tests/integration/users.test.ts`](../tests/integration/users.test.ts).
+  database otherwise, and always prints which one first. Commands, when to use
+  which, and blocking IP addresses at Cloudflare:
+  [docs/user-management.md](docs/user-management.md).
 - `npm run db:auth-schema` — runs Better Auth's CLI at the installed version
   (not the newest on npm) and switches every timestamp to `with time zone`.
 - `npm run test:visual` / `npm run test:visual:update` — `visual.ts` starts the
@@ -80,6 +80,8 @@ Rejected alternatives:
   container afterwards. Why and how: [tests/visual/README.md](../tests/visual/README.md).
 
 ## Related
+
+- [docs/user-management.md](docs/user-management.md): invites, blocks, deletion, IP blocking
 
 - [Root README](../README.md)
 - [Unit tests](../tests/unit/README.md)

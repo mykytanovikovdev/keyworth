@@ -1,0 +1,57 @@
+# CSP and browser-engine tests
+
+What the end-to-end suite proves about the page's defenses, in Chromium,
+Firefox and WebKit (plus an emulated iPhone on `/design`), against production
+and design builds served locally by workerd with the real headers, and against
+keyworth.app after every deploy.
+
+## What is proven
+
+**Headers** (`headers.spec.ts`, HTTP only): the exact CSP and every security
+header on `/` and on a deep SPA link; `index.html` has no inline scripts, styles
+or event handlers; hashed assets are immutable and `no-transform`; the Worker's
+headers on `/api/health` and on 401s; a browser navigation to an unknown
+`/api/*` path reaches the Worker (OAuth callbacks rely on it).
+
+**Zero violations while rendering** (`app.spec.ts`, `design-system.spec.ts`,
+`auth.spec.ts`): every page in both themes and both widths records **no CSP or
+Trusted Types violation, console error or page error**; Trusted Types actually
+block an `innerHTML` string; the page is cross-origin isolated; React Aria's two
+hashed styles are applied; the `/design` page is absent from production.
+
+**Argon2id under the CSP** (`kdf-benchmark.spec.ts`, design builds): in each
+engine, the RFC 9106 test vector passes and Argon2id with the production
+settings runs under the real CSP and Trusted Types without a violation or
+error. The measured time is attached to the report as an `argon2id` annotation.
+This test found that zod's eval probe triggers a Trusted Types report, which led
+to zod's jitless mode.
+
+**After every deploy:** the headers and Chromium projects run against
+keyworth.app in CI.
+
+## Invariants these tests hold
+
+1. The production CSP is exactly as documented in
+   [worker/docs/security-headers.md](../../../worker/docs/security-headers.md).
+2. No page of the app or the design system triggers a policy violation in any
+   engine.
+3. The encryption core's Argon2id works under that policy in every engine.
+
+## Deliberately not here
+
+Visual comparison (`tests/visual`), the real Google round trip (by hand), and
+the encryption screens (with phase 3, step 3).
+
+## Pitfalls
+
+- **There is no CSP in `npm run dev`;** only these tests (built output with
+  `_headers`) see violations.
+- **Playwright's WebKit against the live site sometimes renders a blank page**
+  (about 1 in 36 runs) after a 200 response; Chromium and Firefox do not, and
+  Safari on an iPhone did not. Rerun before concluding anything; the CI smoke
+  test uses Chromium.
+- Violations are collected from the first script on every page load
+  (`watchCspViolations` in `support.ts`); a test that opens a page without it
+  sees nothing.
+
+Last reviewed: 2026-10-27

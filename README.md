@@ -119,7 +119,8 @@ tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 ```
 
 Every major folder has its own README explaining what it does, why it is built
-that way, and its pitfalls: [design system](src/ui/README.md),
+that way, and its pitfalls; critical features and their tests are described in
+depth in `docs/` folders next to the code. READMEs: [design system](src/ui/README.md),
 [encryption](src/crypto/README.md), [shared schemas](shared/schemas/README.md),
 [worker](worker/README.md), [database](worker/db/README.md), [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).
@@ -157,7 +158,7 @@ so dependencies are treated as part of the attack surface:
 
 ## Security
 
-**Encryption model (core in place, storage and screens in progress).** The
+**Encryption model (core and storage in place, screens in progress).** The
 server never stores financial data in plaintext and never receives the
 passphrase, the recovery key or the data key. A random AES-256-GCM data key,
 made in the browser, encrypts every record; the server stores it only wrapped by
@@ -168,7 +169,8 @@ record ID through additional authenticated data, so it cannot be swapped for
 another user's or moved to another row. Argon2id runs as plain JavaScript, so
 the CSP needs no WebAssembly exception. The design and an honest threat model —
 what is protected, what the operator can still see, and what it does not
-protect against — are in [src/crypto/README.md](src/crypto/README.md).
+protect against — are in [src/crypto/README.md](src/crypto/README.md) and the
+[threat model](src/crypto/docs/threat-model.md).
 
 **Sign-in (in place).** Google accounts only, for an invite list kept in the
 database. Sessions live in the database and in an httpOnly, Secure, SameSite
