@@ -369,6 +369,56 @@ describe("limits", () => {
     expect(response.status).toBe(413);
   });
 
+  it("holds the record limit when creates arrive at once", async () => {
+    const user = await vaultUser("count-race");
+    await query(
+      `insert into vault_records (user_id, id, kind, revision, envelope_version, iv, ciphertext)
+       select $1, gen_random_uuid(), 'transaction', 1, 1, decode(repeat('00', 12), 'hex'),
+              decode(repeat('00', 272), 'hex')
+         from generate_series(1, $2::int)`,
+      [user.userId, VAULT_LIMITS.maxRecords - 1],
+    );
+
+    const responses = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        put(user, crypto.randomUUID(), { at: "once" }),
+      ),
+    );
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([201, 413, 413, 413, 413, 413]);
+    const [stored] = await query<{ count: string }>(
+      "select count(*) from vault_records where user_id = $1",
+      [user.userId],
+    );
+    expect(Number(stored?.count)).toBe(VAULT_LIMITS.maxRecords);
+  });
+
+  it("holds the storage limit when creates arrive at once", async () => {
+    const user = await vaultUser("bytes-race");
+    // Room for exactly one record of the smallest size (272 bytes).
+    await query(
+      `insert into vault_records (user_id, id, kind, revision, envelope_version, iv, ciphertext)
+       values ($1, gen_random_uuid(), 'message', 1, 1, decode(repeat('00', 12), 'hex'),
+               decode(repeat('00', $2::int), 'hex'))`,
+      [user.userId, VAULT_LIMITS.maxBytes - 300],
+    );
+
+    const responses = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        put(user, crypto.randomUUID(), { at: "once" }),
+      ),
+    );
+
+    const statuses = responses.map((response) => response.status).sort();
+    expect(statuses).toEqual([201, 413, 413, 413, 413, 413]);
+    const [stored] = await query<{ bytes: string }>(
+      "select sum(octet_length(ciphertext)) as bytes from vault_records where user_id = $1",
+      [user.userId],
+    );
+    expect(Number(stored?.bytes)).toBeLessThanOrEqual(VAULT_LIMITS.maxBytes);
+  });
+
   it("limits writes to 120 a minute per user, and the window resets", async () => {
     const user = await vaultUser("rate");
     // Seeding the counter instead of sending 120 requests: in this runner every

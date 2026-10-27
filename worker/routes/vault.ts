@@ -65,11 +65,16 @@ vault.get("/", async (c) => {
   return c.json({ records });
 });
 
+// Namespace for this route's advisory locks (pg_advisory_xact_lock's first key).
+const QUOTA_LOCK = 1;
+
 /**
  * Creates (revision 0) or replaces (the current revision) a record. Each
- * change is one statement whose WHERE clause also enforces the user's limits,
- * so concurrent writes cannot slip past them. When nothing is written, a
- * second query explains why.
+ * change is one statement whose WHERE clause also enforces the user's limits.
+ * Under Postgres's default isolation, two such statements running at once
+ * would not see each other's rows and could both pass the limits, so a
+ * per-user advisory lock lets one write at a time count and write. When
+ * nothing is written, a second query explains why.
  */
 vault.put("/:id", limitWrites, envelopeBody, async (c) => {
   const id = recordIdSchema.safeParse(c.req.param("id"));
@@ -84,29 +89,34 @@ vault.put("/:id", limitWrites, envelopeBody, async (c) => {
   const used = sql`(select coalesce(sum(octet_length(ciphertext)), 0)
                       from vault_records where user_id = ${userId})`;
 
-  const written =
-    revision === 0
-      ? await db.execute<{ revision: number }>(sql`
-          insert into vault_records
-            (user_id, id, kind, revision, envelope_version, iv, ciphertext)
-          select ${userId}, ${id.data}, ${kind}, 1, ${envelope.v}, ${iv}, ${ciphertext}
-          where (select count(*) from vault_records where user_id = ${userId})
-                  < ${VAULT_LIMITS.maxRecords}
-            and ${used} + ${ciphertext.length} <= ${VAULT_LIMITS.maxBytes}
-          on conflict do nothing
-          returning revision`)
-      : await db.execute<{ revision: number }>(sql`
-          update vault_records set
-            revision = revision + 1,
-            envelope_version = ${envelope.v},
-            iv = ${iv},
-            ciphertext = ${ciphertext},
-            updated_at = now()
-          where user_id = ${userId} and id = ${id.data}
-            and kind = ${kind} and revision = ${revision}
-            and ${used} - octet_length(ciphertext) + ${ciphertext.length}
-                  <= ${VAULT_LIMITS.maxBytes}
-          returning revision`);
+  const written = await db.transaction(async (tx) => {
+    // Held until the transaction ends; other users are never blocked.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))`,
+    );
+    return revision === 0
+      ? tx.execute<{ revision: number }>(sql`
+            insert into vault_records
+              (user_id, id, kind, revision, envelope_version, iv, ciphertext)
+            select ${userId}, ${id.data}, ${kind}, 1, ${envelope.v}, ${iv}, ${ciphertext}
+            where (select count(*) from vault_records where user_id = ${userId})
+                    < ${VAULT_LIMITS.maxRecords}
+              and ${used} + ${ciphertext.length} <= ${VAULT_LIMITS.maxBytes}
+            on conflict do nothing
+            returning revision`)
+      : tx.execute<{ revision: number }>(sql`
+            update vault_records set
+              revision = revision + 1,
+              envelope_version = ${envelope.v},
+              iv = ${iv},
+              ciphertext = ${ciphertext},
+              updated_at = now()
+            where user_id = ${userId} and id = ${id.data}
+              and kind = ${kind} and revision = ${revision}
+              and ${used} - octet_length(ciphertext) + ${ciphertext.length}
+                    <= ${VAULT_LIMITS.maxBytes}
+            returning revision`);
+  });
 
   const saved = written.rows[0];
   if (saved)

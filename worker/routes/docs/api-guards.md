@@ -37,8 +37,13 @@ request ─► security headers (every response)
 the window has passed. It runs only on writes.
 
 **Quotas and revisions** live in the same SQL statement as the write (the
-`WHERE` clause of the insert or update), so concurrent requests cannot slip past
-them. When nothing was written, one more query tells which rule refused it.
+`WHERE` clause of the insert or update). Revisions hold under concurrency by
+themselves (the row lock); quotas need more, because at Postgres's default
+isolation two inserts running at once do not see each other's rows and could
+both pass the count. So each vault write runs in a transaction that first takes
+a per-user advisory lock (`pg_advisory_xact_lock`): one write per user at a time
+counts and writes; other users are never blocked. When nothing was written, one
+more query tells which rule refused it.
 
 ## Invariants
 
@@ -57,6 +62,10 @@ them. When nothing was written, one more query tells which rule refused it.
   requests; Cloudflare's rate-limiting binding counts per location and only
   approximately, and its availability on the free plan is unconfirmed. Reads
   stay at one database round trip, which matters for users far from Frankfurt.
+- **A per-user advisory lock rather than `SERIALIZABLE`:** serializable
+  transactions would also stop the race, but fail with retryable errors the
+  route would have to repeat; the lock simply queues one user's writes, which
+  arrive one at a time from a real client anyway.
 - **413 for quotas** rather than 409 (taken by revision conflicts) or 403
   (taken by origin and freshness).
 - **Revisions instead of last-write-wins:** two devices must not silently

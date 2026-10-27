@@ -55,8 +55,9 @@ uninviting, deleting and listing, as described in
 - **Isolation:** Bob's writes under Alice's record id create his own record;
   Bob cannot update or delete Alice's record; an envelope copied into Bob's vault
   does not decrypt there.
-- Quotas (record count, storage) answer 413; the write rate limit answers 429
-  with `Retry-After` and resets after its window.
+- Quotas (record count, storage) answer 413, and hold when six creates arrive
+  at once one record below either limit (exactly one succeeds); the write rate
+  limit answers 429 with `Retry-After` and resets after its window.
 
 ## Invariants these tests hold
 
