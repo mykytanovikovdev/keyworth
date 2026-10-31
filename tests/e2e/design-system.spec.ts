@@ -64,6 +64,29 @@ for (const theme of ["light", "dark"] as const) {
       await toast.getByRole("button", { name: "Dismiss" }).click();
       await expect(toast).toBeHidden();
 
+      // A passphrase field hides its value until asked to show it.
+      const passphrase = page.getByLabel("Passphrase", { exact: true });
+      await expect(passphrase).toHaveAttribute("type", "password");
+      await page.getByRole("button", { name: "Show passphrase" }).click();
+      await expect(passphrase).toHaveAttribute("type", "text");
+      await expect(passphrase).toHaveAttribute("autocorrect", "off");
+
+      // A select opens a list (a popover, positioned under the CSP) and picks.
+      // It is a menu of radio items: React Aria's Select would add a native
+      // <select>, which WebKit reports as a CSP violation.
+      await page.getByRole("button", { name: /Base currency/ }).click();
+      await page.getByRole("menuitemradio", { name: "Euro (EUR)" }).click();
+      await expect(
+        page.getByRole("button", { name: /Base currency/ }),
+      ).toContainText("Euro (EUR)");
+
+      // A checkbox toggles from its label.
+      const remember = page.getByRole("checkbox", {
+        name: "Remember this device",
+      });
+      await page.getByText("Remember this device").click();
+      await expect(remember).toBeChecked();
+
       // Icon-only buttons show their label as a tooltip on keyboard focus.
       await page.getByRole("button", { name: "Copy answer" }).focus();
       await expect(page.getByRole("tooltip")).toHaveText("Copy answer");

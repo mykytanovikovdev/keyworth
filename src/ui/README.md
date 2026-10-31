@@ -164,21 +164,32 @@ and form controls match.
 
 ### Components
 
-| Component                 | Built on               | Notes                                                                            |
-| ------------------------- | ---------------------- | -------------------------------------------------------------------------------- |
-| `Button`                  | React Aria `Button`    | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending` |
-| `IconButton`              | React Aria `Button`    | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                |
-| `TextField`               | React Aria `TextField` | Visible label, hint, error; ARIA validation, no native bubbles                   |
-| `Card`                    | `div`                  | `raised` (above the page) or `surface` (on it); padding from the caller          |
-| `Badge`                   | `span`                 | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon             |
-| `Dialog`, `DialogActions` | React Aria `Modal`     | Focus trap and return, scroll lock; `alertdialog` ignores Escape                 |
-| `Toaster`, `showToast()`  | React Aria `Toast`     | Top of the screen; errors stay until dismissed, others 5 seconds                 |
-| `Tooltip`                 | React Aria `Tooltip`   | Hover and keyboard focus only; never the only label                              |
-| `Skeleton`                | `div`                  | Hidden from screen readers; mark the region `aria-busy`                          |
-| `ThemeToggle`             | `ToggleButtonGroup`    | Icons in the header, icons with text in settings                                 |
-| `ButtonLink`              | React Aria `Link`      | Navigation that reads as an action; the same variants as `Button`                |
-| `TextLink`                | React Aria `Link`      | Inline link in running text, always underlined                                   |
-| `KeyworthMark`            | `svg`                  | The app's mark (a keyhole on the accent); decorative                             |
+| Component                 | Built on                   | Notes                                                                            |
+| ------------------------- | -------------------------- | -------------------------------------------------------------------------------- |
+| `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending` |
+| `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                |
+| `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles                   |
+| `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals or spellcheck       |
+| `Select`                  | React Aria `Menu`          | A short list that applies at once, such as a currency; not React Aria's `Select` |
+| `Checkbox`                | React Aria `CheckboxField` | With `CheckboxButton`; label and an optional description line                    |
+| `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                      |
+| `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller          |
+| `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon             |
+| `Dialog`, `DialogActions` | React Aria `Modal`         | Focus trap and return, scroll lock; `alertdialog` ignores Escape                 |
+| `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds                 |
+| `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                              |
+| `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                          |
+| `ThemeToggle`             | `ToggleButtonGroup`        | Icons in the header, icons with text in settings                                 |
+| `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`                |
+| `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                   |
+| `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative                             |
+
+Text controls (`TextField`, `PasswordField`, and feature fields built from
+React Aria parts, such as the recovery key field) share one box style,
+`fieldBoxClassName` in `components/field-styles.ts`: the same border,
+background and hover, focus, invalid and disabled states. `PasswordField`,
+`Select`, `Checkbox` and `Notice` were approved on 2026-10-31 for the
+encryption screens.
 
 Links are React Aria `Link`s, so they share the buttons' hover, press and
 focus states. `UIProvider` receives the app router's `navigate`, which keeps
@@ -270,6 +281,12 @@ the constant `false`, so the page's code is not even in the bundle
   headers in three engines.
 - **React Aria's toast API is still marked unstable** (`UNSTABLE_` exports).
   It is used only in `toast.ts` and `Toaster.tsx`.
+- **No native `<select>`, anywhere.** WebKit reports creating one as a CSP
+  violation (`style-src-attr`, from the browser's own internals, with an empty
+  sample), so every Safari console would show an error. React Aria's `Select`
+  always adds a hidden one for form autofill; our `Select` is therefore a menu
+  of radio items (`MenuTrigger` + `Menu`). The e2e suite fails on the
+  violation in WebKit.
 - **Spin-button fields (NumberField, DateField) clear an announcement with
   `innerHTML = ''`**, which Trusted Types may block. Check them under the real
   CSP before using them (phase 4, trade entry).

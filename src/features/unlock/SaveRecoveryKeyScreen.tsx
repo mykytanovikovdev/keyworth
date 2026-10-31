@@ -1,0 +1,30 @@
+import { Button } from "../../ui/index.ts";
+import { KeyScreen } from "./KeyScreen.tsx";
+import { RecoveryKeyPanel } from "./RecoveryKeyPanel.tsx";
+
+/** Onboarding, step 2: shown only after the server stored the keys. */
+export function SaveRecoveryKeyScreen({
+  email,
+  recoveryKey,
+}: {
+  email: string;
+  recoveryKey: string;
+}) {
+  return (
+    <KeyScreen
+      step="Step 2 of 2"
+      title="Save your recovery key"
+      description="If you forget your passphrase, this key is the only way back to your data. Nobody else can recover it, Keyworth included."
+      email={email}
+    >
+      <div className="mt-8 flex flex-col gap-6">
+        <RecoveryKeyPanel recoveryKey={recoveryKey} />
+        <p className="text-sm text-fg-muted">
+          Keep it offline or in a password manager, not next to your passphrase.
+          You can create a new one in Settings at any time.
+        </p>
+        <Button variant="primary">I&apos;ve saved it</Button>
+      </div>
+    </KeyScreen>
+  );
+}
