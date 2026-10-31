@@ -32,9 +32,20 @@ Covered now:
   - the invite-list refusal is explained in the app's own words, and text in
     the URL is never shown; unknown error codes get a generic message;
   - the privacy policy and terms are public;
-  - signed in: the app opens, `/sign-in` sends back to it, sign-out ends the
-    session, account deletion works after confirmation, and a session older
-    than 10 minutes is asked to sign in again first.
+  - signed in: the app opens (a new account on "Create a passphrase"),
+    `/sign-in` sends back to it, sign-out ends the session, account deletion
+    works after confirmation, and a session older than 10 minutes is asked to
+    sign in again first.
+- **`encryption.spec.ts`** (Chromium, Firefox, WebKit; local builds only):
+  onboarding with the recovery key shown once and downloaded, printing the key
+  alone, unlocking (wrong, non-Latin, right), one unlock per browser (a new tab
+  gets the key, Lock locks every tab, unlocking one unlocks the other),
+  "Remember this device" and Lock, the 15-minute idle lock, recovery (a typo
+  caught, then a new passphrase), a fresh Google sign-in asked before secrets
+  are typed, changing the passphrase and creating a new recovery key in
+  Settings, the base currency stored encrypted, and Sign out everywhere
+  reaching every tab. What it proves:
+  [docs/encryption-flows.md](docs/encryption-flows.md).
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:
   - every component used for real (dialog, confirmation, toast, tooltip) with
@@ -56,8 +67,7 @@ What these suites prove about the CSP and the browser engines, and their
 pitfalls: [docs/csp-and-engines.md](docs/csp-and-engines.md).
 
 Not covered yet: the real round trip through Google (checked by hand), and
-encryption setup, unlock and chat, which arrive
-with their phases. Screenshot comparison lives in [`tests/visual/`](../visual/README.md).
+chat, which arrives with its phase. Screenshot comparison lives in [`tests/visual/`](../visual/README.md).
 
 ## How to run
 

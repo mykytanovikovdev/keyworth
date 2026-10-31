@@ -43,7 +43,7 @@ export default defineConfig({
       name,
       testMatch: remoteBaseUrl
         ? "app.spec.ts"
-        : ["app.spec.ts", "auth.spec.ts"],
+        : ["app.spec.ts", "auth.spec.ts", "encryption.spec.ts"],
       use: { ...device },
     })),
     // The design-mode build: every src/ui component on /design.

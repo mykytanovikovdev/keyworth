@@ -18,7 +18,11 @@ Covered (Chromium):
 `app.spec.ts`, light and dark, at 390 px and 1440 px:
 
 - sign-in, with the "not on the invite list" message;
-- settings, for a signed-in user with a fixed name and email.
+- creating a passphrase (a new account) and unlocking (keys set up earlier by
+  `tests/support/keys.ts`);
+- settings, for a signed-in user with a fixed name and email, unlocked with
+  the production Argon2 settings (slow in the emulated browser: those tests
+  allow two minutes).
 - the account deletion dialog over settings, with the red `danger` confirm
   button.
 

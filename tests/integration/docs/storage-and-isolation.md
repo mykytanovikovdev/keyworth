@@ -104,8 +104,8 @@ meaningless bytes, aimed at what a broken guard would let through:
 ## Deliberately not here
 
 Static headers and the SPA shell (e2e), Google itself (checked by hand on
-deploys that touch sign-in), the browser part of "Remember this device" (e2e
-with the screens).
+deploys that touch sign-in), the browser part of "Remember this device"
+([tests/e2e/docs/encryption-flows.md](../../e2e/docs/encryption-flows.md)).
 
 ## Approach and pitfalls
 
