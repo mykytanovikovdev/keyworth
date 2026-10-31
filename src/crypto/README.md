@@ -8,8 +8,9 @@ browser. The server stores what this module produces (wrapped keys and
 envelopes) and never sees a passphrase, a recovery key or the data key.
 
 This module does cryptography only. Storing envelopes, talking to `/api/keys`
-and `/api/vault`, locking and unlocking the app, and the screens around them
-live elsewhere (`src/vault/` and the onboarding feature, phase 3).
+and `/api/vault`, locking and unlocking the app live in
+[src/vault](../vault/README.md); the screens in
+[src/features/unlock](../features/unlock/README.md).
 
 **Status:** the primitives, the key flows and server storage
 (`/api/keys`, `/api/vault`, see [worker/routes/](../../worker/routes/README.md))

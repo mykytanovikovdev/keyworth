@@ -19,6 +19,12 @@ Covered now:
   [docs/crypto-tests.md](docs/crypto-tests.md).
 - `shared/schemas/` (`schemas.test.ts`) — accepted and rejected envelopes,
   Argon2 settings and record kinds.
+- `src/vault/` (`vault/`) — the key's states and flows against a fake server
+  with the real API's rules, several tabs on real BroadcastChannels (handing
+  the key over, Lock everywhere, refusing stale or foreign keys), "Remember
+  this device", the idle lock, replacing keys after a lost answer or a
+  conflict, records with revisions. What each file proves:
+  [docs/vault-tests.md](docs/vault-tests.md).
 
 Planned: `shared/metrics` (positions, average cost, P&L, splits, transfers, time
 zones, tiny quantities without precision loss) and `shared/money`. These are the
@@ -32,7 +38,7 @@ under the production CSP, is checked by `tests/e2e/kdf-benchmark.spec.ts`.
 ## How to run
 
 ```sh
-npx vitest run --project unit    # once, about 10 seconds (Argon2 dominates)
+npx vitest run --project unit    # once, about 15 seconds (Argon2 dominates)
 npx vitest --project unit        # watch mode
 ```
 
