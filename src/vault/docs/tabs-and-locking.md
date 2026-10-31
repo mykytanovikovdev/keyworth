@@ -25,11 +25,14 @@ nothing is written to storage. Messages:
   the origin, may send anything.
 - **Who could answer:** each unlocked tab holds a shared Web Lock named
   `keyworth-unlocked:<userId>`. A starting tab looks with
-  `navigator.locks.query()`: nobody holds it, so it does not wait; someone
-  does, so it waits up to 2 seconds for the answer. Without Web Locks it waits
-  300 ms.
+  `navigator.locks.query()`, counting requests not granted yet as well (a tab
+  that unlocked a moment ago may still be waiting for its lock): nobody, so it
+  does not wait; someone, so it waits up to 2 seconds for the answer. Without
+  Web Locks it waits 300 ms.
 - **Unlocking one tab unlocks the others:** the `unlocked` message makes locked
-  tabs of that user ask for the key.
+  tabs of that user ask for the key, without looking at Web Locks first: the
+  message itself says someone can answer. (Looking first lost that race in
+  WebKit, where the lock is granted later than the message arrives.)
 
 ## The Lock epoch
 

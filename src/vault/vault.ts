@@ -302,7 +302,7 @@ export class Vault {
 
   private async unlockedElsewhere(userId: string) {
     if (this.userId !== userId || this.state.status !== "locked") return;
-    const offer = await this.deps.tabs.requestKey(userId);
+    const offer = await this.deps.tabs.requestKey(userId, { announced: true });
     if (offer) await this.accept(userId, offer);
   }
 

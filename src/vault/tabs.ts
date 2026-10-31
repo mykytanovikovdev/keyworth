@@ -57,8 +57,14 @@ type TabMessage =
 export interface Tabs {
   /** The current Lock epoch, shared by every tab. */
   epoch(): number;
-  /** Asks the unlocked tabs of this user for the data key; null if none answers. */
-  requestKey(userId: string): Promise<KeyOffer | null>;
+  /**
+   * Asks the unlocked tabs of this user for the data key; null if none
+   * answers. `announced`: a tab just said it unlocked, so someone will answer.
+   */
+  requestKey(
+    userId: string,
+    options?: { announced?: boolean },
+  ): Promise<KeyOffer | null>;
   /** How this tab answers "need-key": an offer, or null to stay silent. */
   serve(offer: (userId: string) => KeyOffer | null): void;
   /** Tells locked tabs of this user that they can ask now, and marks this tab as unlocked. */
@@ -235,8 +241,11 @@ export function createTabs({
   async function anyoneUnlocked(userId: string): Promise<boolean | null> {
     if (!locks) return null;
     try {
-      const { held = [] } = await locks.query();
-      return held.some((lock) => lock.name === presenceLock(userId));
+      // A lock requested a moment ago may not be granted yet: count those too.
+      const { held = [], pending = [] } = await locks.query();
+      return [...held, ...pending].some(
+        (lock) => lock.name === presenceLock(userId),
+      );
     } catch {
       return null;
     }
@@ -244,8 +253,8 @@ export function createTabs({
 
   return {
     epoch,
-    async requestKey(userId) {
-      const present = await anyoneUnlocked(userId);
+    async requestKey(userId, { announced = false } = {}) {
+      const present = announced || (await anyoneUnlocked(userId));
       if (present === false) return null;
       const nonce = crypto.randomUUID();
       return new Promise<KeyOffer | null>((resolve) => {
