@@ -18,11 +18,15 @@ import {
   Button,
   ButtonLink,
   Card,
+  Checkbox,
   Dialog,
   DialogActions,
   DialogTrigger,
   IconButton,
   KeyworthMark,
+  Notice,
+  PasswordField,
+  Select,
   showToast,
   Skeleton,
   TextField,
@@ -281,14 +285,20 @@ function Buttons() {
   );
 }
 
+const CURRENCIES = [
+  { id: "USD", label: "US dollar (USD)" },
+  { id: "EUR", label: "Euro (EUR)" },
+  { id: "GBP", label: "British pound (GBP)" },
+];
+
 function Fields() {
   const [value, setValue] = useState("");
   return (
     <div className="grid gap-6 sm:grid-cols-2">
-      <TextField
+      <PasswordField
         label="Passphrase"
-        type="password"
-        description="At least 4 words. It never leaves this device."
+        autoComplete="off"
+        description="At least 12 characters. It never leaves this device."
         value={value}
         onChange={setValue}
       />
@@ -301,6 +311,25 @@ function Fields() {
       />
       <TextField label="Asset" placeholder="Search by name or ticker" />
       <TextField label="Exchange" defaultValue="Binance" isDisabled />
+      <Select label="Base currency" options={CURRENCIES} defaultValue="USD" />
+      <Checkbox
+        label="Remember this device"
+        description="Stay unlocked in this browser until you lock Keyworth."
+      />
+    </div>
+  );
+}
+
+function Notices() {
+  return (
+    <div className="flex flex-col gap-3">
+      <Notice tone="error">
+        This passphrase doesn&apos;t unlock your data. Check it and try again.
+      </Notice>
+      <Notice tone="warning">
+        This price is far from the market price on that day.
+      </Notice>
+      <Notice tone="info">Locked after 15 minutes without activity.</Notice>
     </div>
   );
 }
@@ -573,10 +602,17 @@ export default function DesignSystemPage() {
         </Section>
         <Section
           id="fields"
-          title="Text fields"
-          description="Always a visible label. Errors say what is wrong and how to fix it."
+          title="Fields"
+          description="Always a visible label. Errors say what is wrong and how to fix it. Secrets have a show button and no autocorrect."
         >
           <Fields />
+        </Section>
+        <Section
+          id="notices"
+          title="Notices"
+          description="A short message inside a page or form. Only errors are announced; status colors always come with an icon."
+        >
+          <Notices />
         </Section>
         <Section
           id="badges"

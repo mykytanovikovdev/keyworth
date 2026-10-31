@@ -6,6 +6,7 @@ import {
   TextField as AriaTextField,
   type TextFieldProps as AriaTextFieldProps,
 } from "react-aria-components";
+import { fieldBoxClassName } from "./field-styles.ts";
 
 interface TextFieldProps extends Omit<
   AriaTextFieldProps,
@@ -42,7 +43,7 @@ export function TextField({
       <Label className="text-sm font-medium text-fg">{label}</Label>
       <Input
         {...(placeholder !== undefined && { placeholder })}
-        className="h-10 w-full min-w-0 rounded-md border border-line-strong bg-raised px-3 text-md text-fg transition-colors duration-(--kw-duration-fast) outline-none placeholder:text-fg-muted data-disabled:cursor-not-allowed data-disabled:opacity-50 data-focused:border-focus data-focused:ring-1 data-focused:ring-focus data-hovered:border-fg-muted data-invalid:border-loss data-invalid:data-focused:ring-loss"
+        className={`h-10 px-3 ${fieldBoxClassName}`}
       />
       {description && (
         <Text slot="description" className="text-xs text-fg-muted">
