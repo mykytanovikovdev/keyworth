@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { KDF_LIMITS, type KeysJson } from "../../shared/schemas/keys.ts";
+import {
+  type DeviceJson,
+  KDF_LIMITS,
+  type KeysJson,
+} from "../../shared/schemas/keys.ts";
 import {
   changePassphrase,
   createKeys,
@@ -356,6 +360,13 @@ describe("replacing a slot", () => {
   });
 });
 
+/** The device half this request gets: the slot, or null ("not remembered"). */
+async function deviceHalf(cookie: string): Promise<unknown> {
+  const response = await api("/api/keys/device", { cookie });
+  expect(response.status).toBe(200);
+  return (await response.json<DeviceJson>()).slot;
+}
+
 describe("remembering a device", () => {
   async function remembered(label: string) {
     const { user, body } = await setUp(label);
@@ -394,17 +405,14 @@ describe("remembering a device", () => {
     const { user, device, deviceCookie } = await remembered("unlock");
     const pair = deviceCookie?.split(";")[0] ?? "";
 
-    const withCookie = await api("/api/keys/device", {
-      cookie: `${user.cookie}; ${pair}`,
-    });
-    const without = await api("/api/keys/device", { cookie: user.cookie });
+    const withCookie = await deviceHalf(`${user.cookie}; ${pair}`);
+    const without = await deviceHalf(user.cookie);
 
-    expect(withCookie.status).toBe(200);
-    expect(without.status).toBe(404);
+    expect(without).toBeNull();
     const dataKey = await unlockWithDevice({
       userId: user.userId,
       deviceKey: device.deviceKey,
-      deviceSlot: deviceSlotFromJson(await withCookie.json()),
+      deviceSlot: deviceSlotFromJson(withCookie),
     });
     expect(dataKey.extractable).toBe(false);
   });
@@ -414,11 +422,7 @@ describe("remembering a device", () => {
     const pair = deviceCookie?.split(";")[0] ?? "";
     const other = await signInWithGoogle(user);
 
-    const response = await api("/api/keys/device", {
-      cookie: `${other.cookie}; ${pair}`,
-    });
-
-    expect(response.status).toBe(404);
+    expect(await deviceHalf(`${other.cookie}; ${pair}`)).toBeNull();
   });
 
   it("asks for the passphrase again 14 days after the device was remembered", async () => {
@@ -429,13 +433,11 @@ describe("remembering a device", () => {
         "update device_unlocks set created_at = now() - $2::interval where user_id = $1",
         [user.userId, age],
       );
-      return (
-        await api("/api/keys/device", { cookie: `${user.cookie}; ${pair}` })
-      ).status;
+      return deviceHalf(`${user.cookie}; ${pair}`);
     };
 
-    expect(await rememberedAgo("13 days 23 hours")).toBe(200);
-    expect(await rememberedAgo("14 days 1 minute")).toBe(404);
+    expect(await rememberedAgo("13 days 23 hours")).not.toBeNull();
+    expect(await rememberedAgo("14 days 1 minute")).toBeNull();
   });
 
   it("is forgotten on Lock, and gone with the session on sign-out", async () => {
@@ -446,13 +448,7 @@ describe("remembering a device", () => {
       method: "DELETE",
     });
     expect(deleted.status).toBe(204);
-    expect(
-      (
-        await api("/api/keys/device", {
-          cookie: `${forgot.user.cookie}; ${forgotPair}`,
-        })
-      ).status,
-    ).toBe(404);
+    expect(await deviceHalf(`${forgot.user.cookie}; ${forgotPair}`)).toBeNull();
 
     const signedOut = await remembered("signout");
     await fetchWorker("/api/auth/sign-out", {

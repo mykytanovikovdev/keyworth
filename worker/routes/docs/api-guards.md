@@ -31,7 +31,7 @@ request ─► security headers (every response)
 | Quotas             | `PUT /api/vault/:id`                                 | At most 20,000 records and 50 MiB of ciphertext per user, checked in the writing statement | 413 `quota_exceeded`                                             |
 | One-time setup     | `POST /api/keys`                                     | The check value and both slots once, in one transaction: all three or none                 | 409 `already_set_up`                                             |
 | Expected slot      | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery` | `expectedIv` must equal the stored slot's IV                                               | 409 `conflict` + stored `iv`, or 404                             |
-| Device unlock      | `GET /api/keys/device`                               | Same session **and** the device cookie's token hash, remembered less than 14 days ago      | 404 `not_remembered`                                             |
+| Device unlock      | `GET /api/keys/device`                               | Same session **and** the device cookie's token hash, remembered less than 14 days ago      | `{ slot: null }` (200: "not remembered" is no error)             |
 
 **Rate limiting** keeps one row per user and bucket in `api_rate_limits`
 (window start and count), updated by a single upsert that resets the count when

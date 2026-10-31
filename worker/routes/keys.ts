@@ -8,6 +8,7 @@ import {
   encodeBase64url,
 } from "../../shared/schemas/base64url.ts";
 import {
+  type DeviceJson,
   deviceSlotSchema,
   type KeysJson,
   keySetupSchema,
@@ -275,11 +276,16 @@ keys.post("/device", limitWrites, smallBody, async (c) => {
   return c.json({ ok: true }, 201);
 });
 
+/**
+ * The device half for this session, or `{ slot: null }`: "not remembered" is a
+ * normal answer at every start, not an error (a 404 would be logged in the
+ * browser's console each time).
+ */
 keys.get("/device", async (c) => {
   const token = getCookie(c, DEVICE_COOKIE, deviceCookie(c.env).prefix);
   const tokenBytes = token ? decodeBase64url(token) : null;
   if (tokenBytes?.length !== TOKEN_BYTES) {
-    return c.json({ error: "not_remembered" }, 404);
+    return c.json<DeviceJson>({ slot: null });
   }
   const [row] = await c
     .get("db")
@@ -297,8 +303,7 @@ keys.get("/device", async (c) => {
       ),
     )
     .limit(1);
-  if (!row) return c.json({ error: "not_remembered" }, 404);
-  return c.json(wrapped(row));
+  return c.json<DeviceJson>({ slot: row ? wrapped(row) : null });
 });
 
 /** Lock, or "forget this device": the session itself stays signed in. */

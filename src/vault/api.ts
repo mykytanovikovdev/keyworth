@@ -1,4 +1,5 @@
 import type {
+  DeviceJson,
   DeviceSlotJson,
   KeySetupJson,
   KeysJson,
@@ -54,7 +55,7 @@ export interface VaultApi {
   ): Promise<void>;
   replaceRecovery(expectedIv: string, slot: RecoverySlotJson): Promise<void>;
   rememberDevice(slot: DeviceSlotJson): Promise<void>;
-  /** The device-wrapped key, or null when this session has none (404). */
+  /** The device-wrapped key, or null when this session has none. */
   deviceSlot(): Promise<unknown>;
   forgetDevice(): Promise<void>;
   records(kind: RecordKind): Promise<VaultRecordJson[]>;
@@ -117,12 +118,8 @@ export const httpApi: VaultApi = {
     await request("POST", "/api/keys/device", slot);
   },
   async deviceSlot() {
-    try {
-      return await json<unknown>(await request("GET", "/api/keys/device"));
-    } catch (error) {
-      if (error instanceof ApiError && error.status === 404) return null;
-      throw error;
-    }
+    return (await json<DeviceJson>(await request("GET", "/api/keys/device")))
+      .slot;
   },
   async forgetDevice() {
     await request("DELETE", "/api/keys/device");
