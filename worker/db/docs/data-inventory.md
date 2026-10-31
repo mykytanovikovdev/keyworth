@@ -6,20 +6,20 @@ not listed here, it should not exist. Schema: `schema.ts` and the generated
 
 ## Tables
 
-| Table             | Holds                                                                                                        | Readable by the server                                           | Deleted with                |
-| ----------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- | --------------------------- |
-| `user`            | id, name, email, email verified, dates (avatar URL always null)                                              | Yes                                                              | — (the account)             |
-| `session`         | token, expiry, IP address, user agent, dates                                                                 | Yes                                                              | user                        |
-| `account`         | the link to the Google account (provider and account ids); Google tokens always null                         | Yes                                                              | user                        |
-| `verification`    | short-lived OAuth state                                                                                      | Yes                                                              | expiry (Better Auth)        |
-| `rate_limit`      | Better Auth's request counters per IP and path                                                               | Yes                                                              | —                           |
-| `allowed_emails`  | the invite list (lowercase emails)                                                                           | Yes                                                              | `npm run users -- uninvite` |
-| `blocked_emails`  | blocked emails, a reason in the owner's words, date                                                          | Yes                                                              | `npm run users -- unblock`  |
-| `user_key_slots`  | per user: kind (passphrase/recovery), format version, Argon2 settings, salt, IV, **wrapped data key**, dates | Only version, settings, salts and dates; the key is ciphertext   | user                        |
-| `user_key_checks` | per user: format version, IV, the data key's **check value** (a 16-byte AES-GCM tag over nothing)            | Only the version and date; the tag reveals nothing about the key | user                        |
-| `vault_records`   | per record: id, kind, revision, envelope version, IV, **ciphertext**, dates                                  | Only kind, size, revision and dates                              | user                        |
-| `device_unlocks`  | per session: SHA-256 of the device cookie's token, IV, **data key wrapped by a device-only key**, date       | Only the hash and date                                           | session and user            |
-| `api_rate_limits` | per user and bucket: window start and count                                                                  | Yes                                                              | user                        |
+| Table             | Holds                                                                                                                         | Readable by the server                                           | Deleted with                |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------- |
+| `user`            | id, name, email, email verified, dates (avatar URL always null)                                                               | Yes                                                              | — (the account)             |
+| `session`         | token, expiry, IP address, user agent, dates                                                                                  | Yes                                                              | user                        |
+| `account`         | the link to the Google account (provider and account ids); Google tokens always null                                          | Yes                                                              | user                        |
+| `verification`    | short-lived OAuth state                                                                                                       | Yes                                                              | expiry (Better Auth)        |
+| `rate_limit`      | Better Auth's request counters per IP and path                                                                                | Yes                                                              | —                           |
+| `allowed_emails`  | the invite list (lowercase emails)                                                                                            | Yes                                                              | `npm run users -- uninvite` |
+| `blocked_emails`  | blocked emails, a reason in the owner's words, date                                                                           | Yes                                                              | `npm run users -- unblock`  |
+| `user_key_slots`  | per user: kind (passphrase/recovery), format version, Argon2 settings, salt, IV, **wrapped data key**, dates                  | Only version, settings, salts and dates; the key is ciphertext   | user                        |
+| `user_key_checks` | per user: format version, IV, the data key's **check value** (a 16-byte AES-GCM tag over nothing)                             | Only the version and date; the tag reveals nothing about the key | user                        |
+| `vault_records`   | per record: id, kind, revision, envelope version, IV, **ciphertext**, dates                                                   | Only kind, size, revision and dates                              | user                        |
+| `device_unlocks`  | per session: SHA-256 of the device cookie's token, IV, **data key wrapped by a device-only key**, date (unused after 14 days) | Only the hash and date                                           | session and user            |
+| `api_rate_limits` | per user and bucket: window start and count                                                                                   | Yes                                                              | user                        |
 
 `allowed_emails` and `blocked_emails` are keyed by email, not by user, so they
 survive account deletion on purpose: a deleted account is still invited (it can
@@ -68,4 +68,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-31

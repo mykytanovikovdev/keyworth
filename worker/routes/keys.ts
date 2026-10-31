@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { TransactionRollbackError } from "drizzle-orm/errors";
 import { type Context, Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -214,6 +214,14 @@ keys.put(
 const DEVICE_COOKIE = "keyworth-device";
 const TOKEN_BYTES = 32;
 
+/**
+ * A remembered device asks for the passphrase again this long after it was
+ * remembered, even if the browser and the session lived on (the owner's
+ * decision): browsers that restore tabs keep session cookies, and a session
+ * renews itself with use, so nothing else would ever end it.
+ */
+export const DEVICE_MAX_AGE_DAYS = 14;
+
 /** `__Host-` and Secure over HTTPS; plain over http://localhost in development. */
 function deviceCookie(env: Env): {
   options: CookieOptions;
@@ -281,6 +289,11 @@ keys.get("/device", async (c) => {
       and(
         eq(deviceUnlocks.sessionId, c.get("session").id),
         eq(deviceUnlocks.tokenHash, await sha256(tokenBytes)),
+        // An older row stays until Lock, sign-out or the session's end, unused.
+        gt(
+          deviceUnlocks.createdAt,
+          new Date(Date.now() - DEVICE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000),
+        ),
       ),
     )
     .limit(1);

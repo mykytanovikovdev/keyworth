@@ -1,9 +1,10 @@
 import { Hono, type MiddlewareHandler } from "hono";
+import type { MeJson } from "../shared/schemas/me.ts";
 import { createAuth } from "./auth.ts";
 import { describeError } from "./describe-error.ts";
 import { connect } from "./db/client.ts";
 import type { AppEnv } from "./env.ts";
-import { requireSameOrigin } from "./limits.ts";
+import { freshForSeconds, requireSameOrigin } from "./limits.ts";
 import { keys } from "./routes/keys.ts";
 import { vault } from "./routes/vault.ts";
 import { securityHeaders } from "./security-headers.ts";
@@ -47,7 +48,12 @@ api.use("*", requireSession);
 // After the session check, so a request without a session still gets 401.
 api.use("*", requireSameOrigin);
 
-api.get("/me", (c) => c.json(c.get("user")));
+api.get("/me", (c) =>
+  c.json<MeJson>({
+    ...c.get("user"),
+    freshForSeconds: freshForSeconds(c.get("session")),
+  }),
+);
 // End-to-end encryption: wrapped keys and encrypted records (phase 3).
 api.route("/keys", keys);
 api.route("/vault", vault);

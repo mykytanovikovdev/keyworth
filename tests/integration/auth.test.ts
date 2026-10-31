@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { MeJson } from "../../shared/schemas/me.ts";
 import {
   BASE_URL,
   expectWorkerHeaders,
@@ -37,6 +38,26 @@ describe("GET /api/me", () => {
 
     expect(response.status).toBe(401);
   });
+
+  it("says how long the session still counts as a recent sign-in", async () => {
+    const user = uniqueUser("fresh");
+    await invite(user.email);
+    const { cookie } = await signInWithGoogle(user);
+    const freshFor = async (age: string) => {
+      await query(
+        `update session set created_at = now() - $2::interval
+          where user_id = (select id from "user" where email = $1)`,
+        [user.email, age],
+      );
+      return (await (await me(cookie)).json<MeJson>()).freshForSeconds;
+    };
+
+    expect(await freshFor("0 seconds")).toBeGreaterThan(590);
+    expect(await freshFor("9 minutes")).toBeGreaterThan(50);
+    expect(await freshFor("9 minutes")).toBeLessThanOrEqual(60);
+    expect(await freshFor("10 minutes 1 second")).toBe(0);
+    expect(await freshFor("2 days")).toBe(0);
+  });
 });
 
 describe("sign-in with Google", () => {
@@ -55,6 +76,7 @@ describe("sign-in with Google", () => {
       id: expect.any(String) as string,
       name: alice.name,
       email: alice.email,
+      freshForSeconds: expect.any(Number) as number,
     });
   });
 

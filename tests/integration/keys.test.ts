@@ -421,6 +421,23 @@ describe("remembering a device", () => {
     expect(response.status).toBe(404);
   });
 
+  it("asks for the passphrase again 14 days after the device was remembered", async () => {
+    const { user, deviceCookie } = await remembered("expiry");
+    const pair = deviceCookie?.split(";")[0] ?? "";
+    const rememberedAgo = async (age: string) => {
+      await query(
+        "update device_unlocks set created_at = now() - $2::interval where user_id = $1",
+        [user.userId, age],
+      );
+      return (
+        await api("/api/keys/device", { cookie: `${user.cookie}; ${pair}` })
+      ).status;
+    };
+
+    expect(await rememberedAgo("13 days 23 hours")).toBe(200);
+    expect(await rememberedAgo("14 days 1 minute")).toBe(404);
+  });
+
   it("is forgotten on Lock, and gone with the session on sign-out", async () => {
     const forgot = await remembered("forget");
     const forgotPair = forgot.deviceCookie?.split(";")[0] ?? "";

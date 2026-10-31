@@ -10,8 +10,9 @@ through the real Google flow (only Google's token endpoint is replaced).
 **Sign-in and sessions** (`auth.test.ts`)
 
 - Without a session or with a forged cookie: 401.
-- An invited user gets a session and `/api/me` returns only their own profile;
-  the cookie is httpOnly, Secure and SameSite=Lax; no Google tokens and no avatar
+- An invited user gets a session and `/api/me` returns only their own profile
+  and `freshForSeconds` (about 600 right after sign-in, the rest of the 10
+  minutes later, 0 after them); the cookie is httpOnly, Secure and SameSite=Lax; no Google tokens and no avatar
   URL are stored; the invite list is case-insensitive.
 - Uninvited and unverified emails are sent to `/sign-in?error=NOT_INVITED` with
   nothing stored; removing an invite stops the next sign-in.
@@ -45,7 +46,8 @@ uninviting, deleting and listing, as described in
 - "Remember this device": a session-only, httpOnly, Secure, SameSite=Strict
   `__Host-` cookie; the device slot is returned only to the same session with
   that cookie and opens the data key; another sign-in with the same cookie gets
-  nothing; Lock and sign-out remove it.
+  nothing; it is returned 13 days 23 hours after remembering, not 14 days and a
+  minute after; Lock and sign-out remove it.
 - Deleting the account removes slots, the check value, records, remembered
   devices and counters (each table is checked to hold something first).
 
@@ -133,4 +135,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-31
