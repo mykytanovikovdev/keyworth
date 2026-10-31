@@ -12,10 +12,11 @@ and `/api/vault`, locking and unlocking the app live in
 [src/vault](../vault/README.md); the screens in
 [src/features/unlock](../features/unlock/README.md).
 
-**Status:** the primitives, the key flows and server storage
-(`/api/keys`, `/api/vault`, see [worker/routes/](../../worker/routes/README.md))
-are implemented and tested (phase 3, steps 1 and 2). The screens (step 3)
-follow; the threat model below describes the complete design.
+**Status:** the primitives, the key flows, server storage (`/api/keys`,
+`/api/vault`, see [worker/routes/](../../worker/routes/README.md)) and the
+screens that use them ([src/vault](../vault/README.md),
+[src/features/unlock](../features/unlock/README.md)) are implemented and
+tested (phase 3, steps 1 to 3).
 
 ## How it works
 

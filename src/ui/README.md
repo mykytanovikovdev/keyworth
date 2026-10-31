@@ -20,7 +20,7 @@ phase 4, and take their colors from the tokens below).
 | File                           | Role                                                                      |
 | ------------------------------ | ------------------------------------------------------------------------- |
 | `tokens.css`                   | Every raw value: colors per theme, font, radii, shadows, motion           |
-| `styles.css`                   | Maps tokens to Tailwind utilities, removes Tailwind's defaults, keyframes |
+| `styles.css`                   | Tokens to Tailwind utilities, no Tailwind defaults, keyframes, print rule |
 | `theme.ts`                     | The user's theme choice and the theme on screen, as React hooks           |
 | `../../public/theme-init.js`   | Sets the theme before the first paint (not bundled, see below)            |
 | `UIProvider.tsx`               | English for React Aria's strings, icon defaults, links through the router |
@@ -305,6 +305,11 @@ design` also redirects `wrangler deploy` to `dist-design/` until the next
   come from `aria-label` (`IconButton` requires one).
 - **`exactOptionalPropertyTypes`** rejects passing `undefined` to React
   Aria's optional props; spread the prop conditionally instead.
+- **Printing a recovery key** uses the one print rule in `styles.css`: while
+  `<html>` has `data-printing-key`, everything is hidden except
+  `[data-print-key]` (by `visibility`, so it works in dialogs, which render in
+  a portal). The panel in `src/features/unlock` sets both; nothing else
+  prints specially.
 
 ## How to work with it
 

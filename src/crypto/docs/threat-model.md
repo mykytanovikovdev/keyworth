@@ -91,7 +91,9 @@ Anthropic directly and the server sees none of it.
 
 - **An unlocked, unattended device.** Someone using the open browser sees what
   the user sees. The operating system's screen lock is the defense; Lock ends
-  it.
+  it in every tab, and so does 15 minutes without activity in any tab, unless
+  the device is remembered (then it lasts until Lock, sign-out, the browser
+  closing, or 14 days).
 - **Malware on the device.** It can read keystrokes and memory.
 - **Losing both the passphrase and the recovery key.** The data is gone; nobody
   can recover it, by design.
@@ -121,8 +123,10 @@ Anthropic directly and the server sees none of it.
 - **A database copy together with a remembered browser's files.** The profile
   holds the device key (Chromium and Firefox keep IndexedDB unencrypted on
   disk; Safari wraps keys with one from the system keychain); with the device
-  row from the database it opens the DEK, for as long as that row exists
-  ([remember-device.md](remember-device.md)).
+  row from the database it opens the DEK, for as long as that row exists (the
+  server stops handing it out after 14 days, but the row stays until Lock,
+  sign-out or the session's end; see
+  [remember-device.md](remember-device.md)).
 - **Backups after account deletion.** Deleting an account removes its rows at
   once; the database provider's backups and point-in-time history keep them
   for their retention period.
@@ -158,4 +162,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-31

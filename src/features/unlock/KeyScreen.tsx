@@ -11,6 +11,8 @@ export function KeyScreen({
   title,
   description,
   email,
+  onSignOut,
+  signingOut = false,
   children,
 }: {
   /** "Step 1 of 2" in a sequence; nothing on a single screen. */
@@ -19,6 +21,8 @@ export function KeyScreen({
   description: ReactNode;
   /** The signed-in Google account, with a way out; absent when not signed in. */
   email?: string;
+  onSignOut?: () => void;
+  signingOut?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -36,7 +40,12 @@ export function KeyScreen({
         {email && (
           <div className="mt-10 flex items-center justify-between gap-3 border-t border-line pt-3 text-xs text-fg-muted">
             <span className="min-w-0 truncate">Signed in as {email}</span>
-            <Button variant="ghost" size="sm">
+            <Button
+              variant="ghost"
+              size="sm"
+              isPending={signingOut}
+              {...(onSignOut && { onPress: onSignOut })}
+            >
               Sign out
             </Button>
           </div>

@@ -6,10 +6,11 @@ presses Lock or signs out, the session ends, or 14 days pass. Requested by the o
 a long passphrase every time is exhausting; reference: Passbolt, remembered
 until the browser closes).
 
-**Status:** the cryptography (`unlockWithPassphrase({ remember: true })`,
-`unlockWithDevice`) and the server half (`/api/keys/device`, table
-`device_unlocks`) are implemented and tested; the checkbox, IndexedDB storage
-and Lock come with the screens (phase 3, step 3).
+**Status:** implemented and tested end to end: the cryptography
+(`unlockWithPassphrase({ remember: true })`, `unlockWithDevice`), the server
+half (`/api/keys/device`, table `device_unlocks`), and the browser part
+(the checkbox, IndexedDB storage, Lock; `src/vault`, see
+[tabs-and-locking.md](../../vault/docs/tabs-and-locking.md)).
 
 ## How it works: a key split in two
 
@@ -56,9 +57,9 @@ of remembering (`DEVICE_MAX_AGE_DAYS` in `worker/routes/keys.ts`);
   which the server gives only to that session with its device cookie. Both
   together (the database and the files) do open the DEK while the device row
   exists: see the threat model.
-- **A stolen session cookie** without the device cookie gets 404; the device
-  row is bound to one session, so another session with the same device cookie
-  gets nothing either.
+- **A stolen session cookie** without the device cookie gets nothing
+  (`{ slot: null }`); the device row is bound to one session, so another
+  session with the same device cookie gets nothing either.
 - **Revocation is central:** signing out ends that session's remembered
   device; "Sign out everywhere" or an owner's `revoke` ends every one at once.
 
@@ -111,6 +112,10 @@ of remembering (`DEVICE_MAX_AGE_DAYS` in `worker/routes/keys.ts`);
 device key alone, not remembered unless asked, other devices' keys and other
 users fail) and `tests/integration/keys.test.ts` (cookie flags, only the same
 session with the cookie gets the slot, not after 14 days, Lock and sign-out
-remove it, account deletion removes it). The browser part gets e2e tests with the screens.
+remove it, account deletion removes it). The browser part:
+`tests/unit/vault/vault.test.ts` (a reload opens without the passphrase, Lock
+forgets both halves, one half alone is dropped, a failed remember leaves no
+key) and `tests/e2e/encryption.spec.ts` (the checkbox, a reload, Lock and the
+server row, in Chromium, Firefox and WebKit).
 
 Last reviewed: 2026-10-31

@@ -1,33 +1,28 @@
-import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
-import { useState } from "react";
-import { Button, showToast, ThemeToggle } from "../../ui/index.ts";
-import { authClient, sessionQuery } from "../auth/client.ts";
+import { Button, ThemeToggle } from "../../ui/index.ts";
+import { useVaultState } from "../../vault/index.ts";
+import { sessionQuery } from "../auth/client.ts";
+import { useSignOut } from "../auth/useSignOut.ts";
 import { DeleteAccount } from "./DeleteAccount.tsx";
+import { SignOutEverywhereSection } from "./EncryptionSettings.tsx";
+import {
+  BaseCurrency,
+  ChangePassphrase,
+  LockNow,
+  NewRecoveryKey,
+} from "./ManageKeys.tsx";
 import { Section } from "./Section.tsx";
 
-export function SettingsPage({
-  reauthenticated,
-}: {
-  reauthenticated: boolean;
-}) {
-  const { data: session } = useSuspenseQuery(sessionQuery);
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
-  const [signingOut, setSigningOut] = useState(false);
+/** What to open on arrival, after a fresh Google sign-in for it. */
+export type SettingsAction =
+  "delete-account" | "change-passphrase" | "new-recovery-key";
 
-  async function signOut() {
-    setSigningOut(true);
-    const { error } = await authClient.signOut();
-    if (error) {
-      setSigningOut(false);
-      showToast("Couldn't sign out", { tone: "error" });
-      return;
-    }
-    queryClient.setQueryData(sessionQuery.queryKey, null);
-    await navigate({ to: "/sign-in" });
-  }
+export function SettingsPage({ then }: { then?: SettingsAction | undefined }) {
+  const { data: session } = useSuspenseQuery(sessionQuery);
+  const state = useVaultState();
+  const signOut = useSignOut();
+  const everywhere = useSignOut();
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-10 sm:px-6">
@@ -38,12 +33,20 @@ export function SettingsPage({
       >
         <Button
           icon={<LogOut aria-hidden="true" />}
-          isPending={signingOut}
-          onPress={() => void signOut()}
+          isPending={signOut.pending}
+          onPress={() => void signOut.signOut()}
         >
           Sign out
         </Button>
       </Section>
+      <SignOutEverywhereSection
+        pending={everywhere.pending}
+        onPress={() => void everywhere.signOut({ everywhere: true })}
+      />
+      <ChangePassphrase openAtStart={then === "change-passphrase"} />
+      <NewRecoveryKey openAtStart={then === "new-recovery-key"} />
+      <LockNow remembered={state.status === "unlocked" && state.remembered} />
+      {session && <BaseCurrency userId={session.user.id} />}
       <Section title="Theme" description="Saved on this device.">
         <ThemeToggle showLabels />
       </Section>
@@ -51,7 +54,7 @@ export function SettingsPage({
         title="Delete account"
         description="Removes your account and everything stored with it."
       >
-        <DeleteAccount reauthenticated={reauthenticated} />
+        <DeleteAccount reauthenticated={then === "delete-account"} />
       </Section>
     </div>
   );

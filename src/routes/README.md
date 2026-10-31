@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The app's pages and how they connect: the route tree, the signed-in layout,
+The app's pages and how they connect: the route tree, the signed-in layouts,
 and the pages that belong to no feature (home, not found).
 
 ## How it works
@@ -10,15 +10,17 @@ and the pages that belong to no feature (home, not found).
 | File                        | Role                                                            |
 | --------------------------- | --------------------------------------------------------------- |
 | `router.tsx`                | Every route, declared in code, and the router factory           |
-| `AppShell.tsx`              | The signed-in frame: header (mark, theme, settings) and content |
+| `AppShell.tsx`              | Behind the key gate: header (mark, theme, settings) and content |
 | `HomePage.tsx`              | The signed-in start page (a placeholder until the portfolio)    |
 | `NotFoundPage.tsx`          | Any unknown path                                                |
 | `KdfBenchmarkPage.tsx`      | `/design/kdf`: times Argon2id on this device (developer tool)   |
 | `EncryptionMockupsPage.tsx` | `/design/encryption`: every state of the encryption screens     |
 
 ```
-/            ┐ app layout: no session → redirect to /sign-in
-/settings    ┘
+             ┌ session layout: no session → redirect to /sign-in
+/            │ ┐ app layout: the key gate (create a passphrase, unlock)
+/settings    │ ┘   ?then=change-passphrase | new-recovery-key | delete-account
+/recover     └   outside the gate: a forgotten passphrase
 /sign-in       a session → redirect to /
 /privacy, /terms
 /design        only in dev and design builds
@@ -38,6 +40,10 @@ and the pages that belong to no feature (home, not found).
 - **Guards decide pages, not access.** `beforeLoad` redirects based on the
   cached session, but the Worker checks the session on every API request; a
   page that slipped through would get no data.
+- **The key gate is a component, not a redirect**
+  ([features/unlock/VaultGate.tsx](../features/unlock/VaultGate.tsx)): the
+  address stays, so unlocking on `/settings` lands on `/settings`, and the
+  vault's state changes (Lock in another tab) apply without navigation.
 - **`/design` is a conditional route.** In a production build its condition is
   the constant `false`, so the page's code is not in the bundle.
 
@@ -49,7 +55,8 @@ and the pages that belong to no feature (home, not found).
 
 ## How to work with it
 
-Add a route in `router.tsx` under `appRoute` for signed-in pages or under
+Add a route in `router.tsx` under `appRoute` for pages that need the data
+key, under `sessionRoute` for signed-in pages that do not, or under
 `rootRoute` for public ones, then add it to `routeTree`.
 
 ## Related

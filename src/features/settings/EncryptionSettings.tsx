@@ -1,4 +1,5 @@
-import { Lock } from "lucide-react";
+import { Lock, LogOut } from "lucide-react";
+import { useState } from "react";
 import {
   Button,
   Checkbox,
@@ -8,13 +9,20 @@ import {
   Select,
   type SelectOption,
 } from "../../ui/index.ts";
+import {
+  messages,
+  PASSPHRASE_HINT,
+  type PassphraseProblem,
+  passphraseMessage,
+} from "../unlock/messages.ts";
 import { RecoveryKeyPanel } from "../unlock/RecoveryKeyPanel.tsx";
-import { PASSPHRASE_HINT } from "../unlock/messages.ts";
 import { Section } from "./Section.tsx";
+import { formText } from "../unlock/form-text.ts";
 
 /*
- * The encryption part of Settings (phase 3, step 3). Mockup: the sections and
- * dialogs as they will look; the actions are wired once the design is agreed.
+ * The encryption part of Settings: how the sections and dialogs look in every
+ * state. They take their state as props; ManageKeys.tsx wires them to the
+ * vault, and /design/encryption shows each state.
  */
 
 // The final list depends on the price source chosen in phase 4.
@@ -26,7 +34,38 @@ const BASE_CURRENCIES: readonly SelectOption[] = [
   { id: "JPY", label: "Japanese yen (JPY)" },
 ];
 
-export function BaseCurrencySection() {
+export function SignOutEverywhereSection({
+  pending = false,
+  onPress,
+}: {
+  pending?: boolean;
+  onPress?: () => void;
+}) {
+  return (
+    <Section
+      title="Sign out everywhere"
+      description="Signs out every browser, this one included, and forgets every remembered device."
+    >
+      <Button
+        icon={<LogOut aria-hidden="true" />}
+        isPending={pending}
+        {...(onPress && { onPress })}
+      >
+        Sign out everywhere
+      </Button>
+    </Section>
+  );
+}
+
+export function BaseCurrencySection({
+  value,
+  onChange,
+  isDisabled = false,
+}: {
+  value: string;
+  onChange?: (currency: string) => void;
+  isDisabled?: boolean;
+}) {
   return (
     <Section
       title="Base currency"
@@ -36,32 +75,59 @@ export function BaseCurrencySection() {
         label="Base currency"
         hideLabel
         options={BASE_CURRENCIES}
-        defaultValue="USD"
+        value={value}
+        isDisabled={isDisabled}
+        {...(onChange && { onChange })}
       />
     </Section>
   );
 }
 
-export function PassphraseSection() {
+export function PassphraseSection({
+  pending = false,
+  onPress,
+}: {
+  /** Checking whether a fresh sign-in is needed first. */
+  pending?: boolean;
+  onPress?: () => void;
+}) {
   return (
     <Section title="Passphrase" description="Unlocks your data on each device.">
-      <Button>Change passphrase</Button>
+      <Button isPending={pending} {...(onPress && { onPress })}>
+        Change passphrase
+      </Button>
     </Section>
   );
 }
 
-export function RecoveryKeySection() {
+export function RecoveryKeySection({
+  pending = false,
+  onPress,
+}: {
+  pending?: boolean;
+  onPress?: () => void;
+}) {
   return (
     <Section
       title="Recovery key"
       description="Your way back in if you forget the passphrase. A new key replaces the old one."
     >
-      <Button>Create new key</Button>
+      <Button isPending={pending} {...(onPress && { onPress })}>
+        Create new key
+      </Button>
     </Section>
   );
 }
 
-export function LockSection({ remembered }: { remembered: boolean }) {
+export function LockSection({
+  remembered,
+  pending = false,
+  onLock,
+}: {
+  remembered: boolean;
+  pending?: boolean;
+  onLock?: () => void;
+}) {
   return (
     <Section
       title="Lock"
@@ -71,13 +137,29 @@ export function LockSection({ remembered }: { remembered: boolean }) {
           : "Locks Keyworth in every tab of this browser. You'll need your passphrase to open it again."
       }
     >
-      <Button icon={<Lock aria-hidden="true" />}>Lock now</Button>
+      <Button
+        icon={<Lock aria-hidden="true" />}
+        isPending={pending}
+        {...(onLock && { onPress: onLock })}
+      >
+        Lock now
+      </Button>
     </Section>
   );
 }
 
 /** Same words as deleting the account: a fresh Google sign-in comes first. */
-function SignInAgain({ action }: { action: string }) {
+function SignInAgain({
+  action,
+  signingIn,
+  onCancel,
+  onSignIn,
+}: {
+  action: string;
+  signingIn: boolean;
+  onCancel: () => void;
+  onSignIn?: (() => void) | undefined;
+}) {
   return (
     <>
       <p className="mt-2 text-base text-fg-muted">
@@ -85,45 +167,117 @@ function SignInAgain({ action }: { action: string }) {
         come back to this step.
       </p>
       <DialogActions>
-        <Button>Cancel</Button>
-        <Button variant="primary">Sign in again</Button>
+        <Button onPress={onCancel}>Cancel</Button>
+        <Button
+          variant="primary"
+          isPending={signingIn}
+          {...(onSignIn && { onPress: onSignIn })}
+        >
+          Sign in again
+        </Button>
       </DialogActions>
     </>
   );
 }
 
+interface DialogState {
+  isOpen: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
+  pending?: boolean;
+  signingIn?: boolean;
+  onSignInAgain?: () => void;
+  /** A field changed: shown problems no longer apply. */
+  onEdit?: () => void;
+}
+
 export function ChangePassphraseDialog({
+  isOpen,
+  onOpenChange,
   needsSignIn = false,
-}: {
+  pending = false,
+  signingIn = false,
+  onSignInAgain,
+  currentProblem,
+  newProblem,
+  onSubmit,
+  onEdit,
+}: DialogState & {
   needsSignIn?: boolean;
+  currentProblem?: "wrong" | "not-latin" | undefined;
+  newProblem?: PassphraseProblem | undefined;
+  onSubmit?: (change: {
+    currentPassphrase: string;
+    newPassphrase: string;
+    signOutOthers: boolean;
+  }) => void;
 }) {
+  const [signOutOthers, setSignOutOthers] = useState(false);
+  const close = () => onOpenChange?.(false);
   return (
-    <Dialog title="Change passphrase" isOpen>
+    <Dialog
+      title="Change passphrase"
+      isOpen={isOpen}
+      {...(onOpenChange && { onOpenChange })}
+    >
       {needsSignIn ? (
-        <SignInAgain action="change your passphrase" />
+        <SignInAgain
+          action="change your passphrase"
+          signingIn={signingIn}
+          onCancel={close}
+          onSignIn={onSignInAgain}
+        />
       ) : (
         <form
           className="mt-4 flex flex-col gap-5"
           onSubmit={(event) => {
             event.preventDefault();
+            if (pending) return;
+            onSubmit?.({
+              currentPassphrase: formText(
+                event.currentTarget,
+                "currentPassphrase",
+              ),
+              newPassphrase: formText(event.currentTarget, "newPassphrase"),
+              signOutOthers,
+            });
           }}
         >
           <PasswordField
+            name="currentPassphrase"
             label="Current passphrase"
             autoComplete="current-password"
+            autoFocus
+            isInvalid={currentProblem !== undefined}
+            errorMessage={
+              currentProblem === "not-latin"
+                ? messages.notLatin
+                : messages.wrongPassphrase
+            }
+            isReadOnly={pending}
+            {...(onEdit && { onChange: onEdit })}
           />
           <PasswordField
+            name="newPassphrase"
             label="New passphrase"
             autoComplete="new-password"
             description={PASSPHRASE_HINT}
+            isInvalid={newProblem !== undefined}
+            errorMessage={newProblem && passphraseMessage(newProblem)}
+            isReadOnly={pending}
+            {...(onEdit && { onChange: onEdit })}
           />
           <Checkbox
             label="Sign out other devices"
             description="Other browsers will need to sign in and unlock with the new passphrase."
+            isSelected={signOutOthers}
+            onChange={setSignOutOthers}
+            isReadOnly={pending}
           />
           <DialogActions>
-            <Button>Cancel</Button>
-            <Button type="submit" variant="primary">
+            <Button onPress={close} isDisabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isPending={pending}>
               Change passphrase
             </Button>
           </DialogActions>
@@ -134,16 +288,33 @@ export function ChangePassphraseDialog({
 }
 
 export function NewRecoveryKeyDialog({
+  isOpen,
+  onOpenChange,
   step,
   recoveryKey,
-}: {
-  step: "confirm" | "save";
-  recoveryKey: string;
+  pending = false,
+  signingIn = false,
+  onSignInAgain,
+  problem,
+  onSubmit,
+  onEdit,
+  onSaved,
+}: DialogState & {
+  step: "sign-in" | "confirm" | "save";
+  recoveryKey: string | null;
+  problem?: "wrong" | "not-latin" | undefined;
+  onSubmit?: (passphrase: string) => void;
+  onSaved?: () => void;
 }) {
-  if (step === "save") {
+  const close = () => onOpenChange?.(false);
+  if (step === "save" && recoveryKey) {
     // No way to dismiss it by accident before the key is kept somewhere.
     return (
-      <Dialog title="Save your new recovery key" role="alertdialog" isOpen>
+      <Dialog
+        title="Save your new recovery key"
+        role="alertdialog"
+        isOpen={isOpen}
+      >
         <p className="mt-2 text-base text-fg-muted">
           Your previous key no longer works. Keep this one offline or in a
           password manager.
@@ -152,31 +323,63 @@ export function NewRecoveryKeyDialog({
           <RecoveryKeyPanel recoveryKey={recoveryKey} />
         </div>
         <DialogActions>
-          <Button variant="primary">I&apos;ve saved it</Button>
+          <Button variant="primary" {...(onSaved && { onPress: onSaved })}>
+            I&apos;ve saved it
+          </Button>
         </DialogActions>
       </Dialog>
     );
   }
   return (
-    <Dialog title="Create a new recovery key" isOpen>
-      <form
-        className="mt-2 flex flex-col gap-5"
-        onSubmit={(event) => {
-          event.preventDefault();
-        }}
-      >
-        <p className="text-base text-fg-muted">
-          Enter your passphrase. The new key replaces your current one, which
-          stops working.
-        </p>
-        <PasswordField label="Passphrase" autoComplete="current-password" />
-        <DialogActions>
-          <Button>Cancel</Button>
-          <Button type="submit" variant="primary">
-            Create key
-          </Button>
-        </DialogActions>
-      </form>
+    <Dialog
+      title="Create a new recovery key"
+      isOpen={isOpen}
+      {...(onOpenChange && { onOpenChange })}
+    >
+      {step === "sign-in" ? (
+        <SignInAgain
+          action="create a new recovery key"
+          signingIn={signingIn}
+          onCancel={close}
+          onSignIn={onSignInAgain}
+        />
+      ) : (
+        <form
+          className="mt-2 flex flex-col gap-5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            if (pending) return;
+            onSubmit?.(formText(event.currentTarget, "passphrase"));
+          }}
+        >
+          <p className="text-base text-fg-muted">
+            Enter your passphrase. The new key replaces your current one, which
+            stops working.
+          </p>
+          <PasswordField
+            name="passphrase"
+            label="Passphrase"
+            autoComplete="current-password"
+            autoFocus
+            isInvalid={problem !== undefined}
+            errorMessage={
+              problem === "not-latin"
+                ? messages.notLatin
+                : messages.wrongPassphrase
+            }
+            isReadOnly={pending}
+            {...(onEdit && { onChange: onEdit })}
+          />
+          <DialogActions>
+            <Button onPress={close} isDisabled={pending}>
+              Cancel
+            </Button>
+            <Button type="submit" variant="primary" isPending={pending}>
+              Create key
+            </Button>
+          </DialogActions>
+        </form>
+      )}
     </Dialog>
   );
 }

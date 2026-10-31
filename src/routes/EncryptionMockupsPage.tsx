@@ -8,9 +8,11 @@ import {
   NewRecoveryKeyDialog,
   PassphraseSection,
   RecoveryKeySection,
+  SignOutEverywhereSection,
 } from "../features/settings/EncryptionSettings.tsx";
 import { Section } from "../features/settings/Section.tsx";
 import { CreatePassphraseScreen } from "../features/unlock/CreatePassphraseScreen.tsx";
+import { KeysUnavailableScreen } from "../features/unlock/KeysUnavailableScreen.tsx";
 import { NeedsHttpsScreen } from "../features/unlock/NeedsHttpsScreen.tsx";
 import { RecoveryScreen } from "../features/unlock/RecoveryScreen.tsx";
 import { SaveRecoveryKeyScreen } from "../features/unlock/SaveRecoveryKeyScreen.tsx";
@@ -57,16 +59,11 @@ function SettingsMock({ dialog }: { dialog?: ReactNode }) {
         >
           <Button icon={<LogOut aria-hidden="true" />}>Sign out</Button>
         </Section>
-        <Section
-          title="Sign out everywhere"
-          description="Signs out every browser, this one included, and forgets every remembered device."
-        >
-          <Button>Sign out everywhere</Button>
-        </Section>
+        <SignOutEverywhereSection />
         <PassphraseSection />
         <RecoveryKeySection />
         <LockSection remembered />
-        <BaseCurrencySection />
+        <BaseCurrencySection value="USD" />
         <Section title="Theme" description="Saved on this device.">
           <ThemeToggle showLabels />
         </Section>
@@ -86,7 +83,13 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
   {
     id: "create-not-latin",
     label: "1a. … not Latin",
-    render: () => <CreatePassphraseScreen email={EMAIL} problem="not-latin" />,
+    render: () => (
+      <CreatePassphraseScreen
+        email={EMAIL}
+        problem="not-latin"
+        defaultPassphrase="фиолетовый слон"
+      />
+    ),
   },
   {
     id: "create-pending",
@@ -103,17 +106,34 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
   {
     id: "unlock",
     label: "3. Unlock",
-    render: () => <UnlockScreen email={EMAIL} />,
+    render: () => (
+      <UnlockScreen
+        email={EMAIL}
+        recoveryHref="/design/encryption?screen=recovery"
+      />
+    ),
   },
   {
     id: "unlock-wrong",
     label: "3a. … wrong passphrase",
-    render: () => <UnlockScreen email={EMAIL} problem="wrong" />,
+    render: () => (
+      <UnlockScreen
+        email={EMAIL}
+        problem="wrong"
+        defaultPassphrase="purple elephant"
+      />
+    ),
   },
   {
     id: "unlock-not-latin",
     label: "3b. … not Latin",
-    render: () => <UnlockScreen email={EMAIL} problem="not-latin" />,
+    render: () => (
+      <UnlockScreen
+        email={EMAIL}
+        problem="not-latin"
+        defaultPassphrase="фиолетовый слон танцует"
+      />
+    ),
   },
   {
     id: "unlock-auto-locked",
@@ -128,17 +148,36 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
   {
     id: "recovery-sign-in",
     label: "4. Recovery: sign in again",
-    render: () => <RecoveryScreen email={EMAIL} needsSignIn />,
+    render: () => (
+      <RecoveryScreen
+        email={EMAIL}
+        needsSignIn
+        backHref="/design/encryption?screen=unlock"
+      />
+    ),
   },
   {
     id: "recovery",
     label: "4a. Recovery: key and new passphrase",
-    render: () => <RecoveryScreen email={EMAIL} />,
+    render: () => (
+      <RecoveryScreen
+        email={EMAIL}
+        backHref="/design/encryption?screen=unlock"
+      />
+    ),
   },
   {
     id: "recovery-typo",
     label: "4b. … typo in the key",
-    render: () => <RecoveryScreen email={EMAIL} problem="typo" />,
+    render: () => (
+      <RecoveryScreen
+        email={EMAIL}
+        problem="typo"
+        // The sample with its last character mistyped.
+        defaultRecoveryKey={`${SAMPLE_KEY.slice(0, -1)}M`}
+        backHref="/design/encryption?screen=unlock"
+      />
+    ),
   },
   {
     id: "settings",
@@ -148,13 +187,13 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
   {
     id: "change-passphrase",
     label: "5a. Change passphrase",
-    render: () => <SettingsMock dialog={<ChangePassphraseDialog />} />,
+    render: () => <SettingsMock dialog={<ChangePassphraseDialog isOpen />} />,
   },
   {
     id: "change-passphrase-sign-in",
     label: "5b. … sign in again first",
     render: () => (
-      <SettingsMock dialog={<ChangePassphraseDialog needsSignIn />} />
+      <SettingsMock dialog={<ChangePassphraseDialog isOpen needsSignIn />} />
     ),
   },
   {
@@ -163,7 +202,7 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
     render: () => (
       <SettingsMock
         dialog={
-          <NewRecoveryKeyDialog step="confirm" recoveryKey={SAMPLE_KEY} />
+          <NewRecoveryKeyDialog isOpen step="confirm" recoveryKey={null} />
         }
       />
     ),
@@ -173,7 +212,20 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
     label: "5d. New recovery key: save it",
     render: () => (
       <SettingsMock
-        dialog={<NewRecoveryKeyDialog step="save" recoveryKey={SAMPLE_KEY} />}
+        dialog={
+          <NewRecoveryKeyDialog isOpen step="save" recoveryKey={SAMPLE_KEY} />
+        }
+      />
+    ),
+  },
+  {
+    id: "new-key-sign-in",
+    label: "5e. New recovery key: sign in again first",
+    render: () => (
+      <SettingsMock
+        dialog={
+          <NewRecoveryKeyDialog isOpen step="sign-in" recoveryKey={null} />
+        }
       />
     ),
   },
@@ -181,6 +233,11 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
     id: "https",
     label: "6. Not on HTTPS",
     render: () => <NeedsHttpsScreen />,
+  },
+  {
+    id: "unavailable",
+    label: "7. Keys couldn't load",
+    render: () => <KeysUnavailableScreen email={EMAIL} />,
   },
 ];
 

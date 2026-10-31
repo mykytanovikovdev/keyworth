@@ -170,4 +170,4 @@ and
   migration (the `key_slot_kind` check) and tests for swapping it with the
   existing kinds.
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-31

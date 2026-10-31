@@ -13,8 +13,9 @@ export function HomePage() {
         Welcome, {firstName}
       </h1>
       <p className="max-w-prose text-base text-fg-muted">
-        Your portfolio will live here once encryption is set up. For now, you
-        can manage your account in Settings.
+        Your portfolio will live here. Everything you add is encrypted on this
+        device before it&apos;s saved. For now, you can choose your base
+        currency in Settings.
       </p>
       <div className="mt-3">
         <ButtonLink href="/settings">Open settings</ButtonLink>

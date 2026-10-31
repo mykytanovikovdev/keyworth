@@ -11,16 +11,23 @@ import { sessionQuery } from "../features/auth/client.ts";
 import { SignInPage } from "../features/auth/SignInPage.tsx";
 import { PrivacyPage } from "../features/legal/PrivacyPage.tsx";
 import { TermsPage } from "../features/legal/TermsPage.tsx";
-import { SettingsPage } from "../features/settings/SettingsPage.tsx";
+import {
+  type SettingsAction,
+  SettingsPage,
+} from "../features/settings/SettingsPage.tsx";
+import { RecoverPage } from "../features/unlock/RecoverPage.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { HomePage } from "./HomePage.tsx";
 import { NotFoundPage } from "./NotFoundPage.tsx";
 
 /*
  * Routes are declared in code: a handful of them, fully typed, with no code
- * generator. Signed-in pages sit under the `app` layout, whose beforeLoad
- * sends anyone without a session to /sign-in. The server enforces the same rule
- * on every API call; this only decides which page to show.
+ * generator. Signed-in pages sit under the `session` layout, whose beforeLoad
+ * sends anyone without a session to /sign-in; the server enforces the same rule
+ * on every API call, this only decides which page to show. Inside it, the `app`
+ * layout lets nobody past the key gate (src/features/unlock/VaultGate.tsx)
+ * before the data key is open; /recover sits outside the gate, for a user
+ * locked out of it.
  */
 
 interface RouterContext {
@@ -32,15 +39,33 @@ const rootRoute = createRootRouteWithContext<RouterContext>()({
   notFoundComponent: NotFoundPage,
 });
 
-const appRoute = createRoute({
+const sessionRoute = createRoute({
   getParentRoute: () => rootRoute,
-  id: "app",
+  id: "session",
   beforeLoad: async ({ context }) => {
     const session = await context.queryClient.query(sessionQuery);
     if (!session) throw redirect({ to: "/sign-in" });
   },
+  component: Outlet,
+});
+
+const appRoute = createRoute({
+  getParentRoute: () => sessionRoute,
+  id: "app",
   component: AppShell,
 });
+
+const recoverRoute = createRoute({
+  getParentRoute: () => sessionRoute,
+  path: "/recover",
+  component: RecoverPage,
+});
+
+const SETTINGS_ACTIONS: readonly string[] = [
+  "delete-account",
+  "change-passphrase",
+  "new-recovery-key",
+] satisfies SettingsAction[];
 
 const homeRoute = createRoute({
   getParentRoute: () => appRoute,
@@ -51,12 +76,15 @@ const homeRoute = createRoute({
 const settingsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/settings",
-  // Set when coming back from a fresh sign-in to delete the account.
-  validateSearch: (search): { reauthenticated?: true } =>
-    search.reauthenticated ? { reauthenticated: true } : {},
+  // Set when coming back from a fresh sign-in for one of these actions. It
+  // only opens the dialog; the server decides whether the sign-in is fresh.
+  validateSearch: (search): { then?: SettingsAction } =>
+    typeof search.then === "string" && SETTINGS_ACTIONS.includes(search.then)
+      ? { then: search.then as SettingsAction }
+      : {},
   component: function Settings() {
-    const { reauthenticated } = settingsRoute.useSearch();
-    return <SettingsPage reauthenticated={reauthenticated === true} />;
+    const { then } = settingsRoute.useSearch();
+    return <SettingsPage then={then} />;
   },
 });
 
@@ -124,7 +152,10 @@ const encryptionMockupsRoute =
     : null;
 
 const routeTree = rootRoute.addChildren([
-  appRoute.addChildren([homeRoute, settingsRoute]),
+  sessionRoute.addChildren([
+    appRoute.addChildren([homeRoute, settingsRoute]),
+    recoverRoute,
+  ]),
   signInRoute,
   privacyRoute,
   termsRoute,

@@ -8,7 +8,9 @@ import {
   DialogTrigger,
   showToast,
 } from "../../ui/index.ts";
-import { authClient, sessionQuery, signInWithGoogle } from "../auth/client.ts";
+import { vault } from "../../vault/index.ts";
+import { authClient, sessionQuery } from "../auth/client.ts";
+import { signInAgain } from "../unlock/fresh-sign-in.ts";
 
 type Step = "confirm" | "deleting" | "reauthenticate";
 
@@ -20,7 +22,7 @@ interface DeleteAccountProps {
 /**
  * Deleting the account needs a sign-in from the last 10 minutes (enforced by
  * the server). If the session is older, the dialog asks for a fresh Google
- * sign-in and comes back here with the dialog open.
+ * sign-in and comes back here (after unlocking) with the dialog open.
  */
 export function DeleteAccount({ reauthenticated }: DeleteAccountProps) {
   const queryClient = useQueryClient();
@@ -43,8 +45,11 @@ export function DeleteAccount({ reauthenticated }: DeleteAccountProps) {
       return;
     }
     queryClient.setQueryData(sessionQuery.queryKey, null);
+    queryClient.removeQueries({ queryKey: ["vault"] });
     showToast("Account deleted", { tone: "success" });
     await navigate({ to: "/sign-in" });
+    // Every tab of this browser, and the device key, go too.
+    await vault.lock("sign-out");
   }
 
   return (
@@ -68,11 +73,9 @@ export function DeleteAccount({ reauthenticated }: DeleteAccountProps) {
                 <Button
                   variant="primary"
                   onPress={() => {
-                    signInWithGoogle("/settings?reauthenticated=1").catch(
-                      () => {
-                        showToast("Couldn't reach Google", { tone: "error" });
-                      },
-                    );
+                    signInAgain("/settings?then=delete-account").catch(() => {
+                      showToast("Couldn't reach Google", { tone: "error" });
+                    });
                   }}
                 >
                   Sign in again

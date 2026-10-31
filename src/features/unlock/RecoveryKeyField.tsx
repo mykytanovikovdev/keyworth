@@ -16,12 +16,18 @@ import { fieldBoxClassName } from "../../ui/index.ts";
  * submits the form instead of starting a new line.
  */
 export function RecoveryKeyField({
+  name,
   errorMessage,
   defaultValue,
+  onChange,
+  isReadOnly = false,
 }: {
+  name?: string;
   /** Set when the key was refused; also marks the field invalid. */
   errorMessage?: string | undefined;
   defaultValue?: string;
+  onChange?: () => void;
+  isReadOnly?: boolean;
 }) {
   function submitOnEnter(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key !== "Enter" || event.shiftKey) return;
@@ -30,7 +36,10 @@ export function RecoveryKeyField({
   }
   return (
     <TextField
+      {...(name !== undefined && { name })}
       {...(defaultValue !== undefined && { defaultValue })}
+      {...(onChange && { onChange })}
+      isReadOnly={isReadOnly}
       isInvalid={errorMessage !== undefined}
       validationBehavior="aria"
       className="flex flex-col gap-1.5"
