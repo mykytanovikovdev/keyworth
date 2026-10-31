@@ -111,6 +111,18 @@ const kdfBenchmarkRoute =
       })
     : null;
 
+// Same condition: mockups of the phase 3.3 screens, for review.
+const encryptionMockupsRoute =
+  import.meta.env.DEV || import.meta.env.MODE === "design"
+    ? createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/design/encryption",
+        component: lazyRouteComponent(
+          () => import("./EncryptionMockupsPage.tsx"),
+        ),
+      })
+    : null;
+
 const routeTree = rootRoute.addChildren([
   appRoute.addChildren([homeRoute, settingsRoute]),
   signInRoute,
@@ -118,6 +130,7 @@ const routeTree = rootRoute.addChildren([
   termsRoute,
   ...(designRoute ? [designRoute] : []),
   ...(kdfBenchmarkRoute ? [kdfBenchmarkRoute] : []),
+  ...(encryptionMockupsRoute ? [encryptionMockupsRoute] : []),
 ]);
 
 export function createAppRouter(queryClient: QueryClient) {
