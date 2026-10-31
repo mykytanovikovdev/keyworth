@@ -19,8 +19,9 @@ be able to read them before signing in.
 - **Plain components, no markdown.** The text is short, and the app renders no
   HTML from strings anywhere.
 - **Drafts that say so.** The texts describe what the code does today (for
-  example, that Google tokens and the avatar are not stored); the final
-  versions are due before the public release (phase 10).
+  example, that Google tokens and the avatar are not stored, and what the
+  server can and cannot see of encrypted data); the final versions are due
+  before the public release (phase 10).
 
 ## Pitfalls & gotchas
 
