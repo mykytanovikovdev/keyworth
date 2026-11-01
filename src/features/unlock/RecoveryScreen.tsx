@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { Button, PasswordField, TextLink } from "../../ui/index.ts";
 import { KeyScreen } from "./KeyScreen.tsx";
 import {
@@ -37,6 +38,7 @@ export function RecoveryScreen({
   signingOut = false,
   backHref = "/",
   defaultRecoveryKey,
+  deleteAccount,
 }: {
   email: string;
   needsSignIn?: boolean;
@@ -55,6 +57,8 @@ export function RecoveryScreen({
   backHref?: string;
   /** For the design page's error states. */
   defaultRecoveryKey?: string;
+  /** The way out for someone who lost the recovery key too: a delete button. */
+  deleteAccount?: ReactNode;
 }) {
   const back = (
     <p className="mt-5 text-sm text-fg-muted">
@@ -127,6 +131,15 @@ export function RecoveryScreen({
         </Button>
       </form>
       {back}
+      {deleteAccount && (
+        <div className="mt-8 flex flex-col items-start gap-3">
+          <p className="text-sm text-fg-muted">
+            Lost your recovery key too? Nobody can open your data, Keyworth
+            included. You can delete your account and start over.
+          </p>
+          {deleteAccount}
+        </div>
+      )}
     </KeyScreen>
   );
 }

@@ -51,7 +51,10 @@ and the production Argon2 settings.
 - **Recovery:** a key with one wrong character is caught as a typo; the right
   key (typed with spaces instead of dashes) and a new passphrase open the app,
   and the new passphrase unlocks after a reload. With a sign-in older than 10
-  minutes, `/recover` offers "Sign in again" (to Google) and no fields.
+  minutes, `/recover` offers "Sign in again" (to Google) and no fields and no
+  delete button. With a fresh sign-in, someone who lost the recovery key too
+  deletes the account from `/recover` and lands on the sign-in page; the user
+  is gone from the database.
 - **Settings:** a wrong current passphrase is refused; the change works, and
   the new passphrase unlocks after a reload; a new recovery key replaces the
   stored recovery slot and is shown until "I've saved it". With an old
@@ -82,4 +85,4 @@ test("…", async ({ page, context, baseURL }) => {
 Give Argon2 time: assertions right after an unlock or a key change use
 `{ timeout: 15_000 }`.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-01

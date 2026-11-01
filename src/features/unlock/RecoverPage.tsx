@@ -4,6 +4,7 @@ import { checkPassphrase, CryptoError } from "../../crypto/index.ts";
 import { showToast } from "../../ui/index.ts";
 import { ApiError, vault } from "../../vault/index.ts";
 import { useSignOut } from "../auth/useSignOut.ts";
+import { DeleteAccount } from "../settings/DeleteAccount.tsx";
 import { hasFreshSignIn, signInAgain } from "./fresh-sign-in.ts";
 import { KeysUnavailableScreen } from "./KeysUnavailableScreen.tsx";
 import { failureMessage, type PassphraseProblem } from "./messages.ts";
@@ -56,6 +57,10 @@ function Recover({
         setProblem(undefined);
         setPassphraseProblem(undefined);
       }}
+      // Shown once the sign-in is fresh, which deleting needs as well.
+      deleteAccount={
+        <DeleteAccount reauthenticated={false} returnTo="/recover" />
+      }
       onSignInAgain={() => {
         setSigningIn(true);
         signInAgain("/recover").catch(() => {

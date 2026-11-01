@@ -17,14 +17,21 @@ type Step = "confirm" | "deleting" | "reauthenticate";
 interface DeleteAccountProps {
   /** True after returning from a fresh sign-in: the dialog opens by itself. */
   reauthenticated: boolean;
+  /** Where the fresh Google sign-in comes back to. */
+  returnTo?: string;
 }
 
 /**
  * Deleting the account needs a sign-in from the last 10 minutes (enforced by
- * the server). If the session is older, the dialog asks for a fresh Google
- * sign-in and comes back here (after unlocking) with the dialog open.
+ * the server), not the passphrase: someone who lost both the passphrase and
+ * the recovery key can still delete it, from the recovery screen. If the
+ * session is older, the dialog asks for a fresh Google sign-in and comes back
+ * to `returnTo` (Settings: after unlocking, with the dialog open).
  */
-export function DeleteAccount({ reauthenticated }: DeleteAccountProps) {
+export function DeleteAccount({
+  reauthenticated,
+  returnTo = "/settings?then=delete-account",
+}: DeleteAccountProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("confirm");
@@ -73,7 +80,7 @@ export function DeleteAccount({ reauthenticated }: DeleteAccountProps) {
                 <Button
                   variant="primary"
                   onPress={() => {
-                    signInAgain("/settings?then=delete-account").catch(() => {
+                    signInAgain(returnTo).catch(() => {
                       showToast("Couldn't reach Google", { tone: "error" });
                     });
                   }}

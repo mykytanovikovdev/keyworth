@@ -41,8 +41,8 @@ Covered now:
   alone, unlocking (wrong, non-Latin, right), one unlock per browser (a new tab
   gets the key, Lock locks every tab, unlocking one unlocks the other),
   "Remember this device" and Lock, the 15-minute idle lock, recovery (a typo
-  caught, then a new passphrase), a fresh Google sign-in asked before secrets
-  are typed, changing the passphrase and creating a new recovery key in
+  caught, then a new passphrase), deleting the account from the recovery
+  screen, a fresh Google sign-in asked before secrets are typed, changing the passphrase and creating a new recovery key in
   Settings, the base currency stored encrypted, and Sign out everywhere
   reaching every tab. What it proves:
   [docs/encryption-flows.md](docs/encryption-flows.md).

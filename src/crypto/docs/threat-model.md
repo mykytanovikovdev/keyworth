@@ -102,7 +102,13 @@ Anthropic directly and the server sees none of it.
   that for password fields (Chrome does), so a user can still save it there;
   a separate password manager, or paper, is the advice.
 - **Losing both the passphrase and the recovery key.** The data is gone; nobody
-  can recover it, by design.
+  can recover it, by design. The account can still be deleted (from the
+  recovery screen) and started again.
+- **Deleting the account with the Google account alone.** Deletion needs a
+  Google sign-in from the last 10 minutes, not the passphrase, so that a user
+  who lost both secrets can start over. Whoever takes over the Google account
+  can therefore delete the Keyworth account and its data (not read them);
+  Export (phase 4) is the defense against losing data this way.
 - **Deletion and rollback by the server.** The server cannot read or forge
   records, but it can delete one, or return an older version of the same record
   together with its older revision (the AAD still matches). Detecting this would
@@ -168,4 +174,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-01
