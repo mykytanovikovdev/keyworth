@@ -7,6 +7,7 @@ import {
   ModalOverlay,
   type ModalOverlayProps,
 } from "react-aria-components";
+import { useVisualViewportTop } from "../viewport.ts";
 import { IconButton } from "./Button.tsx";
 
 export { DialogTrigger } from "react-aria-components";
@@ -29,10 +30,11 @@ interface DialogProps extends Pick<
  * behind does not scroll, and focus returns to the trigger afterwards. Use it
  * inside a DialogTrigger next to its button, or control it with `isOpen`.
  *
- * The overlay is as tall as the visible part of the page
- * (`--visual-viewport-height`, kept current by React Aria), not the whole
- * layout: on iOS the on-screen keyboard shrinks only the visible part, so a
- * dialog sized to the layout would sit behind the keyboard while you type.
+ * The overlay covers the visible part of the page, not the whole layout: as
+ * tall as it (`--visual-viewport-height`, kept current by React Aria) and
+ * starting where it starts. On iOS the on-screen keyboard shrinks the visible
+ * part and may move it down the page; a dialog placed by the layout sat behind
+ * the keyboard, or above the screen.
  */
 export function Dialog({
   title,
@@ -41,9 +43,11 @@ export function Dialog({
   ...overlayProps
 }: DialogProps) {
   const isDismissable = role === "dialog";
+  const top = useVisualViewportTop();
   return (
     <ModalOverlay
       {...overlayProps}
+      style={{ top }}
       isDismissable={isDismissable}
       isKeyboardDismissDisabled={!isDismissable}
       className="fixed top-0 left-0 z-50 flex h-(--visual-viewport-height) w-full items-end justify-center bg-scrim p-4 data-entering:animate-fade-in data-exiting:animate-fade-out sm:items-center"

@@ -33,4 +33,5 @@ export {
   type ThemePreference,
 } from "./theme.ts";
 export { showToast, type ToastTone } from "./toast.ts";
+export { hasFinePointer, useVisualViewportTop } from "./viewport.ts";
 export { UIProvider } from "./UIProvider.tsx";
