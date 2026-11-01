@@ -65,7 +65,6 @@ export function UnlockScreen({
         <PasswordField
           name="passphrase"
           label="Passphrase"
-          autoComplete="current-password"
           autoFocus
           isInvalid={problem !== undefined}
           isReadOnly={pending}

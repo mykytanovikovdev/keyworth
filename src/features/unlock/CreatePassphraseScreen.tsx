@@ -49,7 +49,6 @@ export function CreatePassphraseScreen({
         <PasswordField
           name="passphrase"
           label="Passphrase"
-          autoComplete="new-password"
           autoFocus
           description={PASSPHRASE_HINT}
           isInvalid={problem !== undefined}

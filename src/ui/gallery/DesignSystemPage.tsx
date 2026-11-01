@@ -297,7 +297,6 @@ function Fields() {
     <div className="grid gap-6 sm:grid-cols-2">
       <PasswordField
         label="Passphrase"
-        autoComplete="off"
         description="At least 12 characters. It never leaves this device."
         value={value}
         onChange={setValue}

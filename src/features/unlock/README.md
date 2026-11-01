@@ -65,6 +65,13 @@ before Argon2 runs; a recovery key's typos are caught by its check group.
   non-Latin character gets "Is the keyboard set to English?" before any
   cryptography runs. Passphrase fields have autocorrect, capitalization and
   spellcheck off, also while shown.
+- **Autocomplete is off on every passphrase field** (owner, 2026-11-01): with
+  `new-password`, Chrome offered to generate the passphrase and then saved it
+  in the Google account without asking, the same account used to sign in.
+  Browsers may still offer to save a typed passphrase (Chrome ignores
+  `autocomplete="off"` on password fields); the rejected alternative was a
+  masked text field that password managers do not recognize, at the cost of
+  screen readers echoing it and macOS's secure input.
 - **"Remember this device"** is off by default, with an honest hint: until the
   browser closes, Lock or sign-out, at most 14 days, longer than the browser
   session in browsers that reopen tabs, only on a device the user does not

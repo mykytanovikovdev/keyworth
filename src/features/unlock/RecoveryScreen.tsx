@@ -114,7 +114,6 @@ export function RecoveryScreen({
         <PasswordField
           name="newPassphrase"
           label="New passphrase"
-          autoComplete="new-password"
           description={PASSPHRASE_HINT}
           isInvalid={passphraseProblem !== undefined}
           errorMessage={
