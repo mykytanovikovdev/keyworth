@@ -193,3 +193,53 @@ test("a dialog on iOS works under the CSP @ios", async ({ page }) => {
   expect(await cspViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
 });
+
+// The on-screen keyboard shrinks only the visible part of the page on iOS (the
+// visual viewport), not the layout. A dialog sized to the layout sat behind
+// the keyboard. Playwright cannot open the keyboard, so the visual viewport is
+// replaced before the app loads and shrunk the way the keyboard shrinks it.
+test("a dialog stays above the on-screen keyboard @ios", async ({ page }) => {
+  await page.addInitScript(() => {
+    const viewport = Object.assign(new EventTarget(), {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      scale: 1,
+      offsetTop: 0,
+      offsetLeft: 0,
+      pageTop: 0,
+      pageLeft: 0,
+    });
+    Object.defineProperty(window, "visualViewport", { value: viewport });
+    Object.defineProperty(window, "__showKeyboard", {
+      value: (height: number) => {
+        viewport.height = height;
+        viewport.dispatchEvent(new Event("resize"));
+      },
+    });
+  });
+  await page.goto("/design/encryption?screen=change-passphrase&bare");
+  const dialog = page.getByRole("dialog", { name: "Change passphrase" });
+  await expect(dialog).toBeVisible();
+  const layoutHeight = await page.evaluate(() => window.innerHeight);
+
+  const keyboard = (height: number) =>
+    page.evaluate((visible) => {
+      (
+        window as unknown as { __showKeyboard: (h: number) => void }
+      ).__showKeyboard(visible);
+    }, height);
+  const dialogBottom = async () => {
+    const box = await dialog.boundingBox();
+    return box ? box.y + box.height : Number.POSITIVE_INFINITY;
+  };
+  const visibleHeight = 420;
+  expect(layoutHeight).toBeGreaterThan(visibleHeight);
+
+  // As reported on an iPhone: the keyboard opens, closes, and opens again.
+  await keyboard(visibleHeight);
+  await expect.poll(dialogBottom).toBeLessThanOrEqual(visibleHeight);
+  await keyboard(layoutHeight);
+  await expect.poll(dialogBottom).toBeGreaterThan(visibleHeight);
+  await keyboard(visibleHeight);
+  await expect.poll(dialogBottom).toBeLessThanOrEqual(visibleHeight);
+});

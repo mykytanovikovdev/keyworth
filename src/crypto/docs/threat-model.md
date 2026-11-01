@@ -95,6 +95,12 @@ Anthropic directly and the server sees none of it.
   the device is remembered (then it lasts until Lock, sign-out, the browser
   closing, or 14 days).
 - **Malware on the device.** It can read keystrokes and memory.
+- **A passphrase kept in the browser's password manager.** If it syncs to the
+  same Google account the user signs in with, whoever takes over that account
+  has both the sign-in and the passphrase. Passphrase fields ask browsers not
+  to suggest, save or fill (`autocomplete="off"`), but browsers may ignore
+  that for password fields (Chrome does), so a user can still save it there;
+  a separate password manager, or paper, is the advice.
 - **Losing both the passphrase and the recovery key.** The data is gone; nobody
   can recover it, by design.
 - **Deletion and rollback by the server.** The server cannot read or forge

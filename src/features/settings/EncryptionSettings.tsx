@@ -245,7 +245,6 @@ export function ChangePassphraseDialog({
           <PasswordField
             name="currentPassphrase"
             label="Current passphrase"
-            autoComplete="current-password"
             autoFocus
             isInvalid={currentProblem !== undefined}
             errorMessage={
@@ -259,7 +258,6 @@ export function ChangePassphraseDialog({
           <PasswordField
             name="newPassphrase"
             label="New passphrase"
-            autoComplete="new-password"
             description={PASSPHRASE_HINT}
             isInvalid={newProblem !== undefined}
             errorMessage={newProblem && passphraseMessage(newProblem)}
@@ -359,7 +357,6 @@ export function NewRecoveryKeyDialog({
           <PasswordField
             name="passphrase"
             label="Passphrase"
-            autoComplete="current-password"
             autoFocus
             isInvalid={problem !== undefined}
             errorMessage={

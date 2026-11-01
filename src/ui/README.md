@@ -164,25 +164,25 @@ and form controls match.
 
 ### Components
 
-| Component                 | Built on                   | Notes                                                                            |
-| ------------------------- | -------------------------- | -------------------------------------------------------------------------------- |
-| `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending` |
-| `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                |
-| `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles                   |
-| `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals or spellcheck       |
-| `Select`                  | React Aria `Menu`          | A short list that applies at once, such as a currency; not React Aria's `Select` |
-| `Checkbox`                | React Aria `CheckboxField` | With `CheckboxButton`; label and an optional description line                    |
-| `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                      |
-| `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller          |
-| `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon             |
-| `Dialog`, `DialogActions` | React Aria `Modal`         | Focus trap and return, scroll lock; `alertdialog` ignores Escape                 |
-| `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds                 |
-| `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                              |
-| `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                          |
-| `ThemeToggle`             | `ToggleButtonGroup`        | Icons in the header, icons with text in settings                                 |
-| `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`                |
-| `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                   |
-| `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative                             |
+| Component                 | Built on                   | Notes                                                                              |
+| ------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
+| `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending`   |
+| `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                  |
+| `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles                     |
+| `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill |
+| `Select`                  | React Aria `Menu`          | A short list that applies at once, such as a currency; not React Aria's `Select`   |
+| `Checkbox`                | React Aria `CheckboxField` | With `CheckboxButton`; label and an optional description line                      |
+| `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                        |
+| `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller            |
+| `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon               |
+| `Dialog`, `DialogActions` | React Aria `Modal`         | Focus trap and return, scroll lock; `alertdialog` ignores Escape                   |
+| `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds                   |
+| `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                                |
+| `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                            |
+| `ThemeToggle`             | `ToggleButtonGroup`        | Icons in the header, icons with text in settings                                   |
+| `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`                  |
+| `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                     |
+| `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative                               |
 
 Text controls (`TextField`, `PasswordField`, and feature fields built from
 React Aria parts, such as the recovery key field) share one box style,
@@ -305,6 +305,12 @@ design` also redirects `wrangler deploy` to `dist-design/` until the next
   come from `aria-label` (`IconButton` requires one).
 - **`exactOptionalPropertyTypes`** rejects passing `undefined` to React
   Aria's optional props; spread the prop conditionally instead.
+- **Dialogs follow the visible part of the page, not the layout**
+  (`h-(--visual-viewport-height)`, set by React Aria). On iOS the on-screen
+  keyboard shrinks only the visible part; a dialog sized with `inset-0` or
+  `100dvh` stayed where it was and the keyboard covered its fields (Safari
+  scrolled to the field only on the first tap). The e2e test fakes the
+  keyboard by shrinking `visualViewport`, which Playwright cannot do itself.
 - **Printing a recovery key** uses the one print rule in `styles.css`: while
   `<html>` has `data-printing-key`, everything is hidden except
   `[data-print-key]` (by `visibility`, so it works in dialogs, which render in

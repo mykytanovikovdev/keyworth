@@ -28,6 +28,11 @@ interface DialogProps extends Pick<
  * A modal dialog. Focus moves inside and stays there until it closes, the page
  * behind does not scroll, and focus returns to the trigger afterwards. Use it
  * inside a DialogTrigger next to its button, or control it with `isOpen`.
+ *
+ * The overlay is as tall as the visible part of the page
+ * (`--visual-viewport-height`, kept current by React Aria), not the whole
+ * layout: on iOS the on-screen keyboard shrinks only the visible part, so a
+ * dialog sized to the layout would sit behind the keyboard while you type.
  */
 export function Dialog({
   title,
@@ -41,12 +46,12 @@ export function Dialog({
       {...overlayProps}
       isDismissable={isDismissable}
       isKeyboardDismissDisabled={!isDismissable}
-      className="fixed inset-0 z-50 flex items-end justify-center bg-scrim p-4 data-entering:animate-fade-in data-exiting:animate-fade-out sm:items-center"
+      className="fixed top-0 left-0 z-50 flex h-(--visual-viewport-height) w-full items-end justify-center bg-scrim p-4 data-entering:animate-fade-in data-exiting:animate-fade-out sm:items-center"
     >
       <Modal className="w-full max-w-md data-entering:animate-pop-in data-exiting:animate-pop-out">
         <AriaDialog
           role={role}
-          className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-xl bg-raised p-5 shadow-raised sm:p-6"
+          className="max-h-[calc(var(--visual-viewport-height)-2rem)] overflow-y-auto rounded-xl bg-raised p-5 shadow-raised sm:p-6"
         >
           {({ close }) => (
             <>

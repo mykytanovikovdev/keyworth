@@ -94,6 +94,8 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
   ).toBeVisible();
   const field = page.getByLabel("Passphrase", { exact: true });
   const submit = page.getByRole("button", { name: "Continue" });
+  // Not "new-password": that made Chrome generate the passphrase and save it.
+  await expect(field).toHaveAttribute("autocomplete", "off");
 
   await field.fill("фиолетовый слон танцует");
   await submit.click();
@@ -165,6 +167,10 @@ test("unlock: a wrong passphrase is refused, the right one opens, a reload asks 
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/settings");
   await expect(unlockHeading(page)).toBeVisible();
+  await expect(page.getByLabel("Passphrase", { exact: true })).toHaveAttribute(
+    "autocomplete",
+    "off",
+  );
 
   await unlock(page, "not my passphrase at all");
   await expect(
@@ -350,6 +356,12 @@ test("Settings: change the passphrase, create a new recovery key", async ({
 
   await page.getByRole("button", { name: "Change passphrase" }).click();
   const change = page.getByRole("dialog", { name: "Change passphrase" });
+  for (const label of ["Current passphrase", "New passphrase"]) {
+    await expect(change.getByLabel(label, { exact: true })).toHaveAttribute(
+      "autocomplete",
+      "off",
+    );
+  }
   await change
     .getByLabel("Current passphrase", { exact: true })
     .fill("wrong one here");

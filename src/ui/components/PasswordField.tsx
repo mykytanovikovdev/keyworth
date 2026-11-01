@@ -13,14 +13,17 @@ import { fieldBoxClassName } from "./field-styles.ts";
 
 interface PasswordFieldProps extends Omit<
   AriaTextFieldProps,
-  "className" | "style" | "children" | "validationBehavior" | "type"
+  | "className"
+  | "style"
+  | "children"
+  | "validationBehavior"
+  | "type"
+  | "autoComplete"
 > {
   label: string;
   description?: string;
   /** Shown, and announced, when `isInvalid` is true. */
   errorMessage?: string | undefined;
-  /** "new-password" when creating one, so password managers offer to save it. */
-  autoComplete: "current-password" | "new-password" | "off";
   placeholder?: string;
   /**
    * Shown in the clear at first. For a recovery key: long, typed from a saved
@@ -35,6 +38,12 @@ interface PasswordFieldProps extends Omit<
  * A secret the user types: a passphrase or a recovery key. Hidden by default,
  * with a button to show it. Autocorrect, capitalization and spellcheck are
  * off, including while shown: they would change what was typed.
+ *
+ * Autocomplete is off too (the owner's decision, 2026-11-01): a passphrase
+ * should not live in the browser's password manager, whose account is often
+ * the same Google account the user signs in with. It is a request, not a
+ * guarantee: Chrome ignores `autocomplete="off"` on password fields and may
+ * still offer to save or fill, but no longer suggests generating one.
  */
 export function PasswordField({
   label,
@@ -58,6 +67,7 @@ export function PasswordField({
         <Input
           {...(placeholder !== undefined && { placeholder })}
           lang="en"
+          autoComplete="off"
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}
