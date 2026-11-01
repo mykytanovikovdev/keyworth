@@ -305,6 +305,12 @@ design` also redirects `wrangler deploy` to `dist-design/` until the next
   come from `aria-label` (`IconButton` requires one).
 - **`exactOptionalPropertyTypes`** rejects passing `undefined` to React
   Aria's optional props; spread the prop conditionally instead.
+- **Dialogs follow the visible part of the page, not the layout**
+  (`h-(--visual-viewport-height)`, set by React Aria). On iOS the on-screen
+  keyboard shrinks only the visible part; a dialog sized with `inset-0` or
+  `100dvh` stayed where it was and the keyboard covered its fields (Safari
+  scrolled to the field only on the first tap). The e2e test fakes the
+  keyboard by shrinking `visualViewport`, which Playwright cannot do itself.
 - **Printing a recovery key** uses the one print rule in `styles.css`: while
   `<html>` has `data-printing-key`, everything is hidden except
   `[data-print-key]` (by `visibility`, so it works in dialogs, which render in
