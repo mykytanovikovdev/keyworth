@@ -5,6 +5,7 @@ import {
   Checkbox,
   Dialog,
   DialogActions,
+  hasFinePointer,
   PasswordField,
   Select,
   type SelectOption,
@@ -245,7 +246,7 @@ export function ChangePassphraseDialog({
           <PasswordField
             name="currentPassphrase"
             label="Current passphrase"
-            autoFocus
+            autoFocus={hasFinePointer()}
             isInvalid={currentProblem !== undefined}
             errorMessage={
               currentProblem === "not-latin"
@@ -357,7 +358,7 @@ export function NewRecoveryKeyDialog({
           <PasswordField
             name="passphrase"
             label="Passphrase"
-            autoFocus
+            autoFocus={hasFinePointer()}
             isInvalid={problem !== undefined}
             errorMessage={
               problem === "not-latin"

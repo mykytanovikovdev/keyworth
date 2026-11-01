@@ -195,10 +195,13 @@ test("a dialog on iOS works under the CSP @ios", async ({ page }) => {
 });
 
 // The on-screen keyboard shrinks only the visible part of the page on iOS (the
-// visual viewport), not the layout. A dialog sized to the layout sat behind
-// the keyboard. Playwright cannot open the keyboard, so the visual viewport is
-// replaced before the app loads and shrunk the way the keyboard shrinks it.
-test("a dialog stays above the on-screen keyboard @ios", async ({ page }) => {
+// visual viewport), not the layout, and Safari may also move that part down
+// the page. A dialog placed by the layout sat behind the keyboard, or above the
+// screen. Playwright cannot open the keyboard, so the visual viewport is
+// replaced before the app loads and changed the way the keyboard changes it.
+test("a dialog stays on screen while the on-screen keyboard is open @ios", async ({
+  page,
+}) => {
   await page.addInitScript(() => {
     const viewport = Object.assign(new EventTarget(), {
       width: window.innerWidth,
@@ -210,36 +213,68 @@ test("a dialog stays above the on-screen keyboard @ios", async ({ page }) => {
       pageLeft: 0,
     });
     Object.defineProperty(window, "visualViewport", { value: viewport });
-    Object.defineProperty(window, "__showKeyboard", {
-      value: (height: number) => {
+    Object.defineProperty(window, "__keyboard", {
+      value: (height: number, offsetTop: number) => {
         viewport.height = height;
+        viewport.offsetTop = offsetTop;
         viewport.dispatchEvent(new Event("resize"));
+        viewport.dispatchEvent(new Event("scroll"));
       },
     });
   });
   await page.goto("/design/encryption?screen=change-passphrase&bare");
   const dialog = page.getByRole("dialog", { name: "Change passphrase" });
   await expect(dialog).toBeVisible();
+  // On a touch screen no field takes focus by itself: a tap on an already
+  // focused field let Safari scroll the page under the dialog.
+  await expect(
+    dialog.getByLabel("Current passphrase", { exact: true }),
+  ).not.toBeFocused();
   const layoutHeight = await page.evaluate(() => window.innerHeight);
 
-  const keyboard = (height: number) =>
-    page.evaluate((visible) => {
-      (
-        window as unknown as { __showKeyboard: (h: number) => void }
-      ).__showKeyboard(visible);
-    }, height);
-  const dialogBottom = async () => {
+  const keyboard = (height: number, offsetTop = 0) =>
+    page.evaluate(
+      ([visible, top]) => {
+        (
+          window as unknown as { __keyboard: (h: number, t: number) => void }
+        ).__keyboard(visible, top);
+      },
+      [height, offsetTop] as const,
+    );
+  /** The dialog's top and bottom, in layout pixels. */
+  const dialogSpan = async () => {
     const box = await dialog.boundingBox();
-    return box ? box.y + box.height : Number.POSITIVE_INFINITY;
+    return box ? [box.y, box.y + box.height] : [Number.NaN, Number.NaN];
   };
-  const visibleHeight = 420;
-  expect(layoutHeight).toBeGreaterThan(visibleHeight);
+  const visible = 420;
+  expect(layoutHeight).toBeGreaterThan(visible);
 
   // As reported on an iPhone: the keyboard opens, closes, and opens again.
-  await keyboard(visibleHeight);
-  await expect.poll(dialogBottom).toBeLessThanOrEqual(visibleHeight);
+  await keyboard(visible);
+  await expect
+    .poll(async () => (await dialogSpan())[1])
+    .toBeLessThanOrEqual(visible);
   await keyboard(layoutHeight);
-  await expect.poll(dialogBottom).toBeGreaterThan(visibleHeight);
-  await keyboard(visibleHeight);
-  await expect.poll(dialogBottom).toBeLessThanOrEqual(visibleHeight);
+  await expect
+    .poll(async () => (await dialogSpan())[1])
+    .toBeGreaterThan(visible);
+  // Safari also moved the visible part 300 px down the page.
+  await keyboard(visible, 300);
+  await expect
+    .poll(async () => {
+      const [top = Number.NaN, bottom = Number.NaN] = await dialogSpan();
+      return top >= 300 && bottom <= 300 + visible;
+    })
+    .toBe(true);
+});
+
+test("a dialog's first field takes focus with a mouse or trackpad", async ({
+  page,
+}) => {
+  await page.goto("/design/encryption?screen=change-passphrase&bare");
+  await expect(
+    page
+      .getByRole("dialog", { name: "Change passphrase" })
+      .getByLabel("Current passphrase", { exact: true }),
+  ).toBeFocused();
 });
