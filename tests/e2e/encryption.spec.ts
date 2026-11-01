@@ -313,6 +313,29 @@ test("recovery: the recovery key and a new passphrase open the data", async ({
   expect(errors).toEqual([]);
 });
 
+test("someone who lost the recovery key too can delete the account from the recovery screen", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const errors = collectErrors(page);
+  const { email } = await returningUser(context, baseURL);
+  await page.goto("/recover");
+
+  await page.getByRole("button", { name: "Delete account" }).click();
+  const dialog = page.getByRole("alertdialog", {
+    name: "Delete your account?",
+  });
+  await dialog.getByRole("button", { name: "Delete account" }).click();
+
+  await expect(page).toHaveURL(/\/sign-in$/);
+  expect(await sql('select 1 from "user" where email = $1', [email])).toEqual(
+    [],
+  );
+  expect(await cspViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
 test("recovery asks for a fresh Google sign-in before anything is typed", async ({
   page,
   context,
@@ -331,6 +354,10 @@ test("recovery asks for a fresh Google sign-in before anything is typed", async 
 
   await page.goto("/recover");
   await expect(page.getByLabel("Recovery key")).toHaveCount(0);
+  // Deleting needs the same fresh sign-in: offered only after it.
+  await expect(
+    page.getByRole("button", { name: "Delete account" }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "Sign in again" }).click();
 
   await expect.poll(() => google).toBeDefined();

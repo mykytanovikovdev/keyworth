@@ -163,6 +163,7 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
       <RecoveryScreen
         email={EMAIL}
         backHref="/design/encryption?screen=unlock"
+        deleteAccount={<Button>Delete account</Button>}
       />
     ),
   },
@@ -173,6 +174,7 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
       <RecoveryScreen
         email={EMAIL}
         problem="typo"
+        deleteAccount={<Button>Delete account</Button>}
         // The sample with its last character mistyped.
         defaultRecoveryKey={`${SAMPLE_KEY.slice(0, -1)}M`}
         backHref="/design/encryption?screen=unlock"

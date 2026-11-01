@@ -80,7 +80,9 @@ belongs to them. Every tab of the browser locks and the device key goes.
   `src/App.tsx` removes every `["vault"]` query whenever the vault leaves
   `unlocked`. New queries with decrypted data must use that prefix.
 - Someone who lost both the passphrase and the recovery key cannot reach this
-  page to delete the account; the owner can (`npm run users -- delete`).
+  page; `DeleteAccount` is therefore also on the recovery screen
+  (`returnTo="/recover"` for its fresh sign-in), see
+  [unlock/](../unlock/README.md).
 
 ## How to work with it
 

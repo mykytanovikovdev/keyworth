@@ -93,9 +93,13 @@ before Argon2 runs; a recovery key's typos are caught by its check group.
 - **The checkbox is a hidden input under a drawn box**: tests click its label.
 - **Printing** sets `data-printing-key` on `<html>`; the print styles in
   `src/ui/styles.css` then hide everything but the key, also in a dialog.
-- **Deleting the account needs the data unlocked** (Settings is behind the
-  gate). Someone who lost both the passphrase and the recovery key asks the
-  owner to delete it (`npm run users -- delete`).
+- **Deleting the account is also on the recovery screen** (owner,
+  2026-11-01), for someone who lost the recovery key too: Settings is behind
+  the gate. It appears once the sign-in is fresh, which deleting needs as
+  well, so it works without another trip to Google. It does not weaken
+  anything: the server asks for a fresh Google sign-in, never the passphrase,
+  wherever the button is. The invitation survives deletion, so the person can
+  sign in again and start over.
 
 ## How to work with it
 
