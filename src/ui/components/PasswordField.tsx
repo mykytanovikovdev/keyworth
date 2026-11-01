@@ -18,7 +18,7 @@ interface PasswordFieldProps extends Omit<
   label: string;
   description?: string;
   /** Shown, and announced, when `isInvalid` is true. */
-  errorMessage?: string;
+  errorMessage?: string | undefined;
   /** "new-password" when creating one, so password managers offer to save it. */
   autoComplete: "current-password" | "new-password" | "off";
   placeholder?: string;

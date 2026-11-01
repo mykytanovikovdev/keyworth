@@ -1,16 +1,33 @@
 import { Button, PasswordField } from "../../ui/index.ts";
 import { KeyScreen } from "./KeyScreen.tsx";
-import { messages, PASSPHRASE_HINT } from "./messages.ts";
+import {
+  PASSPHRASE_HINT,
+  type PassphraseProblem,
+  passphraseMessage,
+} from "./messages.ts";
+import { formText } from "./form-text.ts";
 
 /** Onboarding, step 1: the first thing a new user sees after Google. */
 export function CreatePassphraseScreen({
   email,
   problem,
   pending = false,
+  onSubmit,
+  onEdit,
+  onSignOut,
+  signingOut = false,
+  defaultPassphrase,
 }: {
   email: string;
-  problem?: "not-latin" | "too-short" | undefined;
+  problem?: PassphraseProblem | undefined;
   pending?: boolean;
+  onSubmit?: (passphrase: string) => void;
+  /** The field changed: a shown problem no longer applies. */
+  onEdit?: () => void;
+  onSignOut?: () => void;
+  signingOut?: boolean;
+  /** For the design page's error states. */
+  defaultPassphrase?: string;
 }) {
   return (
     <KeyScreen
@@ -18,24 +35,29 @@ export function CreatePassphraseScreen({
       title="Create a passphrase"
       description="Keyworth encrypts your portfolio on this device before anything is saved. Your passphrase unlocks it. We never see it and can't reset it."
       email={email}
+      signingOut={signingOut}
+      {...(onSignOut && { onSignOut })}
     >
       <form
         className="mt-8 flex flex-col gap-6"
         onSubmit={(event) => {
           event.preventDefault();
+          if (pending) return;
+          onSubmit?.(formText(event.currentTarget, "passphrase"));
         }}
       >
         <PasswordField
+          name="passphrase"
           label="Passphrase"
           autoComplete="new-password"
+          autoFocus
           description={PASSPHRASE_HINT}
           isInvalid={problem !== undefined}
-          errorMessage={
-            problem === "not-latin" ? messages.notLatin : messages.tooShort
-          }
-          {...(problem && {
-            defaultValue:
-              problem === "not-latin" ? "фиолетовый слон" : "purple",
+          isReadOnly={pending}
+          errorMessage={problem && passphraseMessage(problem)}
+          {...(onEdit && { onChange: onEdit })}
+          {...(defaultPassphrase !== undefined && {
+            defaultValue: defaultPassphrase,
           })}
         />
         <Button type="submit" variant="primary" isPending={pending}>

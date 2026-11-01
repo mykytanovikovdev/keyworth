@@ -166,3 +166,26 @@
     transition: none;
   }
 }
+
+/*
+ * Printing a recovery key prints the key alone, wherever it is shown (a page
+ * or a dialog over one): RecoveryKeyPanel sets data-printing-key on <html>
+ * for the print and marks the key with data-print-key.
+ */
+@media print {
+  html[data-printing-key] body * {
+    visibility: hidden;
+  }
+
+  html[data-printing-key] [data-print-key],
+  html[data-printing-key] [data-print-key] * {
+    visibility: visible;
+  }
+
+  html[data-printing-key] [data-print-key] {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+  }
+}

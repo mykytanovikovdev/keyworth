@@ -19,6 +19,8 @@ lengths, so a malformed value is rejected before anything decodes it.
 | `envelope.ts`  | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                     |
 | `keys.ts`      | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys` |
 | `vault.ts`     | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |
+| `me.ts`        | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)  |
+| `settings.ts`  | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save |
 
 The envelope schema accepts only what `src/crypto/envelope.ts` can produce: a
 12-byte IV and a ciphertext whose length is one padding bucket (256 bytes to
@@ -38,6 +40,9 @@ the content.
   as well. Jitless parsing is fast enough for our sizes.
 - **Strict objects.** Unknown fields are rejected, not stripped: an envelope
   with an extra plaintext field is an error, not something to quietly drop.
+  The exception is the plaintext inside records (`settings.ts`): it is loose,
+  because an older tab that saves one field must keep the fields a newer
+  version added.
 
 ## Pitfalls & gotchas
 

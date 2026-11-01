@@ -55,6 +55,17 @@ export function maxBody(maxBytes: number): MiddlewareHandler<AppEnv> {
 }
 
 /**
+ * Whole seconds this session still counts as a recent sign-in; 0 once it does
+ * not. Counted on the server, so a wrong clock on the device cannot make the
+ * browser expect the opposite of what requireFreshSession decides.
+ */
+export function freshForSeconds(session: { createdAt: Date }): number {
+  const left =
+    FRESH_SESSION_SECONDS * 1000 - (Date.now() - session.createdAt.getTime());
+  return Math.max(0, Math.floor(left / 1000));
+}
+
+/**
  * Changes that could lock a user out (replacing a wrapped key) need a sign-in
  * from the last 10 minutes, like account deletion: a stolen session cookie
  * alone is not enough.
@@ -63,8 +74,7 @@ export const requireFreshSession: MiddlewareHandler<AppEnv> = async (
   c,
   next,
 ) => {
-  const age = Date.now() - c.get("session").createdAt.getTime();
-  if (age > FRESH_SESSION_SECONDS * 1000) {
+  if (freshForSeconds(c.get("session")) === 0) {
     return c.json({ error: "session_not_fresh" }, 403);
   }
   return next();

@@ -1,10 +1,11 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { TEST_DATABASE_URL } from "../support/database.ts";
+import { setUpKeys } from "../support/keys.ts";
 import { createSignedInUser } from "../support/session.ts";
 
-// App screens with fixed content: sign-in, and settings (with the account
-// deletion dialog) for a signed-in user whose name and email never change
-// between runs.
+// App screens with fixed content: sign-in, creating a passphrase, unlocking,
+// and settings (with the account deletion dialog) for a signed-in user whose
+// name and email never change between runs.
 
 const THEMES = ["light", "dark"] as const;
 const WIDTHS = [390, 1440] as const;
@@ -31,6 +32,19 @@ async function signIn(
   );
 }
 
+/** Sets up keys for the signed-in user, then unlocks on `path`. */
+async function unlockAt(page: Page, email: string, path: string) {
+  // Argon2 with the production settings, in an emulated browser: slow.
+  test.setTimeout(120_000);
+  const { passphrase } = await setUpKeys({
+    databaseUrl: TEST_DATABASE_URL,
+    email,
+  });
+  await page.goto(path);
+  await page.getByLabel("Passphrase", { exact: true }).fill(passphrase);
+  await page.getByRole("button", { name: "Unlock" }).click();
+}
+
 for (const theme of THEMES) {
   for (const width of WIDTHS) {
     test(`sign-in, ${theme}, ${String(width)}px`, async ({ page }) => {
@@ -44,6 +58,48 @@ for (const theme of THEMES) {
       );
     });
 
+    test(`create a passphrase, ${theme}, ${String(width)}px`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      await prepare(page, theme, width);
+      await signIn(
+        context,
+        baseURL,
+        `create-${theme}-${String(width).padStart(4, "0")}@example.com`,
+      );
+      await page.goto("/");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Create a passphrase" }),
+      ).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+
+      await expect(page).toHaveScreenshot(
+        `create-passphrase-${theme}-${String(width)}.png`,
+      );
+    });
+
+    test(`unlock, ${theme}, ${String(width)}px`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      await prepare(page, theme, width);
+      const email = `unlock-${theme}-${String(width).padStart(4, "0")}@example.com`;
+      await signIn(context, baseURL, email);
+      await setUpKeys({ databaseUrl: TEST_DATABASE_URL, email });
+      await page.goto("/");
+      await expect(
+        page.getByRole("heading", { level: 1, name: "Unlock Keyworth" }),
+      ).toBeVisible();
+      await page.evaluate(() => document.fonts.ready);
+
+      await expect(page).toHaveScreenshot(
+        `unlock-${theme}-${String(width)}.png`,
+      );
+    });
+
     test(`settings, ${theme}, ${String(width)}px`, async ({
       page,
       context,
@@ -51,15 +107,16 @@ for (const theme of THEMES) {
     }) => {
       await prepare(page, theme, width);
       // Unique per test, but the same length every run: it is on screen.
-      await signIn(
-        context,
-        baseURL,
-        `visual-${theme}-${String(width).padStart(4, "0")}@example.com`,
-      );
-      await page.goto("/settings");
+      const email = `visual-${theme}-${String(width).padStart(4, "0")}@example.com`;
+      await signIn(context, baseURL, email);
+      await unlockAt(page, email, "/settings");
       await expect(
         page.getByRole("heading", { level: 1, name: "Settings" }),
-      ).toBeVisible();
+      ).toBeVisible({ timeout: 90_000 });
+      // The base currency comes from an encrypted record: loaded when enabled.
+      await expect(
+        page.getByRole("button", { name: /^Base currency/ }),
+      ).toBeEnabled();
       await page.evaluate(() => document.fonts.ready);
 
       await expect(page).toHaveScreenshot(
@@ -73,13 +130,12 @@ for (const theme of THEMES) {
       baseURL,
     }) => {
       await prepare(page, theme, width);
-      await signIn(
-        context,
-        baseURL,
-        `delete-${theme}-${String(width).padStart(4, "0")}@example.com`,
-      );
-      await page.goto("/settings");
-      await page.getByRole("button", { name: "Delete account" }).click();
+      const email = `delete-${theme}-${String(width).padStart(4, "0")}@example.com`;
+      await signIn(context, baseURL, email);
+      await unlockAt(page, email, "/settings");
+      await page
+        .getByRole("button", { name: "Delete account" })
+        .click({ timeout: 90_000 });
       await expect(
         page.getByRole("alertdialog", { name: "Delete your account?" }),
       ).toBeVisible();

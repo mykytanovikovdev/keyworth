@@ -11,7 +11,10 @@ read neither; the cryptography is in [src/crypto/](../../src/crypto/README.md).
 
 Every route here runs after `requireSession` (no session: 401) and
 `requireSameOrigin` (a write without the app's `Origin`: 403), and reads the
-user only from the session.
+user only from the session. `GET /api/me` (in `../index.ts`) returns the user
+and `freshForSeconds`: how long the session still counts as a recent sign-in,
+so the browser asks for a fresh one before the user types a secret that a
+replace would then refuse.
 
 | Route                      | Does                                                                                         | Guards                                      |
 | -------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------- |
@@ -20,7 +23,7 @@ user only from the session.
 | `PUT /api/keys/passphrase` | Replace the passphrase slot named by its IV (new passphrase or newer Argon2 settings)        | + sign-in in the last 10 minutes            |
 | `PUT /api/keys/recovery`   | Replace the recovery slot named by its IV (a new recovery key)                               | + sign-in in the last 10 minutes            |
 | `POST /api/keys/device`    | "Remember this device": store the device-wrapped key for this session, set the device cookie | 20 writes/min, 4 KB body                    |
-| `GET /api/keys/device`     | The device-wrapped key, only for this session with the device cookie                         |                                             |
+| `GET /api/keys/device`     | The device-wrapped key, only for this session with the device cookie, for 14 days            |                                             |
 | `DELETE /api/keys/device`  | Lock / forget this device                                                                    | 20 writes/min                               |
 | `GET /api/vault[?kind=]`   | The user's records, oldest first                                                             |                                             |
 | `PUT /api/vault/:id`       | Create (`revision: 0`) or replace (the current revision) a record                            | 120 writes/min, 96 KB body, per-user quotas |
@@ -34,7 +37,8 @@ current `revision`, for a key slot with the stored `iv`), `kind_mismatch` (409),
 **Remembered devices:** `POST /api/keys/device` stores the data key wrapped by a
 browser-only key under the current session and sets the session-only
 `__Host-keyworth-device` cookie; `GET` returns it only to the same session with
-that cookie; signing out or revoking the session deletes it. Design and threat
+that cookie, and not after 14 days (`DEVICE_MAX_AGE_DAYS`: then the passphrase
+again); signing out or revoking the session deletes it. Design and threat
 model: [src/crypto/docs/remember-device.md](../../src/crypto/docs/remember-device.md).
 
 ## Why this way

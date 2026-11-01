@@ -90,6 +90,13 @@ async function remember(cookie: string) {
   );
 }
 
+/** The device half this request gets: the slot, or null ("not remembered"). */
+async function deviceHalf(cookie: string): Promise<unknown> {
+  const response = await api("/api/keys/device", { cookie });
+  expect(response.status).toBe(200);
+  return (await response.json<{ slot: unknown }>()).slot;
+}
+
 const deviceRows = (userId: string) =>
   query("select 1 from device_unlocks where user_id = $1", [userId]);
 
@@ -178,11 +185,9 @@ describe("remembered devices stay with their session", () => {
     const user = await signedIn("device-token");
     await remember(user.cookie);
 
-    const response = await api("/api/keys/device", {
-      cookie: `${user.cookie}; __Host-keyworth-device=${b64(32)}`,
-    });
-
-    expect(response.status).toBe(404);
+    expect(
+      await deviceHalf(`${user.cookie}; __Host-keyworth-device=${b64(32)}`),
+    ).toBeNull();
   });
 
   it("Bob with Alice's device cookie gets nothing, and his Lock keeps her row", async () => {
@@ -190,20 +195,16 @@ describe("remembered devices stay with their session", () => {
     const bob = await signedIn("device-bob");
     const aliceDevice = await remember(alice.cookie);
 
-    const read = await api("/api/keys/device", {
-      cookie: `${bob.cookie}; ${aliceDevice}`,
-    });
+    const read = await deviceHalf(`${bob.cookie}; ${aliceDevice}`);
     const lock = await api("/api/keys/device", {
       cookie: `${bob.cookie}; ${aliceDevice}`,
       method: "DELETE",
     });
 
-    expect([read.status, lock.status]).toEqual([404, 204]);
+    expect(read).toBeNull();
+    expect(lock.status).toBe(204);
     expect(await deviceRows(alice.userId)).toHaveLength(1);
-    const own = await api("/api/keys/device", {
-      cookie: `${alice.cookie}; ${aliceDevice}`,
-    });
-    expect(own.status).toBe(200);
+    expect(await deviceHalf(`${alice.cookie}; ${aliceDevice}`)).not.toBeNull();
   });
 
   it("Lock in one session forgets only that session's device", async () => {
@@ -214,13 +215,8 @@ describe("remembered devices stay with their session", () => {
 
     await api("/api/keys/device", { cookie: second.cookie, method: "DELETE" });
 
-    const first = await api("/api/keys/device", {
-      cookie: `${user.cookie}; ${firstDevice}`,
-    });
-    const forgotten = await api("/api/keys/device", {
-      cookie: `${second.cookie}; ${secondDevice}`,
-    });
-    expect([first.status, forgotten.status]).toEqual([200, 404]);
+    expect(await deviceHalf(`${user.cookie}; ${firstDevice}`)).not.toBeNull();
+    expect(await deviceHalf(`${second.cookie}; ${secondDevice}`)).toBeNull();
   });
 
   it("remembering again replaces the row, and the old cookie stops working", async () => {
@@ -229,13 +225,8 @@ describe("remembered devices stay with their session", () => {
     const after = await remember(user.cookie);
 
     expect(await deviceRows(user.userId)).toHaveLength(1);
-    const old = await api("/api/keys/device", {
-      cookie: `${user.cookie}; ${before}`,
-    });
-    const current = await api("/api/keys/device", {
-      cookie: `${user.cookie}; ${after}`,
-    });
-    expect([old.status, current.status]).toEqual([404, 200]);
+    expect(await deviceHalf(`${user.cookie}; ${before}`)).toBeNull();
+    expect(await deviceHalf(`${user.cookie}; ${after}`)).not.toBeNull();
   });
 });
 

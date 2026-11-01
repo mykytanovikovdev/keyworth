@@ -13,6 +13,7 @@ this folder only starts the flow and shows its outcome.
 | ---------------- | ------------------------------------------------------------------------- |
 | `client.ts`      | Better Auth client, `sessionQuery` (TanStack Query), `signInWithGoogle()` |
 | `SignInPage.tsx` | "Continue with Google", error messages, links to the terms and privacy    |
+| `useSignOut.ts`  | Sign out here or everywhere, then lock every tab of this browser          |
 
 1. "Continue with Google" calls `signInWithGoogle()`: the client asks the
    Worker for Google's URL and the browser leaves for Google.
@@ -21,7 +22,10 @@ this folder only starts the flow and shows its outcome.
 3. Routes read `sessionQuery`: signed-in pages redirect to `/sign-in` without a
    session, and `/sign-in` redirects to `/` with one (`src/routes/router.tsx`).
 4. Sign-out and account deletion set the cached session to `null` before
-   navigating, so no stale page flashes.
+   navigating, so no stale page flashes. Then the vault locks every tab of the
+   browser and forgets the device key (`useSignOut`); the other tabs reload
+   into the sign-in page. "Sign out everywhere" is Better Auth's
+   `revokeSessions`: every session ends, and every remembered device with it.
 
 ## Why this way
 

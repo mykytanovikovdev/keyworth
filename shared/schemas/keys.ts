@@ -101,6 +101,11 @@ export type DeviceSlotJson = z.infer<typeof deviceSlotSchema>;
 export type KeyCheckJson = z.infer<typeof keyCheckSchema>;
 export type KeySetupJson = z.infer<typeof keySetupSchema>;
 
+/** What `GET /api/keys/device` returns: this session's device half, if any. */
+export interface DeviceJson {
+  slot: DeviceSlotJson | null;
+}
+
 /** What `GET /api/keys` returns: everything set up together, or nothing yet. */
 export interface KeysJson {
   keys: {

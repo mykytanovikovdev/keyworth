@@ -1,7 +1,22 @@
 import { Button, PasswordField, TextLink } from "../../ui/index.ts";
 import { KeyScreen } from "./KeyScreen.tsx";
-import { messages, PASSPHRASE_HINT } from "./messages.ts";
+import {
+  messages,
+  PASSPHRASE_HINT,
+  type PassphraseProblem,
+  passphraseMessage,
+} from "./messages.ts";
 import { RecoveryKeyField } from "./RecoveryKeyField.tsx";
+import { formText } from "./form-text.ts";
+
+export type RecoveryKeyProblem = "typo" | "wrong" | "not-latin" | "shape";
+
+const keyMessages: Record<RecoveryKeyProblem, string> = {
+  typo: messages.recoveryTypo,
+  wrong: messages.recoveryWrong,
+  "not-latin": messages.notLatin,
+  shape: messages.recoveryShape,
+};
 
 /**
  * A forgotten passphrase: the recovery key opens the data and a new passphrase
@@ -12,19 +27,38 @@ export function RecoveryScreen({
   email,
   needsSignIn = false,
   problem,
+  passphraseProblem,
   pending = false,
+  signingIn = false,
+  onSubmit,
+  onEdit,
+  onSignInAgain,
+  onSignOut,
+  signingOut = false,
+  backHref = "/",
+  defaultRecoveryKey,
 }: {
   email: string;
   needsSignIn?: boolean;
-  problem?: "typo" | "wrong" | "not-latin" | undefined;
+  /** What is wrong with the recovery key. */
+  problem?: RecoveryKeyProblem | undefined;
+  /** What is wrong with the new passphrase. */
+  passphraseProblem?: PassphraseProblem | undefined;
   pending?: boolean;
+  signingIn?: boolean;
+  onSubmit?: (reset: { recoveryKey: string; newPassphrase: string }) => void;
+  /** A field changed: shown problems no longer apply. */
+  onEdit?: () => void;
+  onSignInAgain?: () => void;
+  onSignOut?: () => void;
+  signingOut?: boolean;
+  backHref?: string;
+  /** For the design page's error states. */
+  defaultRecoveryKey?: string;
 }) {
   const back = (
     <p className="mt-5 text-sm text-fg-muted">
-      Remembered it?{" "}
-      <TextLink href="/design/encryption?screen=unlock">
-        Back to unlock
-      </TextLink>
+      Remembered it? <TextLink href={backHref}>Back to unlock</TextLink>
     </p>
   );
   if (needsSignIn) {
@@ -33,11 +67,15 @@ export function RecoveryScreen({
         title="Use your recovery key"
         description="For your security, sign in with Google again first. You'll come back here to enter your recovery key and choose a new passphrase."
         email={email}
+        signingOut={signingOut}
+        {...(onSignOut && { onSignOut })}
       >
         <Button
           variant="primary"
           className="mt-8 w-full"
+          isPending={signingIn}
           icon={<img src="/google-g.svg" alt="" className="size-4" />}
+          {...(onSignInAgain && { onPress: onSignInAgain })}
         >
           Sign in again
         </Button>
@@ -45,34 +83,45 @@ export function RecoveryScreen({
       </KeyScreen>
     );
   }
-  const keyError =
-    problem === "typo"
-      ? messages.recoveryTypo
-      : problem === "wrong"
-        ? messages.recoveryWrong
-        : messages.notLatin;
   return (
     <KeyScreen
       title="Use your recovery key"
       description="Enter the key you saved when you set up Keyworth, then choose a new passphrase. Your recovery key keeps working afterwards."
       email={email}
+      signingOut={signingOut}
+      {...(onSignOut && { onSignOut })}
     >
       <form
         className="mt-8 flex flex-col gap-5"
         onSubmit={(event) => {
           event.preventDefault();
+          if (pending) return;
+          onSubmit?.({
+            recoveryKey: formText(event.currentTarget, "recoveryKey"),
+            newPassphrase: formText(event.currentTarget, "newPassphrase"),
+          });
         }}
       >
         <RecoveryKeyField
-          errorMessage={problem && keyError}
-          {...(problem && {
-            defaultValue: "810M-4GT4-8N34-EJ29-995M-RKAE-9X85-2MJK-99VM",
+          name="recoveryKey"
+          errorMessage={problem && keyMessages[problem]}
+          isReadOnly={pending}
+          {...(onEdit && { onChange: onEdit })}
+          {...(defaultRecoveryKey !== undefined && {
+            defaultValue: defaultRecoveryKey,
           })}
         />
         <PasswordField
+          name="newPassphrase"
           label="New passphrase"
           autoComplete="new-password"
           description={PASSPHRASE_HINT}
+          isInvalid={passphraseProblem !== undefined}
+          errorMessage={
+            passphraseProblem && passphraseMessage(passphraseProblem)
+          }
+          isReadOnly={pending}
+          {...(onEdit && { onChange: onEdit })}
         />
         <Button type="submit" variant="primary" isPending={pending}>
           {pending ? "Unlocking…" : "Set new passphrase"}

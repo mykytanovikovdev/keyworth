@@ -39,8 +39,9 @@ keyworth.app in CI.
 
 ## Deliberately not here
 
-Visual comparison (`tests/visual`), the real Google round trip (by hand), and
-the encryption screens (with phase 3, step 3).
+Visual comparison (`tests/visual`) and the real Google round trip (by hand).
+The encryption screens have their own suite, with the same CSP checks:
+[encryption-flows.md](encryption-flows.md).
 
 ## Pitfalls
 
@@ -54,4 +55,4 @@ the encryption screens (with phase 3, step 3).
   (`watchCspViolations` in `support.ts`); a test that opens a page without it
   sees nothing.
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-10-31

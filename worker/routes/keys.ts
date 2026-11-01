@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt } from "drizzle-orm";
 import { TransactionRollbackError } from "drizzle-orm/errors";
 import { type Context, Hono } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
@@ -8,6 +8,7 @@ import {
   encodeBase64url,
 } from "../../shared/schemas/base64url.ts";
 import {
+  type DeviceJson,
   deviceSlotSchema,
   type KeysJson,
   keySetupSchema,
@@ -214,6 +215,14 @@ keys.put(
 const DEVICE_COOKIE = "keyworth-device";
 const TOKEN_BYTES = 32;
 
+/**
+ * A remembered device asks for the passphrase again this long after it was
+ * remembered, even if the browser and the session lived on (the owner's
+ * decision): browsers that restore tabs keep session cookies, and a session
+ * renews itself with use, so nothing else would ever end it.
+ */
+export const DEVICE_MAX_AGE_DAYS = 14;
+
 /** `__Host-` and Secure over HTTPS; plain over http://localhost in development. */
 function deviceCookie(env: Env): {
   options: CookieOptions;
@@ -267,11 +276,16 @@ keys.post("/device", limitWrites, smallBody, async (c) => {
   return c.json({ ok: true }, 201);
 });
 
+/**
+ * The device half for this session, or `{ slot: null }`: "not remembered" is a
+ * normal answer at every start, not an error (a 404 would be logged in the
+ * browser's console each time).
+ */
 keys.get("/device", async (c) => {
   const token = getCookie(c, DEVICE_COOKIE, deviceCookie(c.env).prefix);
   const tokenBytes = token ? decodeBase64url(token) : null;
   if (tokenBytes?.length !== TOKEN_BYTES) {
-    return c.json({ error: "not_remembered" }, 404);
+    return c.json<DeviceJson>({ slot: null });
   }
   const [row] = await c
     .get("db")
@@ -281,11 +295,15 @@ keys.get("/device", async (c) => {
       and(
         eq(deviceUnlocks.sessionId, c.get("session").id),
         eq(deviceUnlocks.tokenHash, await sha256(tokenBytes)),
+        // An older row stays until Lock, sign-out or the session's end, unused.
+        gt(
+          deviceUnlocks.createdAt,
+          new Date(Date.now() - DEVICE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000),
+        ),
       ),
     )
     .limit(1);
-  if (!row) return c.json({ error: "not_remembered" }, 404);
-  return c.json(wrapped(row));
+  return c.json<DeviceJson>({ slot: row ? wrapped(row) : null });
 });
 
 /** Lock, or "forget this device": the session itself stays signed in. */

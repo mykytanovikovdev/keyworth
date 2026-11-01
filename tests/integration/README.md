@@ -13,7 +13,8 @@ Covered now:
   session, unknown `/api` routes get the same 401 as protected ones.
 - **`auth.test.ts`**, through the real Google sign-in flow (state cookie,
   callback, database hooks, session):
-  - an invited user gets a session, and `/api/me` returns only their own profile;
+  - an invited user gets a session, and `/api/me` returns only their own profile
+    and how long the session still counts as a recent sign-in;
   - the session cookie is httpOnly, Secure and SameSite=Lax; a forged cookie gets 401;
   - neither Google's tokens nor the avatar URL are stored;
   - the invite list is case-insensitive; uninvited and unverified emails are

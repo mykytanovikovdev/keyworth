@@ -1,6 +1,7 @@
-import { expect, test, type BrowserContext } from "@playwright/test";
+import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 import { Pool } from "pg";
 import { TEST_DATABASE_URL } from "../support/database.ts";
+import { setUpKeys } from "../support/keys.ts";
 import { createSignedInUser } from "../support/session.ts";
 import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 
@@ -22,6 +23,28 @@ async function signIn(context: BrowserContext, baseURL: string) {
       email,
       name: "Alex Example",
     }),
+  );
+  return email;
+}
+
+/** Signed in, with keys set up earlier, and unlocked on `path`. */
+async function signInUnlocked(
+  page: Page,
+  context: BrowserContext,
+  baseURL: string,
+  path: string,
+) {
+  const email = await signIn(context, baseURL);
+  const { passphrase } = await setUpKeys({
+    databaseUrl: TEST_DATABASE_URL,
+    email,
+  });
+  await page.goto(path);
+  await page.getByLabel("Passphrase", { exact: true }).fill(passphrase);
+  await page.getByRole("button", { name: "Unlock" }).click();
+  await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(
+    "Unlock Keyworth",
+    { timeout: 15_000 },
   );
   return email;
 }
@@ -94,7 +117,7 @@ test.describe("signed out", () => {
 });
 
 test.describe("signed in", () => {
-  test("lands on the app, and sign-in sends them back to it", async ({
+  test("lands on the app (first, its passphrase), and sign-in sends them back to it", async ({
     page,
     context,
     baseURL,
@@ -104,7 +127,7 @@ test.describe("signed in", () => {
 
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Welcome, Alex" }),
+      page.getByRole("heading", { level: 1, name: "Create a passphrase" }),
     ).toBeVisible();
     await page.goto("/sign-in");
     await expect(page).toHaveURL(/\/$/);
@@ -114,11 +137,10 @@ test.describe("signed in", () => {
   });
 
   test("signs out from settings", async ({ page, context, baseURL }) => {
-    await signIn(context, baseURL ?? "");
-    await page.goto("/");
+    await signInUnlocked(page, context, baseURL ?? "", "/");
 
     await page.getByRole("link", { name: "Settings", exact: true }).click();
-    await page.getByRole("button", { name: "Sign out" }).click();
+    await page.getByRole("button", { name: "Sign out", exact: true }).click();
 
     await expect(page).toHaveURL(/\/sign-in$/);
     expect((await page.request.get("/api/me")).status()).toBe(401);
@@ -129,8 +151,12 @@ test.describe("signed in", () => {
     context,
     baseURL,
   }) => {
-    const email = await signIn(context, baseURL ?? "");
-    await page.goto("/settings");
+    const email = await signInUnlocked(
+      page,
+      context,
+      baseURL ?? "",
+      "/settings",
+    );
 
     await page.getByRole("button", { name: "Delete account" }).click();
     const dialog = page.getByRole("alertdialog", {
@@ -152,13 +178,17 @@ test.describe("signed in", () => {
     context,
     baseURL,
   }) => {
-    const email = await signIn(context, baseURL ?? "");
+    const email = await signInUnlocked(
+      page,
+      context,
+      baseURL ?? "",
+      "/settings",
+    );
     await sql(
       `update session set created_at = now() - interval '11 minutes'
         where user_id = (select id from "user" where email = $1)`,
       [email],
     );
-    await page.goto("/settings");
 
     await page.getByRole("button", { name: "Delete account" }).click();
     const dialog = page.getByRole("alertdialog", {
