@@ -330,6 +330,9 @@ design` also redirects `wrangler deploy` to `dist-design/` until the next
   trackpad the first field still takes focus.
 - The e2e test fakes the keyboard by replacing `visualViewport`, which
   Playwright cannot shrink or move by itself; it fails without either fix.
+- **anime.js timeline callbacks (`call`) do not fire again after seeking
+  back.** A film moved by hand (the onboarding explainer in
+  `src/features/unlock`) stops by checking the time in `onUpdate` instead.
 - **The production CSS minifier rewrites durations in seconds** when shorter
   (`240ms` becomes `.24s`). Read tokens with `durationMs()` (`motion.ts`), never
   `parseFloat` alone: that read 0.24 ms, and only in production builds.

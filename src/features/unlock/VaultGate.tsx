@@ -4,6 +4,7 @@ import { showToast } from "../../ui/index.ts";
 import { vault, VaultError } from "../../vault/index.ts";
 import { useSignOut } from "../auth/useSignOut.ts";
 import { CreatePassphraseScreen } from "./CreatePassphraseScreen.tsx";
+import { ExplainerScreen } from "./ExplainerScreen.tsx";
 import { KeyProgress } from "./key-progress.ts";
 import { KeysUnavailableScreen } from "./KeysUnavailableScreen.tsx";
 import { failureMessage, type PassphraseProblem } from "./messages.ts";
@@ -42,6 +43,18 @@ function Onboarding({ opened, hold, ...account }: Account & Opening) {
   const [problem, setProblem] = useState<PassphraseProblem>();
   const [pending, setPending] = useState(false);
   const [progress] = useState(() => new KeyProgress());
+  // How the encryption works comes first; Continue is open from the start.
+  const [explained, setExplained] = useState(false);
+  if (!explained) {
+    return (
+      <ExplainerScreen
+        {...account}
+        onContinue={() => {
+          setExplained(true);
+        }}
+      />
+    );
+  }
   return (
     <CreatePassphraseScreen
       {...account}

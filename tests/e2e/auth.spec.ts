@@ -117,7 +117,7 @@ test.describe("signed out", () => {
 });
 
 test.describe("signed in", () => {
-  test("lands on the app (first, its passphrase), and sign-in sends them back to it", async ({
+  test("lands on the app (first, how its encryption works), and sign-in sends them back to it", async ({
     page,
     context,
     baseURL,
@@ -127,7 +127,10 @@ test.describe("signed in", () => {
 
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { level: 1, name: "Create a passphrase" }),
+      page.getByRole("heading", {
+        level: 1,
+        name: "Only you can read your portfolio",
+      }),
     ).toBeVisible();
     await page.goto("/sign-in");
     await expect(page).toHaveURL(/\/$/);

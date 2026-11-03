@@ -31,7 +31,7 @@ export function KeyScreen({
   progress,
   children,
 }: {
-  /** "Step 1 of 2" in a sequence; nothing on a single screen. */
+  /** "Step 1 of 3" in a sequence; nothing on a single screen. */
   step?: string;
   title: string;
   description: ReactNode;

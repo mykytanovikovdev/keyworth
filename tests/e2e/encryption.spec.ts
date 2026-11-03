@@ -1,4 +1,5 @@
 import { readFile } from "node:fs/promises";
+import AxeBuilder from "@axe-core/playwright";
 import { type BrowserContext, expect, type Page, test } from "@playwright/test";
 import { Pool } from "pg";
 import { TEST_DATABASE_URL } from "../support/database.ts";
@@ -8,7 +9,7 @@ import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 
 /*
  * End-to-end encryption in the production build, in Chromium, Firefox and
- * WebKit: onboarding, unlocking, tabs, "Remember this device", Lock, the idle
+ * WebKit: how it works, onboarding, unlocking, tabs, "Remember this device", Lock, the idle
  * lock, recovery, changing keys in Settings, and the first encrypted record.
  * Argon2 runs with the production settings, about a second per derivation.
  */
@@ -23,6 +24,8 @@ const RECOVERY_KEY_LABEL = /^Recovery key: ([0-9A-Z]{4}-){8}[0-9A-Z]{4}$/;
  * follows a derivation gets this much.
  */
 const AFTER_ARGON2 = { timeout: 30_000 };
+
+const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 
 test.beforeEach(async ({ page }) => {
   test.slow();
@@ -127,6 +130,7 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
   const errors = collectErrors(page);
   const email = await signIn(context, baseURL);
   await page.goto("/");
+  await page.getByRole("button", { name: "Continue" }).click();
   await expect(
     page.getByRole("heading", { level: 1, name: "Create a passphrase" }),
   ).toBeVisible();
@@ -180,9 +184,76 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
   expect(errors).toEqual([]);
 });
 
+test("onboarding opens on how the encryption works: steps both ways, Continue at once", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const errors = collectErrors(page);
+  await signIn(context, baseURL);
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Only you can read your portfolio",
+    }),
+  ).toBeVisible();
+  const caption = page.locator("figcaption");
+  const back = page.getByRole("button", { name: "Previous step" });
+  const next = page.getByRole("button", { name: "Next step" });
+
+  await expect(caption).toContainText("Your passphrase turns into a key");
+  await expect(back).toBeDisabled();
+  await next.click();
+  await expect(caption).toContainText("That key opens your data key");
+  await expect(
+    page.getByRole("button", { name: "Step 2 of 6" }),
+  ).toHaveAttribute("aria-current", "step");
+  await back.click();
+  await expect(caption).toContainText("Your passphrase turns into a key");
+  await page.getByRole("button", { name: "Step 6 of 6" }).click();
+  await expect(caption).toContainText(
+    "Lose both your passphrase and your recovery key",
+  );
+  await expect(next).toBeDisabled();
+
+  // Nobody has to step through: Continue works from the first step.
+  await page.getByRole("button", { name: "Step 1 of 6" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Create a passphrase" }),
+  ).toBeVisible();
+  await expect(page.getByText("Step 2 of 3")).toBeVisible();
+  expect(await cspViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test("how the encryption works has no axe violations at its first and last step", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  // Final pictures only: half-faded text would fail the contrast check.
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await signIn(context, baseURL);
+  await page.goto("/");
+  await expect(page.locator("figcaption")).toContainText(
+    "Your passphrase turns into a key",
+  );
+  expect(
+    (await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()).violations,
+  ).toEqual([]);
+  await page.getByRole("button", { name: "Step 6 of 6" }).click();
+  await expect(page.locator("figcaption")).toContainText("Lose both");
+  expect(
+    (await new AxeBuilder({ page }).withTags(WCAG_TAGS).analyze()).violations,
+  ).toEqual([]);
+});
+
 test("prints the recovery key alone", async ({ page, context, baseURL }) => {
   await signIn(context, baseURL);
   await page.goto("/");
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Passphrase", { exact: true })
     .fill("purple elephant dances at noon");

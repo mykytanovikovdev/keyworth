@@ -18,6 +18,8 @@ Covered (Chromium):
 `app.spec.ts`, light and dark, at 390 px and 1440 px:
 
 - sign-in, with the "not on the invite list" message;
+- how the encryption works (a new account's first screen), at its last step
+  without motion, with the server's random characters masked;
 - creating a passphrase (a new account) and unlocking (keys set up earlier by
   `tests/support/keys.ts`);
 - settings, for a signed-in user with a fixed name and email, unlocked with

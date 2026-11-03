@@ -8,7 +8,7 @@ import {
 } from "./messages.ts";
 import { formText } from "./form-text.ts";
 
-/** Onboarding, step 1: the first thing a new user sees after Google. */
+/** Onboarding, step 2: after how the encryption works, before the recovery key. */
 export function CreatePassphraseScreen({
   email,
   problem,
@@ -38,7 +38,7 @@ export function CreatePassphraseScreen({
 }) {
   return (
     <KeyScreen
-      step="Step 1 of 2"
+      step="Step 2 of 3"
       title="Create a passphrase"
       description="Keyworth encrypts your portfolio on this device before anything is saved. Your passphrase unlocks it. We never see it and can't reset it."
       email={email}

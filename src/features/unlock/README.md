@@ -12,8 +12,8 @@ the cryptography in [src/crypto](../../crypto/README.md).
 ## How it works
 
 ```
-Google sign-in ─► no keys yet ─► Create a passphrase ─► Save your recovery key ─► app
-               └► keys exist ──► Unlock ─────────────────────────────────────────► app
+Google sign-in ─► no keys yet ─► How it works ─► Create a passphrase ─► Save your recovery key ─► app
+               └► keys exist ──► Unlock ──────────────────────────────────────────────────────────► app
                                    └► /recover ─► (sign in again) ─► key + new passphrase ─► app
 ```
 
@@ -24,8 +24,10 @@ callbacks, so `/design/encryption` can show every state without a server:
 | ---------------------------- | ------------------------------------------------------------------------ |
 | `KeyScreen.tsx`              | The shared frame: the sign-in page's centered column, title, account row |
 | `KeyMark.tsx`                | The keyhole mark on top: Argon2's progress ring, the lock turning        |
-| `CreatePassphraseScreen.tsx` | Onboarding step 1: one passphrase field                                  |
-| `SaveRecoveryKeyScreen.tsx`  | Onboarding step 2: the key, Download / Copy / Print, "I've saved it"     |
+| `ExplainerScreen.tsx`        | Onboarding step 1: why only the user can read their portfolio; Continue  |
+| `EncryptionExplainer.tsx`    | Its picture: six steps of what the encryption does, Back / Next          |
+| `CreatePassphraseScreen.tsx` | Onboarding step 2: one passphrase field                                  |
+| `SaveRecoveryKeyScreen.tsx`  | Onboarding step 3: the key, Download / Copy / Print, "I've saved it"     |
 | `RecoveryKeyPanel.tsx`       | The key in a 3 × 3 grid, and the three ways to keep it                   |
 | `UnlockScreen.tsx`           | Passphrase, "Remember this device", the link to recovery                 |
 | `RecoveryScreen.tsx`         | A fresh Google sign-in first; then the recovery key and a new passphrase |
@@ -74,6 +76,26 @@ for `baseDuration()` once the vault is unlocked. A device that is already
 remembered, or a key from another tab, has no Argon2 and no ring: the app
 opens at once.
 
+**How it works, before the passphrase** (owner's choices, 2026-11-03): the
+first onboarding screen, "Only you can read your portfolio", shows what the
+encryption does in six steps, each a short scene on one picture of "Your
+device" and "Our server":
+
+| Step | Caption                                                                              | The picture                                                          |
+| ---- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
+| 1    | Your passphrase turns into a key, right here on your device.                         | `••••` turns into a key, still labelled "Passphrase"                 |
+| 2    | That key opens your data key. Your passphrase never leaves your device.              | "Data key" appears beside it                                         |
+| 3    | Your data key locks every record before it's saved.                                  | "BTC · at $60,000" becomes a "Locked record"                         |
+| 4    | So we only store locked records. This is all we can see.                             | the record travels to the server: changing characters, "What we see" |
+| 5    | Your recovery key opens your data key too. Keep it somewhere safe.                   | "Recovery key" appears; the data key answers                         |
+| 6    | Lose both your passphrase and your recovery key, and nobody can get in, not even us. | both keys crossed out; the data key dims                             |
+
+It is exactly what `src/crypto` does: the passphrase becomes a key through
+Argon2 on the device, that key unwraps the data key, the data key encrypts
+each record, the server stores envelopes and the wrapped keys, the recovery
+key unwraps the same data key. The person moves through the steps with Back,
+Next and the dots; Continue works from the first step, so nobody has to.
+
 ## Why this way (decisions with the owner, 2026-10-31)
 
 - **No "repeat the passphrase" field.** A typo at creation is recoverable with
@@ -110,6 +132,19 @@ opens at once.
 
 ## Pitfalls & gotchas
 
+- **The explainer is one anime.js timeline moved by hand.** Forwards plays a
+  step's scene and stops in a quiet gap before the next one; backwards seeks
+  the film frame by frame (`rewind`), quicker, so every part retraces its
+  way. The stop is a time check in `onUpdate`, not a callback on the
+  timeline: anime.js does not fire timeline callbacks again after seeking
+  back, and the film then ran to its end. It never moves on a timer, so no
+  pause control is needed (WCAG 2.2.2).
+- **The picture is drawn at 286 × 168 px**, which fits a 320-pixel screen, and
+  scaled down below that (a folding phone's outer screen); its labels are part
+  of the picture and hidden from screen readers, which hear the captions.
+- **A dimmed part keeps readable text**: on the last step only the data key's
+  circle dims, not its label (axe checks the contrast).
+
 - **Argon2 leaves the main thread few frames** (Chromium draws about ten a
   second while it runs). So the ring is one Web Animation of `transform` that
   the browser runs by itself; the readings only retune its `playbackRate`, at
@@ -145,7 +180,8 @@ opens at once.
 ## How to work with it
 
 `npm run dev`, then `/design/encryption`: every screen and state, with a
-switcher at the bottom right. The "try it" screens (1c, 3e–3g, 4c) run real
+switcher at the bottom right. Screen 0 is how the encryption works (0a without
+motion). The "try it" screens (1c, 3e–3g, 4c) run real
 Argon2 for the ring, the turn and a refusal (3f takes four times longer, to
 watch the ring); Replay starts a screen over. The real flows run against the
 local database in the e2e tests (`tests/e2e/encryption.spec.ts`), which also

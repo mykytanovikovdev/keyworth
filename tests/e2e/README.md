@@ -32,12 +32,13 @@ Covered now:
   - the invite-list refusal is explained in the app's own words, and text in
     the URL is never shown; unknown error codes get a generic message;
   - the privacy policy and terms are public;
-  - signed in: the app opens (a new account on "Create a passphrase"),
+  - signed in: the app opens (a new account on how its encryption works),
     `/sign-in` sends back to it, sign-out ends the session, account deletion
     works after confirmation, and a session older than 10 minutes is asked to
     sign in again first.
 - **`encryption.spec.ts`** (Chromium, Firefox, WebKit; local builds only):
-  onboarding with the recovery key shown once and downloaded, printing the key
+  how the encryption works (steps both ways, axe), onboarding with the
+  recovery key shown once and downloaded, printing the key
   alone, unlocking (wrong, non-Latin, right), one unlock per browser (a new tab
   gets the key, Lock locks every tab, unlocking one unlocks the other),
   "Remember this device" and Lock, the 15-minute idle lock, recovery (a typo
