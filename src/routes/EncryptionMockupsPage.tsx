@@ -1,5 +1,7 @@
-import { LogOut, Settings } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { argon2idAsync } from "@noble/hashes/argon2.js";
+import { LogOut, RotateCcw, Settings } from "lucide-react";
+import { Fragment, useState, type ReactNode } from "react";
+import { CURRENT_KDF_PARAMS } from "../crypto/index.ts";
 import { DeleteAccountMock } from "../features/settings/DeleteAccountMock.tsx";
 import {
   BaseCurrencySection,
@@ -12,22 +14,131 @@ import {
 } from "../features/settings/EncryptionSettings.tsx";
 import { Section } from "../features/settings/Section.tsx";
 import { CreatePassphraseScreen } from "../features/unlock/CreatePassphraseScreen.tsx";
+import { KeyProgress } from "../features/unlock/key-progress.ts";
 import { KeysUnavailableScreen } from "../features/unlock/KeysUnavailableScreen.tsx";
 import { NeedsHttpsScreen } from "../features/unlock/NeedsHttpsScreen.tsx";
 import { RecoveryScreen } from "../features/unlock/RecoveryScreen.tsx";
 import { SaveRecoveryKeyScreen } from "../features/unlock/SaveRecoveryKeyScreen.tsx";
 import { UnlockScreen } from "../features/unlock/UnlockScreen.tsx";
-import { Button, ButtonLink, KeyworthMark, ThemeToggle } from "../ui/index.ts";
+import {
+  baseDuration,
+  Button,
+  ButtonLink,
+  KeyworthMark,
+  ThemeToggle,
+} from "../ui/index.ts";
 
 /*
  * Mockups of the phase 3.3 screens, for review before they are wired up
  * (dev and design builds only). `?screen=<id>` opens one; `&bare` hides the
- * switcher, for screenshots.
+ * switcher, for screenshots. The "try it" screens run Argon2 for the ring
+ * around the mark; Replay starts a screen over.
  */
 
 const EMAIL = "alex@example.com";
 // A sample to show the layout (the test vector of bytes 40..53), not a credential.
 const SAMPLE_KEY = "810M-4GT4-8N34-EJ29-995M-RKAE-9X85-2MJK-99VN"; // gitleaks:allow
+
+/**
+ * Argon2 with the production settings, or four times the passes to watch the
+ * ring under the same load. noble alone, without WebCrypto, so a phone on the
+ * local network can run it too (over HTTPS: see /design/kdf).
+ */
+async function derive(progress: KeyProgress, slow: boolean) {
+  const { memoryKiB, passes, parallelism } = CURRENT_KDF_PARAMS;
+  await argon2idAsync(
+    crypto.getRandomValues(new Uint8Array(24)),
+    crypto.getRandomValues(new Uint8Array(16)),
+    {
+      t: slow ? passes * 4 : passes,
+      m: memoryKiB,
+      p: parallelism,
+      dkLen: 32,
+      onProgress: progress.report,
+    },
+  );
+}
+
+/** A key screen's life as the app runs it: Argon2, then the lock turns or refuses. */
+function useTryIt({ slow = false, refuse = false }) {
+  const [progress] = useState(() => new KeyProgress());
+  const [phase, setPhase] = useState<"form" | "working" | "opened" | "done">(
+    "form",
+  );
+  const [refused, setRefused] = useState(false);
+  return {
+    progress,
+    pending: phase === "working",
+    opened: phase === "opened",
+    done: phase === "done",
+    refused,
+    clear: () => {
+      setRefused(false);
+    },
+    start: () => {
+      setRefused(false);
+      setPhase("working");
+      void derive(progress, slow).then(() => {
+        if (refuse) {
+          setRefused(true);
+          setPhase("form");
+          return;
+        }
+        setPhase("opened");
+        window.setTimeout(() => {
+          setPhase("done");
+        }, baseDuration());
+      });
+    },
+  };
+}
+
+function TryUnlock(options: { slow?: boolean; refuse?: boolean }) {
+  const demo = useTryIt(options);
+  if (demo.done) return <SettingsMock />;
+  return (
+    <UnlockScreen
+      email={EMAIL}
+      progress={demo.progress}
+      pending={demo.pending}
+      opened={demo.opened}
+      problem={demo.refused ? "wrong" : undefined}
+      onEdit={demo.clear}
+      onSubmit={demo.start}
+    />
+  );
+}
+
+function TryCreate() {
+  const demo = useTryIt({});
+  if (demo.done) {
+    return <SaveRecoveryKeyScreen email={EMAIL} recoveryKey={SAMPLE_KEY} />;
+  }
+  return (
+    <CreatePassphraseScreen
+      email={EMAIL}
+      progress={demo.progress}
+      pending={demo.pending}
+      opened={demo.opened}
+      onSubmit={demo.start}
+    />
+  );
+}
+
+function TryRecovery() {
+  const demo = useTryIt({});
+  if (demo.done) return <SettingsMock />;
+  return (
+    <RecoveryScreen
+      email={EMAIL}
+      progress={demo.progress}
+      pending={demo.pending}
+      opened={demo.opened}
+      onSubmit={demo.start}
+      backHref="/design/encryption?screen=unlock-try"
+    />
+  );
+}
 
 function SettingsMock({ dialog }: { dialog?: ReactNode }) {
   return (
@@ -97,6 +208,11 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
     render: () => <CreatePassphraseScreen email={EMAIL} pending />,
   },
   {
+    id: "create-try",
+    label: "1c. … try it: real Argon2",
+    render: () => <TryCreate />,
+  },
+  {
     id: "save-key",
     label: "2. Onboarding: save recovery key",
     render: () => (
@@ -146,6 +262,21 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
     render: () => <UnlockScreen email={EMAIL} pending />,
   },
   {
+    id: "unlock-try",
+    label: "3e. … try it: real Argon2",
+    render: () => <TryUnlock />,
+  },
+  {
+    id: "unlock-try-slow",
+    label: "3f. … try it: Argon2 four times longer",
+    render: () => <TryUnlock slow />,
+  },
+  {
+    id: "unlock-try-wrong",
+    label: "3g. … try it: a wrong passphrase",
+    render: () => <TryUnlock refuse />,
+  },
+  {
     id: "recovery-sign-in",
     label: "4. Recovery: sign in again",
     render: () => (
@@ -180,6 +311,11 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
         backHref="/design/encryption?screen=unlock"
       />
     ),
+  },
+  {
+    id: "recovery-try",
+    label: "4c. … try it: real Argon2",
+    render: () => <TryRecovery />,
   },
   {
     id: "settings",
@@ -246,10 +382,11 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
 export default function EncryptionMockupsPage() {
   const params = new URLSearchParams(window.location.search);
   const [screenId, setScreenId] = useState(params.get("screen") ?? "create");
+  const [run, setRun] = useState(0);
   const screen = SCREENS.find((entry) => entry.id === screenId) ?? SCREENS[0];
   return (
     <>
-      {screen?.render()}
+      <Fragment key={`${screenId}:${String(run)}`}>{screen?.render()}</Fragment>
       {!params.has("bare") && (
         <div className="fixed right-4 bottom-4 z-40 flex items-center gap-2 rounded-lg border border-line bg-raised p-2 shadow-raised">
           <label className="sr-only" htmlFor="mockup-screen">
@@ -272,6 +409,16 @@ export default function EncryptionMockupsPage() {
               </option>
             ))}
           </select>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={<RotateCcw aria-hidden="true" />}
+            onPress={() => {
+              setRun((count) => count + 1);
+            }}
+          >
+            Replay
+          </Button>
           <ThemeToggle />
         </div>
       )}
