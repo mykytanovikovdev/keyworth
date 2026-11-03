@@ -107,8 +107,11 @@ the same runtime, assets and headers as production.
 
 ## Pitfalls & gotchas
 
-- Run `npm run cf:types` after every change to `wrangler.jsonc`; CI fails if
-  `worker-configuration.d.ts` is stale.
+- Run `npm run cf:types` after every change to `wrangler.jsonc`, and after
+  every wrangler update: the file also holds the runtime types of wrangler's
+  workerd. CI fails while `worker-configuration.d.ts` is stale, so a
+  Dependabot pull request that bumps wrangler needs the regenerated file
+  committed on top.
 - **Local previews pass `--local-upstream localhost:<port>`.** Because
   `wrangler.jsonc` declares the keyworth.app route, a bare `wrangler dev`
   rewrites each request's host and `Origin` header to keyworth.app. Better Auth
