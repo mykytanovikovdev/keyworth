@@ -26,7 +26,8 @@ phase 4, and take their colors from the tokens below).
 | `UIProvider.tsx`               | English for React Aria's strings, icon defaults, links through the router |
 | `components/`                  | Base components, mostly thin styling layers over React Aria Components    |
 | `toast.ts`                     | The toast queue and `showToast()`, callable from anywhere                 |
-| `motion.ts`                    | anime.js helpers for charts and choreographed reveals                     |
+| `motion.ts`                    | anime.js helpers for charts and choreographed reveals; duration tokens    |
+| `viewport.ts`                  | The visible part of the page on iOS; fine pointer; closing the keyboard   |
 | `gallery/DesignSystemPage.tsx` | The `/design` page: every component and state                             |
 | `index.ts`                     | The public surface: import from `src/ui/index.ts`, not from inner files   |
 
@@ -128,13 +129,21 @@ in their final state without extra code.
 | `--kw-ease-chart`     | `cubic-bezier(0.4, 0, 0.2, 1)`   | Gentle at both ends, for charts          |
 | `--kw-duration-text`  | 400ms                            | Each streamed word fading in             |
 | `--kw-duration-step`  | 150ms                            | Agent steps and the status line          |
+| `--kw-duration-shake` | 360ms                            | A refused passphrase shaking the mark    |
 
 CSS covers entrances (`animate-enter`, `animate-fade-in`, `animate-pop-in`, and
 the matching `-out` exits), streamed words (`animate-word`), agent steps
-(`animate-step`) and height changes (`collapsible`). anime.js, through
+(`animate-step`), a refusal (`animate-shake`) and height changes
+(`collapsible`). anime.js, through
 `motion.ts`, covers what CSS expresses poorly: drawing a chart line with its
 fill opening exactly to the pen tip, filling a bar left to right, staggered
-reveals. Exits are faster than entrances.
+reveals. Exits are faster than entrances. To wait for a CSS transition in
+code, read its length with `baseDuration()` (0 with reduced motion).
+
+Motion that must stay smooth while the main thread is busy (the ring around
+the mark while Argon2 runs, in `src/features/unlock`) is a Web Animation
+(`element.animate`) of `transform`: the browser runs it by itself, and the CSP
+allows it, since it writes no style attribute.
 
 ### Icons
 
@@ -166,7 +175,7 @@ and form controls match.
 
 | Component                 | Built on                   | Notes                                                                              |
 | ------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
-| `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending`   |
+| `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending`¹  |
 | `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                  |
 | `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles                     |
 | `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill |
@@ -182,7 +191,11 @@ and form controls match.
 | `ThemeToggle`             | `ToggleButtonGroup`        | Icons in the header, icons with text in settings                                   |
 | `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`                  |
 | `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                     |
-| `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative                               |
+| `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative; `keyholeClassName`²          |
+
+¹ A spinner replaces the icon while pending; `spinner={false}` when something
+else on the screen shows the progress (the key screens' ring).
+² Motion for the keyhole alone, which turns like a lock on the key screens.
 
 Text controls (`TextField`, `PasswordField`, and feature fields built from
 React Aria parts, such as the recovery key field) share one box style,
@@ -317,6 +330,12 @@ design` also redirects `wrangler deploy` to `dist-design/` until the next
   trackpad the first field still takes focus.
 - The e2e test fakes the keyboard by replacing `visualViewport`, which
   Playwright cannot shrink or move by itself; it fails without either fix.
+- **The production CSS minifier rewrites durations in seconds** when shorter
+  (`240ms` becomes `.24s`). Read tokens with `durationMs()` (`motion.ts`), never
+  `parseFloat` alone: that read 0.24 ms, and only in production builds.
+- **On a phone, test motion and anything timed over HTTPS.** WebKit, which
+  every iOS browser uses, runs JavaScript many times slower on a page that is
+  not a secure context (`http://` to an IP address); see `/design/kdf`.
 - **Printing a recovery key** uses the one print rule in `styles.css`: while
   `<html>` has `data-printing-key`, everything is hidden except
   `[data-print-key]` (by `visibility`, so it works in dialogs, which render in

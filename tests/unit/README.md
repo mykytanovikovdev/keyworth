@@ -17,6 +17,11 @@ Covered now:
   key flow and every way it must fail, bound and padded envelopes, recovery
   keys and slot serialization. What each file proves:
   [docs/crypto-tests.md](docs/crypto-tests.md).
+- `src/ui/motion.ts` (`ui/`) — duration tokens read in milliseconds whether
+  written as `240ms` or, as the production CSS minifier writes them, `.24s`.
+- `src/features/unlock/key-progress.ts` (`unlock/`) — Argon2's readings reach
+  the ring's one listener; the ring's pace closes it as a fast derivation ends,
+  crawls on a slow device, waits when ahead, and never exceeds its limit.
 - `shared/schemas/` (`schemas.test.ts`) — accepted and rejected envelopes,
   Argon2 settings and record kinds.
 - `src/vault/` (`vault/`) — the key's states and flows against a fake server

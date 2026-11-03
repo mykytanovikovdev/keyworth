@@ -32,10 +32,18 @@ these settings, and how the settings can change. Code: `kdf.ts`, `params.ts`,
 | output    | 32 bytes                   |                                                           |
 
 Measured with these settings on the `/design/kdf` page (October 2026): **0.62 s
-in Safari on an iPhone** (iOS 18.7, median of five), 0.7 s in Chromium, 0.9 s
-in Firefox and 1.1 s in Playwright's WebKit on a recent Mac; 0.6 s in Node,
-against 0.09 s for Node's native OpenSSL Argon2id. The target was at most about
-1.5 s on a phone; the headroom covers slower phones.
+in Safari on an iPhone** (Safari 27 on iOS 27, median of five; the user agent
+still says iOS 18.7), 0.7 s in Chromium, 0.9 s in Firefox and 1.1 s in
+Playwright's WebKit on a recent Mac; 0.6 s in Node, against 0.09 s for Node's
+native OpenSSL Argon2id. The target was at most about 1.5 s on a phone; the
+headroom covers slower phones.
+
+**Measure on a phone over HTTPS.** WebKit, which every iOS browser uses, can
+run JavaScript many times slower on a page that is not a secure context: over
+plain http to the Mac's address the same derivation sometimes took 40 s on the
+same iPhone (November 2026), and Playwright's WebKit is always several times
+slower there. The production site is always HTTPS; `/design/kdf` shows whether
+the page is a secure context and where the time goes.
 
 **Accepted stored settings** (`KDF_LIMITS`): memory 19–256 MiB, passes 2–10,
 1–4 lanes, Argon2id version 19 only. Settings come back from the server and are
@@ -122,4 +130,4 @@ passphrase, refusal of non-Latin input before Argon2, non-extractable keys,
 progress, refused settings) and `tests/e2e/kdf-benchmark.spec.ts` (the vector
 and the production settings in Chromium, Firefox and WebKit under the real CSP).
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-03

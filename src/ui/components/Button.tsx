@@ -19,6 +19,8 @@ interface ButtonProps extends Omit<
   size?: ButtonSize;
   /** A Lucide icon before the label; replaced by a spinner while pending. */
   icon?: ReactNode;
+  /** False when something else on the screen shows the progress. */
+  spinner?: boolean;
   /** Layout only (margins, width); colors and sizes come from props. */
   className?: string;
   children: ReactNode;
@@ -28,6 +30,7 @@ export function Button({
   variant = "secondary",
   size = "md",
   icon,
+  spinner = true,
   className = "",
   children,
   ...props
@@ -37,7 +40,7 @@ export function Button({
       {...props}
       className={`${buttonClassName(variant, size)} ${className}`}
     >
-      {props.isPending ? (
+      {props.isPending && spinner ? (
         <LoaderCircle aria-hidden="true" className="motion-safe:animate-spin" />
       ) : (
         icon

@@ -86,7 +86,10 @@ React reads the state with `useVaultState()`; flows are methods on `vault`
   `recoveryKeySaved()`, and only in this tab's memory: a reload loses it, by
   design (it is shown once).
 - **Argon2 blocks the page** for about a second; flows that run it take an
-  `onProgress` callback for the unlock animation (phase 3, step 4).
+  `onProgress` callback, which the key screens turn into the ring around the
+  mark (`src/features/unlock/KeyMark.tsx`). The state turns `unlocked` before
+  `unlock()` returns, so a screen that wants to hold itself for a finale must
+  know beforehand (`useFinale` there).
 - **Web Storage and Web Locks can be missing.** Storage then behaves as empty
   (each tab on its own); without Web Locks a new tab waits 300 ms for an
   answer instead of knowing at once that nobody holds the key.

@@ -17,6 +17,7 @@ export { ThemeToggle } from "./components/ThemeToggle.tsx";
 export { Toaster } from "./components/Toaster.tsx";
 export { Tooltip } from "./components/Tooltip.tsx";
 export {
+  baseDuration,
   chartDuration,
   drawLineWithFill,
   fadeIn,
@@ -33,5 +34,9 @@ export {
   type ThemePreference,
 } from "./theme.ts";
 export { showToast, type ToastTone } from "./toast.ts";
-export { hasFinePointer, useVisualViewportTop } from "./viewport.ts";
+export {
+  dismissKeyboard,
+  hasFinePointer,
+  useVisualViewportTop,
+} from "./viewport.ts";
 export { UIProvider } from "./UIProvider.tsx";

@@ -1,5 +1,17 @@
-import type { ReactNode } from "react";
-import { Button, KeyworthMark } from "../../ui/index.ts";
+import { type ReactNode, useEffect } from "react";
+import { Button, dismissKeyboard } from "../../ui/index.ts";
+import type { KeyProgress } from "./key-progress.ts";
+import { KeyMark, type KeyMarkStatus } from "./KeyMark.tsx";
+
+function markStatus(
+  working: boolean,
+  opened: boolean,
+  refused: boolean,
+): KeyMarkStatus {
+  if (opened) return "opened";
+  if (working) return "working";
+  return refused ? "refused" : "idle";
+}
 
 /**
  * The frame shared by every screen that deals with keys: the same centered
@@ -13,6 +25,10 @@ export function KeyScreen({
   email,
   onSignOut,
   signingOut = false,
+  working = false,
+  opened = false,
+  refused = false,
+  progress,
   children,
 }: {
   /** "Step 1 of 2" in a sequence; nothing on a single screen. */
@@ -23,12 +39,26 @@ export function KeyScreen({
   email?: string;
   onSignOut?: () => void;
   signingOut?: boolean;
+  /** Argon2 at work: a ring around the mark fills with `progress`. */
+  working?: boolean;
+  /** The key opened the data: the keyhole turns, just before the next screen. */
+  opened?: boolean;
+  /** The secret did not open the data: the mark shakes. */
+  refused?: boolean;
+  progress?: KeyProgress | undefined;
   children: ReactNode;
 }) {
+  useEffect(() => {
+    // On a phone the keyboard would hide the ring: let the progress be seen.
+    if (working) dismissKeyboard();
+  }, [working]);
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-10">
       <div className="w-full max-w-sm">
-        <KeyworthMark className="size-10" />
+        <KeyMark
+          status={markStatus(working, opened, refused)}
+          progress={progress}
+        />
         {step && <p className="mt-6 text-sm text-fg-muted">{step}</p>}
         <h1
           className={`${step ? "mt-1" : "mt-6"} text-2xl font-semibold tracking-tight`}

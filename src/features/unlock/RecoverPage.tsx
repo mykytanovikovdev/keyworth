@@ -6,10 +6,12 @@ import { ApiError, vault } from "../../vault/index.ts";
 import { useSignOut } from "../auth/useSignOut.ts";
 import { DeleteAccount } from "../settings/DeleteAccount.tsx";
 import { hasFreshSignIn, signInAgain } from "./fresh-sign-in.ts";
+import { KeyProgress } from "./key-progress.ts";
 import { KeysUnavailableScreen } from "./KeysUnavailableScreen.tsx";
 import { failureMessage, type PassphraseProblem } from "./messages.ts";
 import { NeedsHttpsScreen } from "./NeedsHttpsScreen.tsx";
 import { type RecoveryKeyProblem, RecoveryScreen } from "./RecoveryScreen.tsx";
+import { useFinale } from "./useFinale.ts";
 import { useStartedVault } from "./useStartedVault.ts";
 
 const keyProblems: Partial<Record<string, RecoveryKeyProblem>> = {
@@ -23,10 +25,16 @@ function Recover({
   email,
   onSignOut,
   signingOut,
+  opened,
+  hold,
 }: {
   email: string;
   onSignOut: () => void;
   signingOut: boolean;
+  /** The data is open: the keyhole turns before the app. */
+  opened: boolean;
+  /** Keep this screen through the finale if the data opens. */
+  hold: (holding: boolean) => void;
 }) {
   const [fresh, setFresh] = useState<boolean>();
   const [problem, setProblem] = useState<RecoveryKeyProblem>();
@@ -34,6 +42,7 @@ function Recover({
     useState<PassphraseProblem>();
   const [pending, setPending] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [progress] = useState(() => new KeyProgress());
 
   useEffect(() => {
     hasFreshSignIn().then(setFresh, () => {
@@ -51,6 +60,8 @@ function Recover({
       problem={problem}
       passphraseProblem={passphraseProblem}
       pending={pending}
+      progress={progress}
+      opened={opened}
       signingIn={signingIn}
       signingOut={signingOut}
       onEdit={() => {
@@ -76,12 +87,14 @@ function Recover({
           return;
         }
         setPending(true);
-        vault.resetPassphrase(recoveryKey, newPassphrase).then(
+        hold(true);
+        vault.resetPassphrase(recoveryKey, newPassphrase, progress.report).then(
           () => {
             showToast("New passphrase set", { tone: "success" });
           },
           (error: unknown) => {
             setPending(false);
+            hold(false);
             if (error instanceof CryptoError) {
               setProblem(keyProblems[error.code] ?? "wrong");
               return;
@@ -109,6 +122,18 @@ function Recover({
 export function RecoverPage() {
   const { state, email } = useStartedVault();
   const { signOut, pending } = useSignOut();
+  const { opening, hold } = useFinale<true>(state.status === "unlocked");
+  const recover = (opened: boolean) => (
+    <Recover
+      email={email}
+      onSignOut={() => void signOut()}
+      signingOut={pending}
+      opened={opened}
+      hold={(holding) => {
+        hold(holding || null);
+      }}
+    />
+  );
   switch (state.status) {
     case "starting":
       return <div className="min-h-dvh" />;
@@ -124,15 +149,11 @@ export function RecoverPage() {
         />
       );
     case "no-keys":
-    case "unlocked":
       return <Navigate to="/" replace />;
+    case "unlocked":
+      // The same element as when locked, kept up while its keyhole turns.
+      return opening ? recover(true) : <Navigate to="/" replace />;
     case "locked":
-      return (
-        <Recover
-          email={email}
-          onSignOut={() => void signOut()}
-          signingOut={pending}
-        />
-      );
+      return recover(false);
   }
 }

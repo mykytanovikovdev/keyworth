@@ -83,6 +83,35 @@ async function unlock(page: Page, passphrase: string, remember = false) {
   await page.getByRole("button", { name: "Unlock" }).click();
 }
 
+/**
+ * Records, from now on, each status the keyhole mark shows: "working" while
+ * Argon2 runs (the ring), "opened" while the lock turns before the next
+ * screen, "refused" after a refusal. The finale lasts a quarter of a second,
+ * too short to catch by polling, so a MutationObserver writes the history.
+ */
+async function watchKeyMark(page: Page) {
+  await page.evaluate(() => {
+    const seen: string[] = [];
+    (window as { keyMarkSeen?: string[] }).keyMarkSeen = seen;
+    const record = () => {
+      const status = document
+        .querySelector("[data-key-mark]")
+        ?.getAttribute("data-key-mark");
+      if (status && seen.at(-1) !== status) seen.push(status);
+    };
+    new MutationObserver(record).observe(document.body, {
+      subtree: true,
+      childList: true,
+      attributes: true,
+      attributeFilter: ["data-key-mark"],
+    });
+    record();
+  });
+}
+
+const keyMarkSeen = (page: Page) =>
+  page.evaluate(() => (window as { keyMarkSeen?: string[] }).keyMarkSeen);
+
 async function openSettings(page: Page) {
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(
@@ -101,6 +130,7 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
   await expect(
     page.getByRole("heading", { level: 1, name: "Create a passphrase" }),
   ).toBeVisible();
+  await watchKeyMark(page);
   const field = page.getByLabel("Passphrase", { exact: true });
   const submit = page.getByRole("button", { name: "Continue" });
   // Not "new-password": that made Chrome generate the passphrase and save it.
@@ -118,6 +148,14 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
   await expect(
     page.getByRole("heading", { level: 1, name: "Save your recovery key" }),
   ).toBeVisible(AFTER_ARGON2);
+  // The ring ran only for the derivation, and the lock turned before this
+  // screen, whose own mark is at rest.
+  expect(await keyMarkSeen(page)).toEqual([
+    "idle",
+    "working",
+    "opened",
+    "idle",
+  ]);
   const label = await page
     .getByRole("group", { name: /^Recovery key: / })
     .getAttribute("aria-label");
@@ -176,15 +214,17 @@ test("unlock: a wrong passphrase is refused, the right one opens, a reload asks 
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/settings");
   await expect(unlockHeading(page)).toBeVisible();
-  await expect(page.getByLabel("Passphrase", { exact: true })).toHaveAttribute(
-    "autocomplete",
-    "off",
-  );
+  const field = page.getByLabel("Passphrase", { exact: true });
+  await expect(field).toHaveAttribute("autocomplete", "off");
+  await watchKeyMark(page);
 
   await unlock(page, "not my passphrase at all");
   await expect(
     page.getByText("This passphrase doesn't unlock your data."),
   ).toBeVisible(AFTER_ARGON2);
+  expect(await keyMarkSeen(page)).toEqual(["idle", "working", "refused"]);
+  // With a mouse, straight back to typing (the button had the focus).
+  await expect(field).toBeFocused();
   await unlock(page, "пароль на кириллице");
   await expect(page.getByText("Is the keyboard set to English?")).toBeVisible();
   await unlock(page, passphrase);
@@ -193,6 +233,7 @@ test("unlock: a wrong passphrase is refused, the right one opens, a reload asks 
   await expect(
     page.getByRole("heading", { level: 1, name: "Settings" }),
   ).toBeVisible(AFTER_ARGON2);
+  expect((await keyMarkSeen(page))?.slice(-2)).toEqual(["working", "opened"]);
   await page.reload();
   await expect(unlockHeading(page)).toBeVisible();
   expect(await cspViolations(page)).toEqual([]);
@@ -303,6 +344,8 @@ test("recovery: the recovery key and a new passphrase open the data", async ({
   const keyField = page.getByLabel("Recovery key");
   const passphraseField = page.getByLabel("New passphrase", { exact: true });
   const submit = page.getByRole("button", { name: "Set new passphrase" });
+  await expect(keyField).toBeVisible();
+  await watchKeyMark(page);
 
   // One character changed: the check group catches it before any cryptography.
   const typo = `${recoveryKey.startsWith("A") ? "B" : "A"}${recoveryKey.slice(1)}`;
@@ -314,6 +357,7 @@ test("recovery: the recovery key and a new passphrase open the data", async ({
   await keyField.fill(recoveryKey.replaceAll("-", " "));
   await submit.click();
   await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
+  expect((await keyMarkSeen(page))?.slice(-2)).toEqual(["working", "opened"]);
 
   await page.reload();
   await unlock(page, "a brand new passphrase");
