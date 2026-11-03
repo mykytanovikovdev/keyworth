@@ -15,8 +15,10 @@ and `/api/vault`, locking and unlocking the app live in
 **Status:** the primitives, the key flows, server storage (`/api/keys`,
 `/api/vault`, see [worker/routes/](../../worker/routes/README.md)) and the
 screens that use them ([src/vault](../vault/README.md),
-[src/features/unlock](../features/unlock/README.md)) are implemented and
-tested (phase 3, steps 1 to 3).
+[src/features/unlock](../features/unlock/README.md)), with Argon2's progress
+shown as a ring around the mark, are implemented and tested (phase 3). Still to
+come in phase 3: an animation in onboarding that explains what is encrypted
+where.
 
 ## How it works
 
