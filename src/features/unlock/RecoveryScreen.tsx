@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Button, PasswordField, TextLink } from "../../ui/index.ts";
+import type { KeyProgress } from "./key-progress.ts";
 import { KeyScreen } from "./KeyScreen.tsx";
 import {
   messages,
@@ -30,6 +31,8 @@ export function RecoveryScreen({
   problem,
   passphraseProblem,
   pending = false,
+  progress,
+  opened = false,
   signingIn = false,
   onSubmit,
   onEdit,
@@ -47,6 +50,10 @@ export function RecoveryScreen({
   /** What is wrong with the new passphrase. */
   passphraseProblem?: PassphraseProblem | undefined;
   pending?: boolean;
+  /** Argon2's progress while pending, for the ring around the mark. */
+  progress?: KeyProgress | undefined;
+  /** The new passphrase is set: the lock turns, just before the app shows. */
+  opened?: boolean;
   signingIn?: boolean;
   onSubmit?: (reset: { recoveryKey: string; newPassphrase: string }) => void;
   /** A field changed: shown problems no longer apply. */
@@ -93,13 +100,17 @@ export function RecoveryScreen({
       description="Enter the key you saved when you set up Keyworth, then choose a new passphrase. Your recovery key keeps working afterwards."
       email={email}
       signingOut={signingOut}
+      working={pending}
+      opened={opened}
+      refused={problem !== undefined}
+      progress={progress}
       {...(onSignOut && { onSignOut })}
     >
       <form
         className="mt-8 flex flex-col gap-5"
         onSubmit={(event) => {
           event.preventDefault();
-          if (pending) return;
+          if (pending || opened) return;
           onSubmit?.({
             recoveryKey: formText(event.currentTarget, "recoveryKey"),
             newPassphrase: formText(event.currentTarget, "newPassphrase"),
@@ -109,7 +120,7 @@ export function RecoveryScreen({
         <RecoveryKeyField
           name="recoveryKey"
           errorMessage={problem && keyMessages[problem]}
-          isReadOnly={pending}
+          isReadOnly={pending || opened}
           {...(onEdit && { onChange: onEdit })}
           {...(defaultRecoveryKey !== undefined && {
             defaultValue: defaultRecoveryKey,
@@ -123,11 +134,16 @@ export function RecoveryScreen({
           errorMessage={
             passphraseProblem && passphraseMessage(passphraseProblem)
           }
-          isReadOnly={pending}
+          isReadOnly={pending || opened}
           {...(onEdit && { onChange: onEdit })}
         />
-        <Button type="submit" variant="primary" isPending={pending}>
-          {pending ? "Unlocking…" : "Set new passphrase"}
+        <Button
+          type="submit"
+          variant="primary"
+          isPending={pending || opened}
+          spinner={false}
+        >
+          {pending || opened ? "Unlocking…" : "Set new passphrase"}
         </Button>
       </form>
       {back}

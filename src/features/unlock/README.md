@@ -23,6 +23,7 @@ callbacks, so `/design/encryption` can show every state without a server:
 | File                         | Shows                                                                    |
 | ---------------------------- | ------------------------------------------------------------------------ |
 | `KeyScreen.tsx`              | The shared frame: the sign-in page's centered column, title, account row |
+| `KeyMark.tsx`                | The keyhole mark on top: Argon2's progress ring, the lock turning        |
 | `CreatePassphraseScreen.tsx` | Onboarding step 1: one passphrase field                                  |
 | `SaveRecoveryKeyScreen.tsx`  | Onboarding step 2: the key, Download / Copy / Print, "I've saved it"     |
 | `RecoveryKeyPanel.tsx`       | The key in a 3 × 3 grid, and the three ways to keep it                   |
@@ -40,12 +41,38 @@ callbacks, so `/design/encryption` can show every state without a server:
 | `RecoverPage.tsx`    | `/recover`, outside the gate (the user is locked out of it)          |
 | `useStartedVault.ts` | Starts the vault for the signed-in user                              |
 | `fresh-sign-in.ts`   | Asks `/api/me` whether the sign-in is recent enough; "Sign in again" |
+| `key-progress.ts`    | `KeyProgress` (Argon2's readings for the ring) and the ring's pace   |
+| `useFinale.ts`       | Keeps a key screen up while its keyhole turns, after the data opens  |
 | `messages.ts`        | What each refusal means to the person typing; toasts for the rest    |
 | `form-text.ts`       | A field's value from a submitted form                                |
 
 Containers check what they can before the slow part: a passphrase that is not
 plain Latin, too short or too long is refused at once (`checkPassphrase`),
 before Argon2 runs; a recovery key's typos are caught by its check group.
+
+**The lock while Argon2 runs** (owner's choice of three storyboards,
+2026-11-03): on Unlock, Create a passphrase and Recovery, a thin ring around
+the keyhole mark fills with Argon2's real progress (0.6–1 s on today's
+phones and laptops); the button says "Unlocking…" or "Encrypting…" without a
+spinner, since the ring shows the progress. When the data opens, the ring
+closes and the keyhole turns a quarter, like a key in a lock (240 ms), and
+only then does the next screen show; a refused passphrase or recovery key
+shakes the mark. Dialogs in Settings keep the spinner on their button.
+
+```
+submit ─► KeyMark "working": a Web Animation, paced by KeyProgress readings
+       │       (vault … onProgress: progress.report ─► progress.listen)
+       ├► data open ─► vault unlocked; useFinale holds the same screen,
+       │               KeyMark "opened" (keyhole turns) ─► next screen
+       └► refused ───► KeyMark "refused" (shake), message under the field
+```
+
+The vault turns unlocked before the call that opened it returns, so the
+screen tells the gate beforehand (`hold(true)` at submit, `hold(false)` on a
+failure); `useFinale` then keeps that screen, the same element in the tree,
+for `baseDuration()` once the vault is unlocked. A device that is already
+remembered, or a key from another tab, has no Argon2 and no ring: the app
+opens at once.
 
 ## Why this way (decisions with the owner, 2026-10-31)
 
@@ -83,13 +110,27 @@ before Argon2 runs; a recovery key's typos are caught by its check group.
 
 ## Pitfalls & gotchas
 
-- **Argon2 nearly stops frames and timers** in Chromium and Firefox while it
-  runs: the pending state is a spinner on the button, and the unlock animation
-  (step 4) must be CSS `transform`/`opacity` driven by `requestAnimationFrame`.
+- **Argon2 leaves the main thread few frames** (Chromium draws about ten a
+  second while it runs). So the ring is one Web Animation of `transform` that
+  the browser runs by itself; the readings only retune its `playbackRate`, at
+  most every 250 ms. Set `playbackRate` directly: `updatePlaybackRate()` holds
+  the animation until the next frame, and with frames this scarce the ring
+  stood still. The pace starts cautious (two seconds per turn), so a slow
+  device does not see the ring run ahead, and follows the first readings
+  after 3% or 150 ms (`ringRate`, unit-tested).
+- **On a phone the keyboard would hide the ring**: when work starts, the
+  key screen takes the focus out of the field (`dismissKeyboard`, touch only).
+  With a mouse, a refusal puts the cursor back in the field.
+- **The finale relies on the gate rendering the same element type** for the
+  screen while locked and while holding: a different element would remount
+  the screen and lose its state.
 - **`crypto.subtle` exists only on secure pages** (HTTPS, `localhost`): the
   vault reports `insecure` and the gate shows `NeedsHttpsScreen`. On a phone,
-  test on the production site or through an HTTPS tunnel, not on
-  `http://<Mac's IP>`.
+  test on the production site or over HTTPS on the local network, not on
+  `http://<Mac's IP>`. The same goes for anything timed: WebKit (every
+  browser on iOS) runs JavaScript 8 to 55 times slower on a page that is not
+  a secure context, which made Argon2 take 40 s on an iPhone opening the
+  mockups over plain http.
 - **The checkbox is a hidden input under a drawn box**: tests click its label.
 - **Printing** sets `data-printing-key` on `<html>`; the print styles in
   `src/ui/styles.css` then hide everything but the key, also in a dialog.
@@ -104,9 +145,12 @@ before Argon2 runs; a recovery key's typos are caught by its check group.
 ## How to work with it
 
 `npm run dev`, then `/design/encryption`: every screen and state, with a
-switcher at the bottom right. The real flows run against the local database
-in the e2e tests (`tests/e2e/encryption.spec.ts`). When a screen changes,
-update its states there, and check both themes at 390 and 1440 px.
+switcher at the bottom right. The "try it" screens (1c, 3e–3g, 4c) run real
+Argon2 for the ring, the turn and a refusal (3f takes four times longer, to
+watch the ring); Replay starts a screen over. The real flows run against the
+local database in the e2e tests (`tests/e2e/encryption.spec.ts`), which also
+record the mark's statuses. When a screen changes, update its states there,
+and check both themes at 390 and 1440 px.
 
 ## Related
 

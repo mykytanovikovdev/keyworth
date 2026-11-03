@@ -27,6 +27,10 @@ and the production Argon2 settings.
   loses input or aborts the test's own navigation (Firefox).
 - **Time** for the idle lock is moved by writing an older activity time to
   localStorage and firing `focus`, which is what a returning user does.
+- **The keyhole mark's statuses** (`data-key-mark`: `working` while Argon2
+  runs, `opened` while the lock turns, `refused`) are recorded by a
+  MutationObserver from the moment the screen shows (`watchKeyMark`): the
+  finale lasts a quarter of a second, too short to catch by polling.
 - Each test also asserts **no CSP violations and no console errors** where it
   matters: a 404 in the console fails the test, which is why "not remembered"
   is a 200 with `{ slot: null }`.
@@ -36,12 +40,15 @@ and the production Argon2 settings.
 - **Onboarding:** a non-Latin and a short passphrase are refused with their
   messages; a valid one leads to the recovery key (nine groups), which
   downloads as `keyworth-recovery-key.txt` containing it exactly; "I've saved
-  it" opens the app; both slots are stored.
+  it" opens the app; both slots are stored. The ring runs only for the
+  derivation (refusals before Argon2 do not start it), and the lock turns
+  before the recovery key shows.
 - **Printing** shows only the key: with print media and the printing marker,
   the heading and buttons are hidden and the key is visible.
-- **Unlocking:** a wrong and a non-Latin passphrase get their messages; the
-  right one opens the page that was asked for (`/settings`); a reload asks
-  again.
+- **Unlocking:** a wrong and a non-Latin passphrase get their messages; after
+  the wrong one the mark went from the ring to a refusal, and the cursor is
+  back in the field; the right one turns the lock before the page that was
+  asked for (`/settings`) shows; a reload asks again.
 - **One unlock per browser:** a second tab opens without the passphrase; Lock
   in one tab locks both; unlocking one unlocks the other.
 - **Remember this device:** with the checkbox, the device row exists and a
@@ -49,8 +56,8 @@ and the production Argon2 settings.
 - **Idle lock:** 16 minutes after the last activity, coming back locks the tab
   with "Locked after 15 minutes without activity."
 - **Recovery:** a key with one wrong character is caught as a typo; the right
-  key (typed with spaces instead of dashes) and a new passphrase open the app,
-  and the new passphrase unlocks after a reload. With a sign-in older than 10
+  key (typed with spaces instead of dashes) and a new passphrase open the app
+  after the lock turns, and the new passphrase unlocks after a reload. With a sign-in older than 10
   minutes, `/recover` offers "Sign in again" (to Google) and no fields and no
   delete button. With a fresh sign-in, someone who lost the recovery key too
   deletes the account from `/recover` and lands on the sign-in page; the user
@@ -69,7 +76,9 @@ and the production Argon2 settings.
 The real Google round trip (checked by hand); "Copy" (clipboard permissions
 differ between engines in headless mode); the print dialog itself; the
 Argon2 upgrade (no slot has weaker settings yet; unit-tested); browser
-storage being unavailable.
+storage being unavailable; how smooth the ring looks (checked by eye, on a
+phone over HTTPS; its pace is unit-tested); the keyboard closing on a phone
+(touch screens only).
 
 ## Adding a case
 
