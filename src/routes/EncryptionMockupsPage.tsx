@@ -14,6 +14,7 @@ import {
 } from "../features/settings/EncryptionSettings.tsx";
 import { Section } from "../features/settings/Section.tsx";
 import { CreatePassphraseScreen } from "../features/unlock/CreatePassphraseScreen.tsx";
+import { ExplainerScreen } from "../features/unlock/ExplainerScreen.tsx";
 import { KeyProgress } from "../features/unlock/key-progress.ts";
 import { KeysUnavailableScreen } from "../features/unlock/KeysUnavailableScreen.tsx";
 import { NeedsHttpsScreen } from "../features/unlock/NeedsHttpsScreen.tsx";
@@ -186,6 +187,16 @@ function SettingsMock({ dialog }: { dialog?: ReactNode }) {
 }
 
 const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
+  {
+    id: "explainer",
+    label: "0. Onboarding: only you can read your portfolio",
+    render: () => <ExplainerScreen email={EMAIL} />,
+  },
+  {
+    id: "explainer-still",
+    label: "0a. … with reduced motion",
+    render: () => <ExplainerScreen email={EMAIL} still />,
+  },
   {
     id: "create",
     label: "1. Onboarding: create passphrase",
