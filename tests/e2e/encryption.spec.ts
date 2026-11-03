@@ -16,7 +16,16 @@ import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 const RECOVERY_KEY = /^([0-9A-Z]{4}-){8}[0-9A-Z]{4}$/;
 const RECOVERY_KEY_LABEL = /^Recovery key: ([0-9A-Z]{4}-){8}[0-9A-Z]{4}$/;
 
+/**
+ * Argon2 with the production settings takes about a second per derivation on
+ * a laptop and several in CI, slowest in WebKit on Linux; a test here runs up
+ * to six. So every test gets three times the usual time, and every wait that
+ * follows a derivation gets this much.
+ */
+const AFTER_ARGON2 = { timeout: 30_000 };
+
 test.beforeEach(async ({ page }) => {
+  test.slow();
   await watchCspViolations(page);
 });
 
@@ -108,7 +117,7 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
 
   await expect(
     page.getByRole("heading", { level: 1, name: "Save your recovery key" }),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible(AFTER_ARGON2);
   const label = await page
     .getByRole("group", { name: /^Recovery key: / })
     .getAttribute("aria-label");
@@ -141,7 +150,7 @@ test("prints the recovery key alone", async ({ page, context, baseURL }) => {
     .fill("purple elephant dances at noon");
   await page.getByRole("button", { name: "Continue" }).click();
   const key = page.getByRole("group", { name: /^Recovery key: / });
-  await expect(key).toBeVisible({ timeout: 15_000 });
+  await expect(key).toBeVisible(AFTER_ARGON2);
 
   await page.emulateMedia({ media: "print" });
   await page.evaluate(() => {
@@ -175,7 +184,7 @@ test("unlock: a wrong passphrase is refused, the right one opens, a reload asks 
   await unlock(page, "not my passphrase at all");
   await expect(
     page.getByText("This passphrase doesn't unlock your data."),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible(AFTER_ARGON2);
   await unlock(page, "пароль на кириллице");
   await expect(page.getByText("Is the keyboard set to English?")).toBeVisible();
   await unlock(page, passphrase);
@@ -183,7 +192,7 @@ test("unlock: a wrong passphrase is refused, the right one opens, a reload asks 
   // Where the user was going, not the home page.
   await expect(
     page.getByRole("heading", { level: 1, name: "Settings" }),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible(AFTER_ARGON2);
   await page.reload();
   await expect(unlockHeading(page)).toBeVisible();
   expect(await cspViolations(page)).toEqual([]);
@@ -198,7 +207,7 @@ test("one unlock per browser: a new tab gets the key, Lock locks every tab", asy
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase);
-  await expect(welcome(page)).toBeVisible({ timeout: 15_000 });
+  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
 
   const second = await context.newPage();
   await watchCspViolations(second);
@@ -215,7 +224,7 @@ test("one unlock per browser: a new tab gets the key, Lock locks every tab", asy
   await expect(unlockHeading(second)).toBeVisible();
   // Unlocking one tab unlocks the other again.
   await unlock(page, passphrase);
-  await expect(welcome(second)).toBeVisible({ timeout: 15_000 });
+  await expect(welcome(second)).toBeVisible(AFTER_ARGON2);
   expect(await cspViolations(second)).toEqual([]);
 });
 
@@ -228,7 +237,7 @@ test("Remember this device: a reload opens the app; Lock forgets the device", as
   const { passphrase, userId } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase, true);
-  await expect(welcome(page)).toBeVisible({ timeout: 15_000 });
+  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
   expect(
     await sql("select 1 from device_unlocks where user_id = $1", [userId]),
   ).toHaveLength(1);
@@ -262,7 +271,7 @@ test("locks after 15 minutes without activity, and says so", async ({
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase);
-  await expect(welcome(page)).toBeVisible({ timeout: 15_000 });
+  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
 
   // As if the last key press were 16 minutes ago and the tab came back now.
   const reloaded = page.waitForEvent("load");
@@ -304,11 +313,11 @@ test("recovery: the recovery key and a new passphrase open the data", async ({
 
   await keyField.fill(recoveryKey.replaceAll("-", " "));
   await submit.click();
-  await expect(welcome(page)).toBeVisible({ timeout: 15_000 });
+  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
 
   await page.reload();
   await unlock(page, "a brand new passphrase");
-  await expect(welcome(page)).toBeVisible({ timeout: 15_000 });
+  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
   expect(await cspViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
 });
@@ -398,14 +407,12 @@ test("Settings: change the passphrase, create a new recovery key", async ({
   await change.getByRole("button", { name: "Change passphrase" }).click();
   await expect(
     change.getByText("This passphrase doesn't unlock your data."),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible(AFTER_ARGON2);
   await change
     .getByLabel("Current passphrase", { exact: true })
     .fill(passphrase);
   await change.getByRole("button", { name: "Change passphrase" }).click();
-  await expect(page.getByText("Passphrase changed")).toBeVisible({
-    timeout: 15_000,
-  });
+  await expect(page.getByText("Passphrase changed")).toBeVisible(AFTER_ARGON2);
   await expect(change).toHaveCount(0);
 
   await page.getByRole("button", { name: "Create new key" }).click();
@@ -421,7 +428,7 @@ test("Settings: change the passphrase, create a new recovery key", async ({
   });
   await expect(
     save.getByRole("group", { name: RECOVERY_KEY_LABEL }),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible(AFTER_ARGON2);
   await save.getByRole("button", { name: "I've saved it" }).click();
   await expect(save).toHaveCount(0);
   expect(await recoveryIv()).not.toBe(before);
@@ -430,7 +437,7 @@ test("Settings: change the passphrase, create a new recovery key", async ({
   await unlock(page, "the new passphrase");
   await expect(
     page.getByRole("heading", { level: 1, name: "Settings" }),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible(AFTER_ARGON2);
   expect(await cspViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
 });
@@ -445,7 +452,7 @@ test("Settings asks for a fresh sign-in before a new passphrase is typed", async
   await unlock(page, passphrase);
   await expect(
     page.getByRole("heading", { level: 1, name: "Settings" }),
-  ).toBeVisible({ timeout: 15_000 });
+  ).toBeVisible(AFTER_ARGON2);
   await sql(
     "update session set created_at = now() - interval '11 minutes' where user_id = $1",
     [userId],
@@ -470,7 +477,7 @@ test("the base currency is the first encrypted record", async ({
   await unlock(page, passphrase);
 
   const currency = page.getByRole("button", { name: /^Base currency/ });
-  await expect(currency).toHaveAccessibleName(/US dollar/, { timeout: 15_000 });
+  await expect(currency).toHaveAccessibleName(/US dollar/, AFTER_ARGON2);
   await currency.click();
   await page.getByRole("menuitemradio", { name: "Euro (EUR)" }).click();
   await expect(currency).toHaveAccessibleName(/Euro/);
@@ -486,7 +493,7 @@ test("the base currency is the first encrypted record", async ({
 
   await page.reload();
   await unlock(page, passphrase);
-  await expect(currency).toHaveAccessibleName(/Euro/, { timeout: 15_000 });
+  await expect(currency).toHaveAccessibleName(/Euro/, AFTER_ARGON2);
 });
 
 test("Sign out everywhere signs out every tab", async ({
@@ -497,7 +504,7 @@ test("Sign out everywhere signs out every tab", async ({
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase);
-  await expect(welcome(page)).toBeVisible({ timeout: 15_000 });
+  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
   const second = await context.newPage();
   await second.goto("/settings");
   await expect(

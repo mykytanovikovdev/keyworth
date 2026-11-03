@@ -82,7 +82,10 @@ test("…", async ({ page, context, baseURL }) => {
 });
 ```
 
-Give Argon2 time: assertions right after an unlock or a key change use
-`{ timeout: 15_000 }`.
+Give Argon2 time: every test in the file is marked `test.slow()` (three times
+the usual 30 seconds), and assertions right after an unlock or a key change
+use `AFTER_ARGON2` (30 seconds). In CI a derivation takes several seconds,
+most in WebKit on Linux; with 15 seconds and the default test time, the test
+with six derivations failed there twice in a row (2026-11-03).
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-03

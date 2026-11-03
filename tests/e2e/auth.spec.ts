@@ -27,7 +27,7 @@ async function signIn(context: BrowserContext, baseURL: string) {
   return email;
 }
 
-/** Signed in, with keys set up earlier, and unlocked on `path`. */
+/** Signed in, with keys set up earlier, and unlocked on `path` (Argon2: slow in CI). */
 async function signInUnlocked(
   page: Page,
   context: BrowserContext,
@@ -44,7 +44,7 @@ async function signInUnlocked(
   await page.getByRole("button", { name: "Unlock" }).click();
   await expect(page.getByRole("heading", { level: 1 })).not.toHaveText(
     "Unlock Keyworth",
-    { timeout: 15_000 },
+    { timeout: 30_000 },
   );
   return email;
 }
