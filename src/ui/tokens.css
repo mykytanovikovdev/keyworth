@@ -23,6 +23,8 @@
   --kw-duration-text: 400ms;
   /* Agent steps and their summary fade in quickly, ahead of the answer text. */
   --kw-duration-step: 150ms;
+  /* A refused passphrase: the mark shakes a few times, like a passcode on a phone. */
+  --kw-duration-shake: 360ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -34,6 +36,7 @@
     --kw-duration-chart: 0ms;
     --kw-duration-text: 0ms;
     --kw-duration-step: 0ms;
+    --kw-duration-shake: 0ms;
   }
 }
 

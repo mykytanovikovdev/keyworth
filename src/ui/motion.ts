@@ -53,6 +53,11 @@ function token(name: DurationToken): number {
   );
 }
 
+/** How long an entrance takes (0 with reduced motion), for waiting on one. */
+export function baseDuration(): number {
+  return prefersReducedMotion() ? 0 : token("duration-base");
+}
+
 /** How long a chart takes to draw, for sequencing things after it. */
 export function chartDuration(): number {
   return prefersReducedMotion() ? 0 : token("duration-chart");

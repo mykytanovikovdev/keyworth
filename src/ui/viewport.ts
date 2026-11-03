@@ -43,3 +43,14 @@ export function hasFinePointer(): boolean {
     window.matchMedia("(pointer: fine)").matches
   );
 }
+
+/**
+ * On a touch screen, takes the focus out of the field so the keyboard closes
+ * and the whole screen shows, for progress shown away from the field.
+ */
+export function dismissKeyboard(): void {
+  if (hasFinePointer()) return;
+  if (document.activeElement instanceof HTMLElement) {
+    document.activeElement.blur();
+  }
+}
