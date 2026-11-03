@@ -2,9 +2,9 @@
 
 > Your net worth. Your key.
 
-**Status: early development (design phase).** The project scaffold, security headers, tests and
-deployment pipeline are in place; product features are being built in phases.
-Nothing here is ready for real data yet.
+**Status: early development.** Google sign-in, security headers, tests, the deployment pipeline
+and end-to-end encryption of user data are in place; the portfolio features are being built in
+phases. Nothing here is ready for real data yet.
 
 Keyworth is an investment portfolio tracker (crypto first; stocks, ETFs and metals
 next) with an AI assistant you can ask questions in plain language, in any
