@@ -6,14 +6,14 @@ app) and how each flow changes the keys on the server. Code: `vault.ts`,
 
 ## States
 
-| State      | Means                                               | The app shows                        |
-| ---------- | --------------------------------------------------- | ------------------------------------ |
-| `starting` | Loading the keys, asking the other tabs             | Nothing yet                          |
-| `insecure` | Not a secure context: no `crypto.subtle`            | "Open Keyworth over HTTPS"           |
-| `failed`   | The keys could not be loaded (offline, server down) | An error with "Try again"            |
-| `no-keys`  | Signed in, no keys yet                              | Create a passphrase                  |
-| `locked`   | Keys exist, the data key is not in memory           | Unlock (with "Locked after 15 min…") |
-| `unlocked` | The data key is in memory                           | The app; first the recovery key once |
+| State      | Means                                               | The app shows                          |
+| ---------- | --------------------------------------------------- | -------------------------------------- |
+| `starting` | Loading the keys, asking the other tabs             | Nothing yet                            |
+| `insecure` | Not a secure context: no `crypto.subtle`            | "Open Keyworth over HTTPS"             |
+| `failed`   | The keys could not be loaded (offline, server down) | An error with "Try again"              |
+| `no-keys`  | Signed in, no keys yet                              | How it works, then Create a passphrase |
+| `locked`   | Keys exist, the data key is not in memory           | Unlock (with "Locked after 15 min…")   |
+| `unlocked` | The data key is in memory                           | The app; first the recovery key once   |
 
 ## Starting
 
@@ -127,4 +127,4 @@ with the real API's rules; the same flows in real browsers are in
 - Keep `readRecords` returning damaged records instead of throwing: one bad
   record must not hide a user's other data.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-03

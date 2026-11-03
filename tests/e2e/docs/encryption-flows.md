@@ -37,6 +37,12 @@ and the production Argon2 settings.
 
 ## What is proven
 
+- **How it works:** a new account opens on "Only you can read your
+  portfolio"; Next, Back and the dots move between the six steps (the caption
+  follows, the current dot is `aria-current`, Back and Next turn off at the
+  ends); Continue works from the first step and leads to "Create a
+  passphrase", step 2 of 3. Without motion, its first and last step have no
+  axe violations (the last one dims a key but keeps its label readable).
 - **Onboarding:** a non-Latin and a short passphrase are refused with their
   messages; a valid one leads to the recovery key (nine groups), which
   downloads as `keyworth-recovery-key.txt` containing it exactly; "I've saved

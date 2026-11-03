@@ -3,9 +3,10 @@ import { TEST_DATABASE_URL } from "../support/database.ts";
 import { setUpKeys } from "../support/keys.ts";
 import { createSignedInUser } from "../support/session.ts";
 
-// App screens with fixed content: sign-in, creating a passphrase, unlocking,
-// and settings (with the account deletion dialog) for a signed-in user whose
-// name and email never change between runs.
+// App screens with fixed content: sign-in, how the encryption works (its last
+// step, without motion), creating a passphrase, unlocking, and settings (with
+// the account deletion dialog) for a signed-in user whose name and email never
+// change between runs.
 
 const THEMES = ["light", "dark"] as const;
 const WIDTHS = [390, 1440] as const;
@@ -70,6 +71,7 @@ for (const theme of THEMES) {
         `create-${theme}-${String(width).padStart(4, "0")}@example.com`,
       );
       await page.goto("/");
+      await page.getByRole("button", { name: "Continue" }).click();
       await expect(
         page.getByRole("heading", { level: 1, name: "Create a passphrase" }),
       ).toBeVisible();
@@ -77,6 +79,37 @@ for (const theme of THEMES) {
 
       await expect(page).toHaveScreenshot(
         `create-passphrase-${theme}-${String(width)}.png`,
+      );
+    });
+
+    test(`how the encryption works, ${theme}, ${String(width)}px`, async ({
+      page,
+      context,
+      baseURL,
+    }) => {
+      // Without motion the steps show their final picture at once.
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await prepare(page, theme, width);
+      await signIn(
+        context,
+        baseURL,
+        `explain-${theme}-${String(width).padStart(4, "0")}@example.com`,
+      );
+      await page.goto("/");
+      await expect(
+        page.getByRole("heading", {
+          level: 1,
+          name: "Only you can read your portfolio",
+        }),
+      ).toBeVisible();
+      // The last step: every part of the picture, both keys crossed out.
+      await page.getByRole("button", { name: "Step 6 of 6" }).click();
+      await page.evaluate(() => document.fonts.ready);
+
+      // The server's characters are random on every run.
+      await expect(page).toHaveScreenshot(
+        `explainer-${theme}-${String(width)}.png`,
+        { mask: [page.locator('[data-part="scrambled"]')] },
       );
     });
 
