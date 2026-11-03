@@ -317,6 +317,9 @@ design` also redirects `wrangler deploy` to `dist-design/` until the next
   trackpad the first field still takes focus.
 - The e2e test fakes the keyboard by replacing `visualViewport`, which
   Playwright cannot shrink or move by itself; it fails without either fix.
+- **The production CSS minifier rewrites durations in seconds** when shorter
+  (`240ms` becomes `.24s`). Read tokens with `durationMs()` (`motion.ts`), never
+  `parseFloat` alone: that read 0.24 ms, and only in production builds.
 - **Printing a recovery key** uses the one print rule in `styles.css`: while
   `<html>` has `data-printing-key`, everything is hidden except
   `[data-print-key]` (by `visibility`, so it works in dialogs, which render in

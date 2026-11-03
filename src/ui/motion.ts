@@ -37,11 +37,20 @@ export function useReducedMotion(): boolean {
   return useSyncExternalStore(subscribeToReducedMotion, prefersReducedMotion);
 }
 
+/**
+ * A CSS duration in milliseconds. Tokens are written in ms, but the production
+ * CSS minifier rewrites them in seconds when shorter (240ms becomes .24s).
+ */
+export function durationMs(value: string): number {
+  const text = value.trim();
+  const amount = Number.parseFloat(text) || 0;
+  return text.endsWith("ms") || !text.endsWith("s") ? amount : amount * 1000;
+}
+
 function token(name: DurationToken): number {
-  const value = getComputedStyle(document.documentElement).getPropertyValue(
-    `--kw-${name}`,
+  return durationMs(
+    getComputedStyle(document.documentElement).getPropertyValue(`--kw-${name}`),
   );
-  return Number.parseFloat(value) || 0;
 }
 
 /** How long a chart takes to draw, for sequencing things after it. */

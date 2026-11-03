@@ -17,6 +17,8 @@ Covered now:
   key flow and every way it must fail, bound and padded envelopes, recovery
   keys and slot serialization. What each file proves:
   [docs/crypto-tests.md](docs/crypto-tests.md).
+- `src/ui/motion.ts` (`ui/`) — duration tokens read in milliseconds whether
+  written as `240ms` or, as the production CSS minifier writes them, `.24s`.
 - `shared/schemas/` (`schemas.test.ts`) — accepted and rejected envelopes,
   Argon2 settings and record kinds.
 - `src/vault/` (`vault/`) — the key's states and flows against a fake server
