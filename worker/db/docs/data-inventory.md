@@ -8,7 +8,7 @@ not listed here, it should not exist. Schema: `schema.ts` and the generated
 
 | Table             | Holds                                                                                                                         | Readable by the server                                           | Deleted with                |
 | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------- |
-| `user`            | id, name, email, email verified, dates (avatar URL always null)                                                               | Yes                                                              | — (the account)             |
+| `user`            | id, name, email, email verified, dates, which terms it accepted and when (avatar URL always null)                             | Yes                                                              | — (the account)             |
 | `session`         | token, expiry, IP address, user agent, dates                                                                                  | Yes                                                              | user                        |
 | `account`         | the link to the Google account (provider and account ids); Google tokens always null                                          | Yes                                                              | user                        |
 | `verification`    | short-lived OAuth state                                                                                                       | Yes                                                              | expiry (Better Auth)        |
@@ -68,4 +68,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-05

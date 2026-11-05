@@ -17,6 +17,8 @@ Covered now:
     and how long the session still counts as a recent sign-in;
   - the session cookie is httpOnly, Secure and SameSite=Lax; a forged cookie gets 401;
   - neither Google's tokens nor the avatar URL are stored;
+  - a new account records once which terms it accepted and when; no auth response
+    shows that record and no client can change it;
   - the invite list is case-insensitive; uninvited and unverified emails are
     sent to `/sign-in?error=NOT_INVITED` with nothing stored; removing an email
     from the list blocks the next sign-in;

@@ -14,6 +14,9 @@ through the real Google flow (only Google's token endpoint is replaced).
   and `freshForSeconds` (about 600 right after sign-in, the rest of the 10
   minutes later, 0 after them); the cookie is httpOnly, Secure and SameSite=Lax; no Google tokens and no avatar
   URL are stored; the invite list is case-insensitive.
+- A new account records `TERMS_VERSION` and the time, and signing in again
+  changes neither; `get-session` does not show them and `update-user` refuses to
+  set them (400).
 - Uninvited and unverified emails are sent to `/sign-in?error=NOT_INVITED` with
   nothing stored; removing an invite stops the next sign-in.
 - Sign-out ends the session at once; a cross-site request with the cookie is
@@ -135,4 +138,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-05
