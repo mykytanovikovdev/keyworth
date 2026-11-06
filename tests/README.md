@@ -16,7 +16,6 @@ details.
 
 Planned, each arriving with the code it tests:
 
-- `unit/` grows with `shared/metrics` and `shared/money` (phase 4).
 - `e2e/` grows with encryption setup, unlock and recovery (phase 3) and
   recording a trade through chat (phase 7).
 - `visual/` grows with the app's screens as they are built.

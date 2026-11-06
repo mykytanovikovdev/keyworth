@@ -31,9 +31,11 @@ Covered now:
   conflict, records with revisions. What each file proves:
   [docs/vault-tests.md](docs/vault-tests.md).
 
-Planned: `shared/metrics` (positions, average cost, P&L, splits, transfers, time
-zones, tiny quantities without precision loss) and `shared/money`. These are the
-numbers users see, so they get the most cases.
+- **Calculations:** `shared/money` and `shared/metrics` (positions, average cost,
+  P&L, splits, transfers, currencies, time-weighted returns, drawdown, volatility,
+  correlation), every expected number worked out by hand. These are the numbers
+  users see. What each file proves:
+  [docs/metrics-tests.md](docs/metrics-tests.md).
 
 Not here: anything that needs workerd (see [`integration/`](../integration/README.md))
 or a real browser engine. Node 24 implements WebCrypto with the browsers' API,
