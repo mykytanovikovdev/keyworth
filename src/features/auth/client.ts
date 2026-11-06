@@ -22,10 +22,6 @@ export const sessionQuery = queryOptions({
   staleTime: 5 * 60 * 1000,
 });
 
-export type Session = NonNullable<
-  Awaited<ReturnType<NonNullable<typeof sessionQuery.queryFn>>>
->;
-
 /** Starts Google sign-in; the browser leaves for Google on success. */
 export async function signInWithGoogle(callbackURL = "/") {
   const { error } = await authClient.signIn.social({
