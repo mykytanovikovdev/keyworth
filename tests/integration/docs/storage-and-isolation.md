@@ -7,6 +7,18 @@ through the real Google flow (only Google's token endpoint is replaced).
 
 ## What is proven
 
+**The daily cleanup** (`cleanup.test.ts`, through the real `scheduled` handler)
+
+- An expired session is deleted with its remembered device; the account stays,
+  and another user's live session and device are untouched.
+- A remembered device older than 14 days is deleted while its session keeps
+  working; one just under the limit stays.
+- Counters older than an hour are deleted from `rate_limit` and
+  `api_rate_limits`; newer ones stay.
+- Other test files run at the same time on this database, so each test looks only
+  at its own rows. No other file ages a row past these limits and then expects it
+  to exist.
+
 **Sign-in and sessions** (`auth.test.ts`)
 
 - Without a session or with a forged cookie: 401.
@@ -138,4 +150,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-05
+Last reviewed: 2026-11-06

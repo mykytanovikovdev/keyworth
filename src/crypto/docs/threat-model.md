@@ -136,8 +136,8 @@ Anthropic directly and the server sees none of it.
   holds the device key (Chromium and Firefox keep IndexedDB unencrypted on
   disk; Safari wraps keys with one from the system keychain); with the device
   row from the database it opens the DEK, for as long as that row exists (the
-  server stops handing it out after 14 days, but the row stays until Lock,
-  sign-out or the session's end; see
+  server stops handing it out after 14 days, and the daily cleanup then deletes
+  the row; see
   [remember-device.md](remember-device.md)).
 - **Backups after account deletion.** Deleting an account removes its rows at
   once; the database provider's backups and point-in-time history keep them
@@ -174,4 +174,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-01
+Last reviewed: 2026-11-06

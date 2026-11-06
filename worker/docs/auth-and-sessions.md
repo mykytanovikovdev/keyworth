@@ -35,7 +35,8 @@ and `scripts/user-admin.ts`.
 
 **Sessions** last 7 days and are extended once a day while used (Better Auth's
 defaults). Signing out deletes the session row; the next request is
-unauthenticated.
+unauthenticated. An expired row goes when Better Auth next sees its cookie, or
+with the daily cleanup ([db/docs/data-inventory.md](../db/docs/data-inventory.md)).
 
 **Account deletion** (`POST /api/auth/delete-user`) needs a session created in
 the last 10 minutes (`freshAge`); an older one gets `400 SESSION_EXPIRED`, and
@@ -131,4 +132,4 @@ Any new route goes after `requireSession` unless it is deliberately public
 callback. Changing session lifetime or freshness changes the threat model:
 update [src/crypto/docs/threat-model.md](../../src/crypto/docs/threat-model.md).
 
-Last reviewed: 2026-11-05
+Last reviewed: 2026-11-06
