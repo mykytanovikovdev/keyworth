@@ -6,20 +6,20 @@ not listed here, it should not exist. Schema: `schema.ts` and the generated
 
 ## Tables
 
-| Table             | Holds                                                                                                                         | Readable by the server                                           | Deleted with                |
-| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------- |
-| `user`            | id, name, email, email verified, dates (avatar URL always null)                                                               | Yes                                                              | — (the account)             |
-| `session`         | token, expiry, IP address, user agent, dates                                                                                  | Yes                                                              | user                        |
-| `account`         | the link to the Google account (provider and account ids); Google tokens always null                                          | Yes                                                              | user                        |
-| `verification`    | short-lived OAuth state                                                                                                       | Yes                                                              | expiry (Better Auth)        |
-| `rate_limit`      | Better Auth's request counters per IP and path                                                                                | Yes                                                              | —                           |
-| `allowed_emails`  | the invite list (lowercase emails)                                                                                            | Yes                                                              | `npm run users -- uninvite` |
-| `blocked_emails`  | blocked emails, a reason in the owner's words, date                                                                           | Yes                                                              | `npm run users -- unblock`  |
-| `user_key_slots`  | per user: kind (passphrase/recovery), format version, Argon2 settings, salt, IV, **wrapped data key**, dates                  | Only version, settings, salts and dates; the key is ciphertext   | user                        |
-| `user_key_checks` | per user: format version, IV, the data key's **check value** (a 16-byte AES-GCM tag over nothing)                             | Only the version and date; the tag reveals nothing about the key | user                        |
-| `vault_records`   | per record: id, kind, revision, envelope version, IV, **ciphertext**, dates                                                   | Only kind, size, revision and dates                              | user                        |
-| `device_unlocks`  | per session: SHA-256 of the device cookie's token, IV, **data key wrapped by a device-only key**, date (unused after 14 days) | Only the hash and date                                           | session and user            |
-| `api_rate_limits` | per user and bucket: window start and count                                                                                   | Yes                                                              | user                        |
+| Table             | Holds                                                                                                                         | Readable by the server                                           | Deleted with                            |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- | --------------------------------------- |
+| `user`            | id, name, email, email verified, dates, which terms it accepted and when (avatar URL always null)                             | Yes                                                              | — (the account)                         |
+| `session`         | token, expiry, IP address, user agent, dates                                                                                  | Yes                                                              | user; cleanup once expired              |
+| `account`         | the link to the Google account (provider and account ids); Google tokens always null                                          | Yes                                                              | user                                    |
+| `verification`    | short-lived OAuth state                                                                                                       | Yes                                                              | expiry (Better Auth)                    |
+| `rate_limit`      | Better Auth's request counters per IP and path                                                                                | Yes                                                              | cleanup after an hour                   |
+| `allowed_emails`  | the invite list (lowercase emails)                                                                                            | Yes                                                              | `npm run users -- uninvite`             |
+| `blocked_emails`  | blocked emails, a reason in the owner's words, date                                                                           | Yes                                                              | `npm run users -- unblock`              |
+| `user_key_slots`  | per user: kind (passphrase/recovery), format version, Argon2 settings, salt, IV, **wrapped data key**, dates                  | Only version, settings, salts and dates; the key is ciphertext   | user                                    |
+| `user_key_checks` | per user: format version, IV, the data key's **check value** (a 16-byte AES-GCM tag over nothing)                             | Only the version and date; the tag reveals nothing about the key | user                                    |
+| `vault_records`   | per record: id, kind, revision, envelope version, IV, **ciphertext**, dates                                                   | Only kind, size, revision and dates                              | user                                    |
+| `device_unlocks`  | per session: SHA-256 of the device cookie's token, IV, **data key wrapped by a device-only key**, date (unused after 14 days) | Only the hash and date                                           | session and user; cleanup after 14 days |
+| `api_rate_limits` | per user and bucket: window start and count                                                                                   | Yes                                                              | user; cleanup after an hour             |
 
 `allowed_emails` and `blocked_emails` are keyed by email, not by user, so they
 survive account deletion on purpose: a deleted account is still invited (it can
@@ -35,11 +35,33 @@ sign in again and get an empty account) or still blocked.
   passphrase or the recovery key was last replaced (`updated_at` of a slot).
 - Whether and when a device was remembered, and in which session, so from
   which IP address and browser.
-- When a user last wrote (`api_rate_limits.window_start`) and, from the
-  requests, when they unlock (the vault is loaded at every unlock).
+- When a user last wrote, for up to about a day (`api_rate_limits.window_start`),
+  and, from the requests, when they unlock (the vault is loaded at every unlock).
 - Sessions keep their IP address and browser until they are deleted: on sign-out
-  or revocation, or, once expired, when Better Auth next sees them.
+  or revocation, or, once expired, by the daily cleanup at the latest.
 - Nothing about the content of records or about the keys that open them.
+
+## How long it stays
+
+The account and everything that references it stay until the account is deleted.
+Some rows lose their use long before that, and nothing else would remove them
+while their owner stays away, so `worker/cleanup.ts` deletes them once a day at
+03:00 UTC (a Cron Trigger in `wrangler.jsonc`):
+
+| Rows                              | Deleted once                                          |
+| --------------------------------- | ----------------------------------------------------- |
+| `session` (with `device_unlocks`) | expired, which removes the IP address and user agent  |
+| `device_unlocks`                  | older than 14 days, when the server already refuses   |
+| `rate_limit`, `api_rate_limits`   | untouched for an hour, longer than any limit's window |
+
+A run that fails is logged like any other error (`describe-error.ts`), shows as
+failed in Cloudflare's trigger history, and is covered by the next day's run; the
+privacy policy therefore promises two days, not one.
+
+**Rejected:** `pg_cron` (the database sleeps when idle, so the schedule would not
+run); deleting during requests (it adds work to every request and stops when
+nobody signs in, which is when old rows matter most); running more often (each
+run wakes the database, and a day is short enough for the promise).
 
 ## Invariants
 
@@ -52,14 +74,17 @@ sign in again and get an empty account) or still blocked.
 5. A user has both slots and a check value, or none of them: setup writes them
    in one transaction, and migration `0005` refuses to run over slots made
    before check values existed.
+6. Expired sessions, remembered devices past 14 days and counters older than an
+   hour never survive a cleanup run; nothing else is touched by it.
 
 ## How it is tested
 
 `tests/integration/vault.test.ts` ("keeps no plaintext anywhere in the
 database": every column of the user's records and key slots, as text and raw
-bytes, searched for the record's content, the passphrase and the recovery key)
-and `tests/integration/keys.test.ts` (account deletion leaves no slots,
-records, remembered devices or counters). See
+bytes, searched for the record's content, the passphrase and the recovery key),
+`tests/integration/keys.test.ts` (account deletion leaves no slots, records,
+remembered devices or counters) and `tests/integration/cleanup.test.ts` (what the
+daily cleanup deletes and what it keeps). See
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).
 
 ## How to change it safely
@@ -68,4 +93,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-06

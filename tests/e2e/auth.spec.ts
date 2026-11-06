@@ -114,6 +114,25 @@ test.describe("signed out", () => {
       page.getByRole("heading", { level: 1, name: "Terms" }),
     ).toBeVisible();
   });
+
+  test("says right under the button what continuing accepts, with links to both texts", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in");
+
+    const consent = page
+      .getByRole("button", { name: "Continue with Google" })
+      .locator("+ p");
+    await expect(consent).toHaveText(
+      "By continuing with Google, you agree to the Terms and confirm you've read the Privacy policy.",
+    );
+
+    await consent.getByRole("link", { name: "Privacy policy" }).click();
+    await expect(page).toHaveURL(/\/privacy$/);
+    await page.goBack();
+    await consent.getByRole("link", { name: "Terms" }).click();
+    await expect(page).toHaveURL(/\/terms$/);
+  });
 });
 
 test.describe("signed in", () => {
@@ -147,6 +166,31 @@ test.describe("signed in", () => {
 
     await expect(page).toHaveURL(/\/sign-in$/);
     expect((await page.request.get("/api/me")).status()).toBe(401);
+  });
+
+  test("reaches the privacy policy and terms from settings, and comes back without locking", async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await signInUnlocked(page, context, baseURL ?? "", "/settings");
+    // Only the unlocked app has this link: a reload would ask for the passphrase.
+    const settings = page.getByRole("link", { name: "Settings", exact: true });
+
+    await page.getByRole("link", { name: "Privacy policy" }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Privacy policy" }),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Back to Keyworth" }).click();
+    await expect(settings).toBeVisible();
+
+    await settings.click();
+    await page.getByRole("link", { name: "Terms", exact: true }).click();
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Terms" }),
+    ).toBeVisible();
+    await page.getByRole("link", { name: "Keyworth home" }).click();
+    await expect(settings).toBeVisible();
   });
 
   test("deletes the account after confirmation", async ({

@@ -35,7 +35,8 @@ and `scripts/user-admin.ts`.
 
 **Sessions** last 7 days and are extended once a day while used (Better Auth's
 defaults). Signing out deletes the session row; the next request is
-unauthenticated.
+unauthenticated. An expired row goes when Better Auth next sees its cookie, or
+with the daily cleanup ([db/docs/data-inventory.md](../db/docs/data-inventory.md)).
 
 **Account deletion** (`POST /api/auth/delete-user`) needs a session created in
 the last 10 minutes (`freshAge`); an older one gets `400 SESSION_EXPIRED`, and
@@ -47,6 +48,14 @@ needs the same fresh sign-in (403 `session_not_fresh`).
 **What is stored from Google:** name and email only. The account hooks drop
 Google's access, refresh and ID tokens before saving, and the user hook drops
 the avatar URL.
+
+**Accepting the terms:** the sign-in page says that continuing accepts them,
+and the user hook writes `terms_version` (`TERMS_VERSION` from
+`shared/legal.ts`) and `terms_accepted_at` in the insert that creates the
+account. Later sign-ins change nothing. The fields are `input: false` and
+`returned: false`: no client can set them and no auth response shows them.
+Accounts older than these columns have them null, because their acceptance was
+never recorded and a date made up afterwards would prove nothing.
 
 **Rate limits:** Better Auth's own, stored in Postgres (`rate_limit`), per
 client IP from `cf-connecting-ip` (set by Cloudflare, not spoofable by the
@@ -64,8 +73,16 @@ The app's own routes have their limits in
 3. Every route after `requireSession` returns 401 without a valid session row.
 4. Destructive account actions need a sign-in from the last 10 minutes.
 5. No Google tokens and no avatar URL are ever stored.
+6. Every account created since the terms record exists has it, written once by
+   the server.
 
 ## Decisions and alternatives
+
+- **The terms record is two columns on `user`, not a table:** a hook that
+  changes the user's insert cannot leave an account without its record, while
+  a table would be written by an `after` hook, which runs after the transaction
+  and can fail on its own. The record goes with the account: deleting an account
+  keeps nothing about it.
 
 - **Better Auth:** runs on Workers with Hono, keeps sessions in our database
   (revocable at once), brings CSRF origin checks and rate limiting. Rejected:
@@ -115,4 +132,4 @@ Any new route goes after `requireSession` unless it is deliberately public
 callback. Changing session lifetime or freshness changes the threat model:
 update [src/crypto/docs/threat-model.md](../../src/crypto/docs/threat-model.md).
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-06

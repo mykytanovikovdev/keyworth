@@ -7,6 +7,18 @@ through the real Google flow (only Google's token endpoint is replaced).
 
 ## What is proven
 
+**The daily cleanup** (`cleanup.test.ts`, through the real `scheduled` handler)
+
+- An expired session is deleted with its remembered device; the account stays,
+  and another user's live session and device are untouched.
+- A remembered device older than 14 days is deleted while its session keeps
+  working; one just under the limit stays.
+- Counters older than an hour are deleted from `rate_limit` and
+  `api_rate_limits`; newer ones stay.
+- Other test files run at the same time on this database, so each test looks only
+  at its own rows. No other file ages a row past these limits and then expects it
+  to exist.
+
 **Sign-in and sessions** (`auth.test.ts`)
 
 - Without a session or with a forged cookie: 401.
@@ -14,6 +26,9 @@ through the real Google flow (only Google's token endpoint is replaced).
   and `freshForSeconds` (about 600 right after sign-in, the rest of the 10
   minutes later, 0 after them); the cookie is httpOnly, Secure and SameSite=Lax; no Google tokens and no avatar
   URL are stored; the invite list is case-insensitive.
+- A new account records `TERMS_VERSION` and the time, and signing in again
+  changes neither; `get-session` does not show them and `update-user` refuses to
+  set them (400).
 - Uninvited and unverified emails are sent to `/sign-in?error=NOT_INVITED` with
   nothing stored; removing an invite stops the next sign-in.
 - Sign-out ends the session at once; a cross-site request with the cookie is
@@ -135,4 +150,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-06

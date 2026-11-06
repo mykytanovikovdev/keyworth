@@ -40,15 +40,15 @@ of remembering (`DEVICE_MAX_AGE_DAYS` in `worker/routes/keys.ts`);
 
 **Forgetting:**
 
-| Event           | Effect                                                                                                               |
-| --------------- | -------------------------------------------------------------------------------------------------------------------- |
-| Lock            | `DELETE /api/keys/device` deletes the row and the cookie; the browser deletes the device key                         |
-| Sign out        | The session row is deleted, and the device row with it                                                               |
-| Session revoked | The same (`npm run users -- revoke`, "Sign out everywhere")                                                          |
-| Session expired | Refused at once (no session, no device half); both rows are deleted when Better Auth next sees that session's cookie |
-| Browser closed  | The session-only cookie is gone; the server refuses                                                                  |
-| 14 days passed  | The server refuses; the passphrase is asked once, and the user may remember the device again                         |
-| Account deleted | Everything goes with the user                                                                                        |
+| Event           | Effect                                                                                                                                        |
+| --------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| Lock            | `DELETE /api/keys/device` deletes the row and the cookie; the browser deletes the device key                                                  |
+| Sign out        | The session row is deleted, and the device row with it                                                                                        |
+| Session revoked | The same (`npm run users -- revoke`, "Sign out everywhere")                                                                                   |
+| Session expired | Refused at once (no session, no device half); both rows are deleted when Better Auth next sees that session's cookie, or by the daily cleanup |
+| Browser closed  | The session-only cookie is gone; the server refuses                                                                                           |
+| 14 days passed  | The server refuses and the daily cleanup deletes the row; the passphrase is asked once, and the user may remember the device again            |
+| Account deleted | Everything goes with the user                                                                                                                 |
 
 ## Why it is safe enough
 
@@ -118,4 +118,4 @@ forgets both halves, one half alone is dropped, a failed remember leaves no
 key) and `tests/e2e/encryption.spec.ts` (the checkbox, a reload, Lock and the
 server row, in Chromium, Firefox and WebKit).
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-06

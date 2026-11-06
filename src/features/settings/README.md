@@ -20,7 +20,9 @@ sit behind the key gate: the page opens only once the data key is.
 | `DeleteAccountMock.tsx`  | "Delete account" without its logic, for the design page                        |
 
 **Agreed order** (owner, 2026-10-31): Account, Sign out everywhere,
-Passphrase, Recovery key, Lock, Base currency, Theme, Delete account.
+Passphrase, Recovery key, Lock, Base currency, Theme, Delete account. Below them,
+links to the privacy policy and terms: once signed in, this is the way to reach
+them, and going there and back keeps the data open.
 
 **Changing the passphrase, a new recovery key, deleting the account** need a
 Google sign-in from the last 10 minutes (the server's rule):

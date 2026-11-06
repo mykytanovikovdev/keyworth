@@ -11,12 +11,17 @@ Covered now:
 - **`worker.test.ts`**: `/api/health` and the Worker security headers on every
   response, including errors; paths outside `/api` get a JSON 404; without a
   session, unknown `/api` routes get the same 401 as protected ones.
+- **`cleanup.test.ts`**, through the Worker's real `scheduled` handler: expired
+  sessions go with their remembered devices, devices past 14 days go while their
+  session stays, counters older than an hour go; live rows stay in every case.
 - **`auth.test.ts`**, through the real Google sign-in flow (state cookie,
   callback, database hooks, session):
   - an invited user gets a session, and `/api/me` returns only their own profile
     and how long the session still counts as a recent sign-in;
   - the session cookie is httpOnly, Secure and SameSite=Lax; a forged cookie gets 401;
   - neither Google's tokens nor the avatar URL are stored;
+  - a new account records once which terms it accepted and when; no auth response
+    shows that record and no client can change it;
   - the invite list is case-insensitive; uninvited and unverified emails are
     sent to `/sign-in?error=NOT_INVITED` with nothing stored; removing an email
     from the list blocks the next sign-in;

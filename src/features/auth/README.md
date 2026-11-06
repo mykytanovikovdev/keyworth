@@ -39,6 +39,11 @@ this folder only starts the flow and shows its outcome.
   the session on every API call; the cache only decides which page to show.
 - **No Google avatar.** The CSP allows images from our own origin only, and the
   server does not even store the avatar URL.
+- **The line about the terms sits right under the button, in readable text.** A
+  sign-in page binds someone to its terms only if they could not miss the notice,
+  so it is not fine print at the bottom. Continuing is the acceptance, and the
+  server records it (`worker/docs/auth-and-sessions.md`). No checkbox: signing in
+  stays one click.
 - **The Google mark is a static file** (`public/google-g.svg`), so brand colors
   stay out of components, which use only design tokens.
 

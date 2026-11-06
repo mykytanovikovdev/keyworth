@@ -295,7 +295,7 @@ keys.get("/device", async (c) => {
       and(
         eq(deviceUnlocks.sessionId, c.get("session").id),
         eq(deviceUnlocks.tokenHash, await sha256(tokenBytes)),
-        // An older row stays until Lock, sign-out or the session's end, unused.
+        // Refused at once: the daily cleanup only deletes an older row later.
         gt(
           deviceUnlocks.createdAt,
           new Date(Date.now() - DEVICE_MAX_AGE_DAYS * 24 * 60 * 60 * 1000),

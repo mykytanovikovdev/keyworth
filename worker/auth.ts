@@ -2,6 +2,7 @@ import { betterAuth, type BetterAuthOptions } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { APIError } from "better-auth/api";
 import { eq } from "drizzle-orm";
+import { TERMS_VERSION } from "../shared/legal.ts";
 import type { Database } from "./db/client.ts";
 import * as schema from "./db/schema.ts";
 
@@ -79,7 +80,25 @@ export function authOptions(db: Database, env: AuthEnv) {
       cookieCache: { enabled: false },
       freshAge: FRESH_SESSION_SECONDS,
     },
-    user: { deleteUser: { enabled: true } },
+    user: {
+      deleteUser: { enabled: true },
+      // Which terms the account accepted, and when: written once, by the hook
+      // below. Neither a client nor an API response ever touches them.
+      additionalFields: {
+        termsVersion: {
+          type: "string",
+          required: false,
+          input: false,
+          returned: false,
+        },
+        termsAcceptedAt: {
+          type: "date",
+          required: false,
+          input: false,
+          returned: false,
+        },
+      },
+    },
     account: { updateAccountOnSignIn: false },
     // Workers have no shared memory between requests, so limits live in Postgres.
     rateLimit: { enabled: true, storage: "database" },
@@ -96,8 +115,17 @@ export function authOptions(db: Database, env: AuthEnv) {
             if (!user.emailVerified || !(await maySignIn(db, user.email))) {
               throw notInvited();
             }
-            // The avatar is never shown (img-src 'self'), so its URL is not kept.
-            return { data: { ...user, image: null } };
+            return {
+              data: {
+                ...user,
+                // The avatar is never shown (img-src 'self'), so its URL is not kept.
+                image: null,
+                // The sign-in page says that continuing accepts the terms. In
+                // the same insert, so no account exists without this record.
+                termsVersion: TERMS_VERSION,
+                termsAcceptedAt: new Date(),
+              },
+            };
           },
         },
       },

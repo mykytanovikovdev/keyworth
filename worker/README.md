@@ -15,6 +15,9 @@ It also owns sign-in: Google through [Better Auth](https://www.better-auth.com),
 an invite list for the closed beta, database sessions in an httpOnly cookie, and
 a session check in front of every other API route.
 
+Once a day it also deletes what no longer has a use: expired sessions, remembered
+devices past their limit and old request counters (`cleanup.ts`, a Cron Trigger).
+
 **Not responsible for:** serving static files or the SPA fallback (the assets layer
 does that without invoking the Worker), and any computation on financial data (that
 happens in the browser, on decrypted data).
@@ -39,18 +42,19 @@ Inside the Worker:
 /api/vault       encrypted records                          (routes/)
 ```
 
-| File                           | Role                                                                |
-| ------------------------------ | ------------------------------------------------------------------- |
-| `index.ts`                     | Hono app: headers, per-request database and auth, session check     |
-| `env.ts`                       | Types of the bindings and per-request values every route sees       |
-| `limits.ts`                    | Rate limits, body size, fresh-session and same-origin checks        |
-| `routes/`                      | `/api/keys` and `/api/vault` ([README](routes/README.md))           |
-| `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits    |
-| `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))      |
-| `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)      |
-| `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP |
-| `../wrangler.jsonc`            | Worker config: assets routing, observability, compatibility date    |
-| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)              |
+| File                           | Role                                                                   |
+| ------------------------------ | ---------------------------------------------------------------------- |
+| `index.ts`                     | Hono app: headers, per-request database and auth, session check        |
+| `env.ts`                       | Types of the bindings and per-request values every route sees          |
+| `limits.ts`                    | Rate limits, body size, fresh-session and same-origin checks           |
+| `cleanup.ts`                   | Daily deletion of expired sessions and old request counters            |
+| `routes/`                      | `/api/keys` and `/api/vault` ([README](routes/README.md))              |
+| `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits       |
+| `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))         |
+| `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)         |
+| `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP    |
+| `../wrangler.jsonc`            | Worker config: assets routing, observability, cron, compatibility date |
+| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)                 |
 
 Production runs at **https://keyworth.app**, a Custom Domain declared in
 `wrangler.jsonc` (`routes` with `custom_domain: true`): each deploy keeps its DNS
@@ -97,6 +101,10 @@ the same runtime, assets and headers as production.
   unhandled error is logged as its type, its Postgres code and its stack frames
   (`describe-error.ts`), because a failed query's message lists the query's
   parameters (ciphertext, wrapped keys) and a JSON error quotes the body.
+- **A daily Cron Trigger for cleanup.** Expired sessions (with their IP address and
+  browser) and old request counters would otherwise stay indefinitely, and the
+  privacy policy has to state how long data is kept. Details and rejected
+  alternatives: [db/docs/data-inventory.md](db/docs/data-inventory.md).
 - **Security decisions** (static CSP, Trusted Types, `no-transform`, Better
   Auth, database sessions, what is stored from Google, deny by default) are
   explained in [docs/auth-and-sessions.md](docs/auth-and-sessions.md) and
@@ -143,6 +151,9 @@ the same runtime, assets and headers as production.
   workerd exactly as it will run on Cloudflare (port 4173).
 - `npm run build:design && npm run preview:design` — the same with the `/design`
   page (port 4174); see [src/ui/README.md](../src/ui/README.md).
+- The daily cleanup runs only on Cloudflare's schedule. To run it locally, start
+  `npm run preview` and call
+  `curl "http://localhost:4173/cdn-cgi/local/scheduled?cron=0+3+*+*+*"`.
 - New route: add it to `index.ts` after `requireSession` (or a sub-app under
   `worker/routes/` once there are several), read the user with `c.get("user")`,
   and add validation and limits from the start. A public route goes before the

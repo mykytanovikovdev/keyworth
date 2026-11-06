@@ -36,7 +36,9 @@ request ─► security headers (every response)
 **Rate limiting** keeps one row per user and bucket in `api_rate_limits`
 (window start and count), updated by a single upsert that resets the count when
 the window has passed and returns the seconds left in it (`Retry-After`). It
-runs on every write, including Lock (`DELETE /api/keys/device`).
+runs on every write, including Lock (`DELETE /api/keys/device`). A row untouched
+for an hour goes with the daily cleanup
+([data-inventory.md](../../db/docs/data-inventory.md)).
 
 **Quotas and revisions** live in the same SQL statement as the write (the
 `WHERE` clause of the insert or update). Revisions hold under concurrency by
@@ -104,4 +106,4 @@ A new route gets `rateLimit()` and `maxBody()` on writes, a schema from
 `shared/schemas`, queries scoped by `c.get("user").id`, and tests for each
 refusal and for another user's attempt — in the same commit.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-06

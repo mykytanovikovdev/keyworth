@@ -53,6 +53,11 @@ and the pages that belong to no feature (home, not found).
 - Redirects are thrown (`throw redirect(...)`); ESLint allows exactly that type.
 - Search params are validated per route (`validateSearch`); read them with
   `route.useSearch()`, never from `window.location`.
+- Links inside the app go through the router (`ButtonLink`, `TextLink`, React
+  Aria's `Link`), never a plain `<a>`: a page reload locks the data unless the
+  device is remembered.
+- The header must fit a 320 px screen (folding phones' outer screens): below
+  360 px the logo shows the mark alone, its name kept for screen readers.
 
 ## How to work with it
 

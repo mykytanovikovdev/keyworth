@@ -11,7 +11,8 @@ Covered (Chromium):
 
 `design.spec.ts`:
 
-- the whole `/design` page, light and dark, at 390 px and 1440 px;
+- the whole `/design` page, light and dark, at 390 px and 1440 px, with the live
+  motion demo masked (see Pitfalls);
 - an open dialog over the page, in the same four combinations;
 - a toast, in both themes.
 
@@ -118,3 +119,8 @@ committing it.
   Apple silicon Mac); later runs reuse the downloaded image.
 - **Anything time-dependent breaks baselines.** Pages under test must not show
   the current date, random values or live prices.
+- **Text that has just animated is not stable either.** Its anti-aliasing depends
+  on when it was painted, so an unrelated CSS rule changed 12 pixels of the
+  `/design` motion demo while nothing looked different. That demo is masked. If a
+  few pixels of an animated element change after a CSS edit, mask the element
+  instead of regenerating the baseline: a new baseline would only move the problem.

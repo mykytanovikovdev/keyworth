@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TERMS_VERSION } from "../../shared/legal.ts";
 import type { MeJson } from "../../shared/schemas/me.ts";
 import {
   BASE_URL,
@@ -95,6 +96,57 @@ describe("sign-in with Google", () => {
     expect(session).toMatch(/; HttpOnly/i);
     expect(session).toMatch(/; Secure/i);
     expect(session).toMatch(/; SameSite=Lax/i);
+  });
+
+  it("records once which terms a new account accepted", async () => {
+    const user = uniqueUser("terms");
+    await invite(user.email);
+    const read = () =>
+      query<{ terms_version: string; terms_accepted_at: Date }>(
+        `select terms_version, terms_accepted_at from "user" where email = $1`,
+        [user.email],
+      );
+    const start = Date.now();
+
+    await signInWithGoogle(user);
+
+    const [accepted] = await read();
+    expect(accepted?.terms_version).toBe(TERMS_VERSION);
+    const acceptedAt = accepted?.terms_accepted_at.getTime() ?? 0;
+    expect(acceptedAt).toBeGreaterThanOrEqual(start - 1000);
+    expect(acceptedAt).toBeLessThanOrEqual(Date.now() + 1000);
+
+    // Signing in again accepts nothing new.
+    await signInWithGoogle(user);
+    expect(await read()).toEqual([accepted]);
+  });
+
+  it("neither shows the terms record to the client nor lets it change it", async () => {
+    const user = uniqueUser("hidden");
+    await invite(user.email);
+    const { cookie } = await signInWithGoogle(user);
+
+    const session = await fetchWorker("/api/auth/get-session", {
+      headers: { cookie },
+    });
+    expect(session.status).toBe(200);
+    expect(await session.text()).not.toMatch(/terms/i);
+
+    const update = await fetchWorker("/api/auth/update-user", {
+      method: "POST",
+      headers: {
+        cookie,
+        origin: BASE_URL,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ termsVersion: "forged" }),
+    });
+    expect(update.status).toBe(400);
+    const [row] = await query(
+      `select terms_version from "user" where email = $1`,
+      [user.email],
+    );
+    expect(row).toEqual({ terms_version: TERMS_VERSION });
   });
 
   it("keeps no Google tokens and no avatar URL", async () => {

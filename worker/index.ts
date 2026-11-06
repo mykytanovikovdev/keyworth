@@ -1,6 +1,7 @@
 import { Hono, type MiddlewareHandler } from "hono";
 import type { MeJson } from "../shared/schemas/me.ts";
 import { createAuth } from "./auth.ts";
+import { deleteExpiredData } from "./cleanup.ts";
 import { describeError } from "./describe-error.ts";
 import { connect } from "./db/client.ts";
 import type { AppEnv } from "./env.ts";
@@ -74,4 +75,16 @@ app.onError((error, c) => {
   return c.json({ error: "internal_error" }, 500);
 });
 
-export default app;
+export default {
+  fetch: app.fetch,
+  scheduled: async (_controller, env) => {
+    try {
+      await deleteExpiredData(connect(env.HYPERDRIVE.connectionString));
+    } catch (error) {
+      console.error(`Scheduled cleanup failed\n${describeError(error)}`);
+      // A new error, so the run shows as failed without the original's message.
+      // eslint-disable-next-line preserve-caught-error -- see describe-error.ts
+      throw new Error("Scheduled cleanup failed");
+    }
+  },
+} satisfies ExportedHandler<Env>;

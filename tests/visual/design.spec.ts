@@ -22,7 +22,12 @@ for (const theme of THEMES) {
 
       await expect(page).toHaveScreenshot(
         `design-${theme}-${String(width)}.png`,
-        { fullPage: true },
+        {
+          fullPage: true,
+          // Text that has just animated rasterizes a few pixels differently
+          // depending on when it was painted, which any CSS change can shift.
+          mask: [page.locator('[data-part="motion-demo"]')],
+        },
       );
     });
 

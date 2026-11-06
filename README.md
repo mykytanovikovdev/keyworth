@@ -2,9 +2,9 @@
 
 > Your net worth. Your key.
 
-**Status: early development.** Google sign-in, security headers, tests, the deployment pipeline
-and end-to-end encryption of user data are in place; the portfolio features are being built in
-phases. Nothing here is ready for real data yet.
+**Status: early development.** Google sign-in, security headers, tests, the deployment pipeline,
+end-to-end encryption of user data, and the privacy policy and terms are in place; the portfolio
+features are being built in phases. Nothing here is ready for real data yet.
 
 Keyworth is an investment portfolio tracker (crypto first; stocks, ETFs and metals
 next) with an AI assistant you can ask questions in plain language, in any
@@ -108,8 +108,8 @@ For end-to-end tests, install the browsers once:
 
 ```
 src/        React SPA; src/ui/ is the design system, src/crypto/ the encryption core
-shared/     zod schemas shared by the browser and the Worker
-worker/     Cloudflare Worker (Hono): API, sign-in, security headers; db/ is the database
+shared/     zod schemas and other definitions shared by the browser and the Worker
+worker/     Cloudflare Worker (Hono): API, sign-in, security headers, daily cleanup; db/ is the database
 drizzle/    SQL migrations
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
@@ -121,7 +121,8 @@ tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 Every major folder has its own README explaining what it does, why it is built
 that way, and its pitfalls; critical features and their tests are described in
 depth in `docs/` folders next to the code. READMEs: [design system](src/ui/README.md),
-[encryption](src/crypto/README.md), [shared schemas](shared/schemas/README.md),
+[encryption](src/crypto/README.md), [privacy policy and terms](src/features/legal/README.md),
+[shared schemas](shared/schemas/README.md),
 [worker](worker/README.md), [database](worker/db/README.md), [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).
 
@@ -158,7 +159,7 @@ so dependencies are treated as part of the attack surface:
 
 ## Security
 
-**Encryption model (core and storage in place, screens in progress).** The
+**Encryption model (in place).** The
 server never stores financial data in plaintext and never receives the
 passphrase, the recovery key or the data key. A random AES-256-GCM data key,
 made in the browser, encrypts every record; the server stores it only wrapped by
@@ -178,6 +179,7 @@ database. Sessions live in the database and in an httpOnly, Secure, SameSite
 cookie, so signing out or deleting the account takes effect immediately.
 Keyworth stores the name and email from Google, never Google's access tokens or
 the avatar. Deleting the account requires a sign-in from the last 10 minutes.
+Expired sessions, with their IP address and browser, are deleted once a day.
 Details: [worker/README.md](worker/README.md).
 
 **Web hardening (in place).** A cross-site scripting bug would mean key theft, so

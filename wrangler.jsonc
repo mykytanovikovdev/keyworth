@@ -36,6 +36,9 @@
       "GOOGLE_CLIENT_SECRET",
     ],
   },
+  // Once a day: deletes expired sessions and old counters (worker/cleanup.ts).
+  // Not more often: each run wakes the database from its sleep.
+  "triggers": { "crons": ["0 3 * * *"] },
   // The production address. Cloudflare creates the DNS record and the
   // certificate for it on deploy; the zone is in this account.
   "routes": [{ "pattern": "keyworth.app", "custom_domain": true }],
