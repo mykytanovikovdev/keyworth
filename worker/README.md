@@ -15,6 +15,9 @@ It also owns sign-in: Google through [Better Auth](https://www.better-auth.com),
 an invite list for the closed beta, database sessions in an httpOnly cookie, and
 a session check in front of every other API route.
 
+Once a day it also deletes what no longer has a use: expired sessions, remembered
+devices past their limit and old request counters (`cleanup.ts`, a Cron Trigger).
+
 **Not responsible for:** serving static files or the SPA fallback (the assets layer
 does that without invoking the Worker), and any computation on financial data (that
 happens in the browser, on decrypted data).
@@ -148,6 +151,9 @@ the same runtime, assets and headers as production.
   workerd exactly as it will run on Cloudflare (port 4173).
 - `npm run build:design && npm run preview:design` — the same with the `/design`
   page (port 4174); see [src/ui/README.md](../src/ui/README.md).
+- The daily cleanup runs only on Cloudflare's schedule. To run it locally, start
+  `npm run preview` and call
+  `curl "http://localhost:4173/cdn-cgi/local/scheduled?cron=0+3+*+*+*"`.
 - New route: add it to `index.ts` after `requireSession` (or a sub-app under
   `worker/routes/` once there are several), read the user with `c.get("user")`,
   and add validation and limits from the start. A public route goes before the
