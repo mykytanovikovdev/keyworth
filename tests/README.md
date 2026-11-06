@@ -49,6 +49,19 @@ npm run check       # format, lint, types, tests, licenses, build — run before
 - No real network: external services are replaced at the boundary.
 - Expected values are written out in tests, not derived from the code under test.
 
+## Keeping it lean
+
+A test earns its place by catching something no cheaper test catches.
+
+- **Reworking a feature includes its tests:** what is outdated or now duplicated
+  goes in the same branch.
+- **Each phase ends with a short review:** duplicates, test doubles in production
+  code, scenarios that do not need every browser, baselines that change for
+  unrelated reasons.
+- **Encryption and isolation tests stay even when they look alike.** They sit at
+  different layers of the defense (the input check, the schema, the database), and
+  a mistake there costs someone's data.
+
 ## Adding a test
 
 Find the folder whose runtime matches the code, follow the example in its README,
