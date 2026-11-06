@@ -34,7 +34,8 @@ Covered now:
   - the privacy policy and terms are public; the line right under the Google
     button says what continuing accepts and links to both;
   - signed in: the app opens (a new account on how its encryption works),
-    `/sign-in` sends back to it, sign-out ends the session, account deletion
+    `/sign-in` sends back to it, Settings links to the policy and terms and coming
+    back does not lock the data, sign-out ends the session, account deletion
     works after confirmation, and a session older than 10 minutes is asked to
     sign in again first.
 - **`encryption.spec.ts`** (Chromium, Firefox, WebKit; local builds only):

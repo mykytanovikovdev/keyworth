@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { LogOut } from "lucide-react";
-import { Button, ThemeToggle } from "../../ui/index.ts";
+import { Button, TextLink, ThemeToggle } from "../../ui/index.ts";
 import { useVaultState } from "../../vault/index.ts";
 import { sessionQuery } from "../auth/client.ts";
 import { useSignOut } from "../auth/useSignOut.ts";
@@ -56,6 +56,10 @@ export function SettingsPage({ then }: { then?: SettingsAction | undefined }) {
       >
         <DeleteAccount reauthenticated={then === "delete-account"} />
       </Section>
+      <p className="flex gap-4 text-sm">
+        <TextLink href="/privacy">Privacy policy</TextLink>
+        <TextLink href="/terms">Terms</TextLink>
+      </p>
     </div>
   );
 }
