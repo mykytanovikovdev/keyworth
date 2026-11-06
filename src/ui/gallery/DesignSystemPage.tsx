@@ -535,7 +535,7 @@ function Motion() {
           Replay
         </Button>
       </Row>
-      <div key={replay} className="flex flex-col gap-3">
+      <div key={replay} data-part="motion-demo" className="flex flex-col gap-3">
         <Card className="animate-enter p-4 text-sm">
           Panels and messages enter over 240 ms, rising 6 px.
         </Card>
