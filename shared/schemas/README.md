@@ -5,22 +5,23 @@
 zod schemas for data that crosses the network, shared by the browser and the
 Worker so both sides agree on exactly one definition: the encrypted envelope,
 the Argon2id settings stored with a passphrase slot, and the kinds of vault
-records. Later phases add the plaintext schemas of each record kind (trades,
-settings…), which only the browser uses, after decryption. Binary values
+records. It also defines the plaintext of each record kind (transactions, settings), which
+only the browser uses, after decryption. Binary values
 (IVs, salts, wrapped keys, ciphertexts) travel as unpadded base64url with exact
 lengths, so a malformed value is rejected before anything decodes it.
 
 ## How it works
 
-| File           | Role                                                                                                         |
-| -------------- | ------------------------------------------------------------------------------------------------------------ |
-| `zod.ts`       | Configures zod (jitless) and re-exports `z`; every schema imports it                                         |
-| `base64url.ts` | Unpadded base64url: the codec (one canonical spelling per byte string) and an exact-length schema helper     |
-| `envelope.ts`  | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                     |
-| `keys.ts`      | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys` |
-| `vault.ts`     | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |
-| `me.ts`        | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)  |
-| `settings.ts`  | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save |
+| File             | Role                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `zod.ts`         | Configures zod (jitless) and re-exports `z`; every schema imports it                                         |
+| `base64url.ts`   | Unpadded base64url: the codec (one canonical spelling per byte string) and an exact-length schema helper     |
+| `envelope.ts`    | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                     |
+| `keys.ts`        | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys` |
+| `vault.ts`       | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |
+| `me.ts`          | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)  |
+| `transaction.ts` | The plaintext inside a `transaction` record, by type; amounts as strings of plain digits; loose              |
+| `settings.ts`    | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save |
 
 The envelope schema accepts only what `src/crypto/envelope.ts` can produce: a
 12-byte IV and a ciphertext whose length is one padding bucket (256 bytes to

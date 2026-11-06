@@ -9,12 +9,11 @@ import { z } from "./zod.ts";
 
 export const DEFAULT_BASE_CURRENCY = "USD";
 
+/** An ISO 4217 code; the list offered depends on the price source (phase 4). */
+export const currencyCodeSchema = z.string().regex(/^[A-Z]{3}$/);
+
 export const settingsSchema = z.looseObject({
-  /** An ISO 4217 code; the list offered depends on the price source (phase 4). */
-  baseCurrency: z
-    .string()
-    .regex(/^[A-Z]{3}$/)
-    .optional(),
+  baseCurrency: currencyCodeSchema.optional(),
 });
 
 export type Settings = z.infer<typeof settingsSchema>;
