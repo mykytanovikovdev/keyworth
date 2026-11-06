@@ -14,17 +14,26 @@ headers on `/api/health` and on 401s; a browser navigation to an unknown
 `/api/*` path reaches the Worker (OAuth callbacks rely on it).
 
 **Zero violations while rendering** (`app.spec.ts`, `design-system.spec.ts`,
-`auth.spec.ts`): every page in both themes and both widths records **no CSP or
-Trusted Types violation, console error or page error**; Trusted Types actually
-block an `innerHTML` string; the page is cross-origin isolated; React Aria's two
-hashed styles are applied; the `/design` page is absent from production.
+`auth.spec.ts`, `encryption.spec.ts`): the pages record **no CSP or Trusted Types
+violation, console error or page error**; Trusted Types actually block an
+`innerHTML` string; the page is cross-origin isolated; React Aria's two hashed
+styles are applied; the `/design` page is absent from production. These checks
+found that zod's eval probe triggers a Trusted Types report, which led to zod's
+jitless mode.
 
-**Argon2id under the CSP** (`kdf-benchmark.spec.ts`, design builds): in each
-engine, the RFC 9106 test vector passes and Argon2id with the production
-settings runs under the real CSP and Trusted Types without a violation or
-error. The measured time is attached to the report as an `argon2id` annotation.
-This test found that zod's eval probe triggers a Trusted Types report, which led
-to zod's jitless mode.
+**Argon2id under the CSP** (`encryption.spec.ts`): in each engine, the production
+build runs Argon2id with the production settings under the real CSP and Trusted
+Types. It opens keys that `tests/support/keys.ts` made in Node, so an engine that
+computed it differently could not unlock. The RFC 9106 vector itself is checked in
+`tests/unit/crypto/kdf.test.ts`.
+
+**Which scenarios need every engine:** anything that touches what engines
+implement differently (WebCrypto, IndexedDB, Web Locks, BroadcastChannel, cookies,
+reloads and tabs, downloads, printing, a new UI component, layout). This is where
+the engines have earned their keep: WebKit reports a CSP violation for any native
+`<select>` and shows ungranted Web Locks only as pending, and Firefox aborts
+requests during a reload. Scenarios that only exercise text and routing on screens
+other scenarios already load in every engine are tagged `@chromium-only`.
 
 **After every deploy:** the headers and Chromium projects run against
 keyworth.app in CI.
@@ -55,4 +64,4 @@ The encryption screens have their own suite, with the same CSP checks:
   (`watchCspViolations` in `support.ts`); a test that opens a page without it
   sees nothing.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-06

@@ -16,58 +16,58 @@ function relativeLuminance(cssColor: string): number {
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 }
 
+// The narrow width, where a page can scroll sideways. A wider one changes
+// nothing about the CSP; the screenshots in tests/visual cover its layout.
+const WIDTH = 390;
+
 for (const colorScheme of ["light", "dark"] as const) {
-  for (const width of [390, 1440]) {
-    test(`renders without CSP violations or errors (${colorScheme}, ${String(width)}px)`, async ({
-      page,
-    }) => {
-      const errors = collectErrors(page);
-      await page.emulateMedia({ colorScheme });
-      await page.setViewportSize({ width, height: 900 });
+  test(`renders without CSP violations or errors (${colorScheme})`, async ({
+    page,
+  }) => {
+    const errors = collectErrors(page);
+    await page.emulateMedia({ colorScheme });
+    await page.setViewportSize({ width: WIDTH, height: 900 });
 
-      // Signed out, the app sends every page to sign-in.
-      await page.goto("/");
+    // Signed out, the app sends every page to sign-in.
+    await page.goto("/");
 
-      await expect(page).toHaveURL(/\/sign-in$/);
-      await expect(
-        page.getByRole("heading", { level: 1, name: "Sign in to Keyworth" }),
-      ).toBeVisible();
-      const violations = await cspViolations(page);
-      const state = await page.evaluate(
-        (scheme) => ({
-          crossOriginIsolated: window.crossOriginIsolated,
-          background: getComputedStyle(document.documentElement)
-            .backgroundColor,
-          scrollWidth: document.documentElement.scrollWidth,
-          schemeEmulated: matchMedia(`(prefers-color-scheme: ${scheme})`)
-            .matches,
-        }),
-        colorScheme,
-      );
+    await expect(page).toHaveURL(/\/sign-in$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Sign in to Keyworth" }),
+    ).toBeVisible();
+    const violations = await cspViolations(page);
+    const state = await page.evaluate(
+      (scheme) => ({
+        crossOriginIsolated: window.crossOriginIsolated,
+        background: getComputedStyle(document.documentElement).backgroundColor,
+        scrollWidth: document.documentElement.scrollWidth,
+        schemeEmulated: matchMedia(`(prefers-color-scheme: ${scheme})`).matches,
+      }),
+      colorScheme,
+    );
 
-      expect(violations).toEqual([]);
-      expect(errors).toEqual([]);
-      // COOP + COEP make the page cross-origin isolated.
-      expect(state.crossOriginIsolated).toBe(true);
-      expect(state.scrollWidth, "no horizontal scroll").toBeLessThanOrEqual(
-        width,
-      );
+    expect(violations).toEqual([]);
+    expect(errors).toEqual([]);
+    // COOP + COEP make the page cross-origin isolated.
+    expect(state.crossOriginIsolated).toBe(true);
+    expect(state.scrollWidth, "no horizontal scroll").toBeLessThanOrEqual(
+      WIDTH,
+    );
 
-      // The page follows the color scheme instead of a hardcoded palette.
-      // Some browser builds ignore color-scheme emulation (Playwright's Firefox
-      // on macOS); record that instead of asserting against the wrong scheme.
-      if (!state.schemeEmulated) {
-        test.info().annotations.push({
-          type: "theme check skipped",
-          description: `${colorScheme} color-scheme emulation is not supported here`,
-        });
-        return;
-      }
-      const luminance = relativeLuminance(state.background);
-      if (colorScheme === "dark") expect(luminance).toBeLessThan(0.2);
-      else expect(luminance).toBeGreaterThan(0.8);
-    });
-  }
+    // The page follows the color scheme instead of a hardcoded palette.
+    // Some browser builds ignore color-scheme emulation (Playwright's Firefox
+    // on macOS); record that instead of asserting against the wrong scheme.
+    if (!state.schemeEmulated) {
+      test.info().annotations.push({
+        type: "theme check skipped",
+        description: `${colorScheme} color-scheme emulation is not supported here`,
+      });
+      return;
+    }
+    const luminance = relativeLuminance(state.background);
+    if (colorScheme === "dark") expect(luminance).toBeLessThan(0.2);
+    else expect(luminance).toBeGreaterThan(0.8);
+  });
 }
 
 test("the design system page is not part of the production build", async ({

@@ -1,10 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { settingsSchema } from "../../../shared/schemas/settings.ts";
 import { ApiError } from "../../../src/vault/api.ts";
-import {
-  isDeviceKey,
-  memoryDeviceKeys,
-} from "../../../src/vault/device-keys.ts";
+import { isDeviceKey } from "../../../src/vault/device-keys.ts";
 import { readRecords, writeRecord } from "../../../src/vault/records.ts";
 import { isDataKey } from "../../../src/vault/tabs.ts";
 import { ALICE } from "../crypto/fixtures.ts";
@@ -122,10 +119,6 @@ describe("keys that cross a boundary", () => {
     for (const key of [extractable, dataKey, both, "key", null]) {
       expect(isDeviceKey(key)).toBe(false);
     }
-    const store = memoryDeviceKeys();
-    await expect(store.save(ALICE, dataKey)).rejects.toThrow(/device key/);
-    await store.save(ALICE, device);
-    expect(await store.load(ALICE)).toBe(device);
   });
 
   it("the tab channel takes only a non-extractable encrypt/decrypt key", async () => {

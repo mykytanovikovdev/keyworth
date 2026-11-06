@@ -127,7 +127,8 @@ suggests four or more random words.
 `tests/unit/crypto/kdf.test.ts` (RFC 9106 vector, noble against Node's native
 Argon2id with the production settings, determinism, the typed forms of one
 passphrase, refusal of non-Latin input before Argon2, non-extractable keys,
-progress, refused settings) and `tests/e2e/kdf-benchmark.spec.ts` (the vector
-and the production settings in Chromium, Firefox and WebKit under the real CSP).
+progress, refused settings) and `tests/e2e/encryption.spec.ts` (the production
+settings in Chromium, Firefox and WebKit under the real CSP, opening keys made in
+Node).
 
-Last reviewed: 2026-11-03
+Last reviewed: 2026-11-06

@@ -43,17 +43,3 @@ export const localStore = webStorage(() => window.localStorage);
 
 /** This tab only, and it survives a reload. */
 export const sessionStore = webStorage(() => window.sessionStorage);
-
-/** An in-memory store, for tests and for browsers without Web Storage. */
-export function memoryStore(): KeyValueStore {
-  const values = new Map<string, string>();
-  return {
-    get: (key) => values.get(key) ?? null,
-    set: (key, value) => {
-      values.set(key, value);
-    },
-    remove: (key) => {
-      values.delete(key);
-    },
-  };
-}

@@ -29,7 +29,7 @@ Not covered on purpose: third-party services (Google, Anthropic, price APIs) are
 never called from automated tests. Encryption tests are mandatory and run in CI
 on every push: the core in `unit/crypto/`, storage, isolation and "no plaintext
 in the database" in `integration/keys.test.ts` and `integration/vault.test.ts`,
-and Argon2id in every browser engine in `e2e/kdf-benchmark.spec.ts`.
+and Argon2id in every browser engine in `e2e/encryption.spec.ts`.
 
 ## How to run
 
@@ -48,6 +48,19 @@ npm run check       # format, lint, types, tests, licenses, build — run before
   in a browser, pure logic in Node.
 - No real network: external services are replaced at the boundary.
 - Expected values are written out in tests, not derived from the code under test.
+
+## Keeping it lean
+
+A test earns its place by catching something no cheaper test catches.
+
+- **Reworking a feature includes its tests:** what is outdated or now duplicated
+  goes in the same branch.
+- **Each phase ends with a short review:** duplicates, test doubles in production
+  code, scenarios that do not need every browser, baselines that change for
+  unrelated reasons.
+- **Encryption and isolation tests stay even when they look alike.** They sit at
+  different layers of the defense (the input check, the schema, the database), and
+  a mistake there costs someone's data.
 
 ## Adding a test
 

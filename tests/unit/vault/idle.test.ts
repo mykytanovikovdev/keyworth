@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { IDLE_LOCK_MS, idleClock, isIdle } from "../../../src/vault/idle.ts";
-import { memoryStore } from "../../../src/vault/storage.ts";
+import { memoryStore } from "./fake-browser.ts";
 
 /*
  * The idle lock decides by clock time shared through localStorage, not by

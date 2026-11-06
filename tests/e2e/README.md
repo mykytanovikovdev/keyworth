@@ -19,7 +19,7 @@ Covered now:
   - a browser _navigation_ to an unknown `/api/*` path reaches the Worker instead
     of the SPA fallback (the guarantee OAuth callbacks rely on).
 - **`app.spec.ts`** (Chromium, Firefox, WebKit):
-  - the page renders in light and dark mode at 390 px and 1440 px with **zero CSP
+  - the page renders in light and dark mode at 390 px with **zero CSP
     violations, console errors or page errors**, no horizontal scroll, and colors
     that actually follow the color scheme;
   - the page is cross-origin isolated (COOP + COEP work);
@@ -31,8 +31,8 @@ Covered now:
     callback URL and a state value (the request to Google is intercepted);
   - the invite-list refusal is explained in the app's own words, and text in
     the URL is never shown; unknown error codes get a generic message;
-  - the privacy policy and terms are public; the line right under the Google
-    button says what continuing accepts and links to both;
+  - the line right under the Google button says what continuing accepts, and
+    the privacy policy and terms open from it and directly, without signing in;
   - signed in: the app opens (a new account on how its encryption works),
     `/sign-in` sends back to it, Settings links to the policy and terms and coming
     back does not lock the data, sign-out ends the session, account deletion
@@ -61,11 +61,10 @@ Covered now:
   - themes: set by `theme-init.js` before the app's JavaScript runs (the bundle
     is blocked in that test), a choice survives a reload, "System" clears it, and
     the page follows a live change of the system setting.
-- **`kdf-benchmark.spec.ts`** (`/design/kdf` in Chromium, Firefox, WebKit): the
-  encryption core's Argon2id (`@noble/hashes`) matches RFC 9106's test vector in
-  each engine and runs with the production settings under the real CSP and
-  Trusted Types with **zero violations or errors**. The measured time is added to
-  the report as an `argon2id` annotation, one per browser.
+
+Scenarios tagged `@chromium-only` run in Chromium alone, because they exercise
+text and routing, not anything the engines implement differently. Which scenarios
+need every engine: [docs/csp-and-engines.md](docs/csp-and-engines.md).
 
 What these suites prove about the CSP and the browser engines, and their
 pitfalls: [docs/csp-and-engines.md](docs/csp-and-engines.md).

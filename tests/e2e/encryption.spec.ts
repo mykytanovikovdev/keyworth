@@ -437,7 +437,7 @@ test("recovery: the recovery key and a new passphrase open the data", async ({
   expect(errors).toEqual([]);
 });
 
-test("someone who lost the recovery key too can delete the account from the recovery screen", async ({
+test("someone who lost the recovery key too can delete the account from the recovery screen @chromium-only", async ({
   page,
   context,
   baseURL,
@@ -460,7 +460,7 @@ test("someone who lost the recovery key too can delete the account from the reco
   expect(errors).toEqual([]);
 });
 
-test("recovery asks for a fresh Google sign-in before anything is typed", async ({
+test("recovery asks for a fresh Google sign-in before anything is typed @chromium-only", async ({
   page,
   context,
   baseURL,
@@ -557,7 +557,7 @@ test("Settings: change the passphrase, create a new recovery key", async ({
   expect(errors).toEqual([]);
 });
 
-test("Settings asks for a fresh sign-in before a new passphrase is typed", async ({
+test("Settings asks for a fresh sign-in before a new passphrase is typed @chromium-only", async ({
   page,
   context,
   baseURL,

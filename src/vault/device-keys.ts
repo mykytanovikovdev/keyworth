@@ -92,27 +92,3 @@ export const indexedDbDeviceKeys: DeviceKeyStore = {
     await run("readwrite", (store) => store.delete(userId));
   },
 };
-
-/** In memory, for tests. Applies the same check as IndexedDB storage. */
-export function memoryDeviceKeys(): DeviceKeyStore & {
-  keys: Map<string, CryptoKey>;
-} {
-  const keys = new Map<string, CryptoKey>();
-  return {
-    keys,
-    load: (userId) => Promise.resolve(keys.get(userId) ?? null),
-    save(userId, key) {
-      if (!isDeviceKey(key)) {
-        return Promise.reject(
-          new Error("Only a non-extractable device key may be stored."),
-        );
-      }
-      keys.set(userId, key);
-      return Promise.resolve();
-    },
-    remove(userId) {
-      keys.delete(userId);
-      return Promise.resolve();
-    },
-  };
-}

@@ -3,7 +3,7 @@
 What the unit tests of `src/crypto` and `shared/schemas` prove, and how to
 extend them. They run in Node 24, whose WebCrypto has the same API as browsers;
 that the same code works in Chromium, Firefox and WebKit is shown by
-`tests/e2e/kdf-benchmark.spec.ts`.
+`tests/e2e/encryption.spec.ts`.
 
 ## What is proven
 
@@ -153,4 +153,4 @@ it("refuses a slot whose IV was changed", async () => {
 });
 ```
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-06

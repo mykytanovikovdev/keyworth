@@ -151,23 +151,16 @@ describe("derivePassphraseKek", () => {
     expect(await sameKey(base, doubled)).toBe(false);
   });
 
-  it.each([
-    ["an accented letter", "café au lait, s'il vous plaît"],
-    ["a Spanish letter", "mañana por la mañana"],
-    ["a Cyrillic layout", "фиолетовый слон танцует"],
-    ["a Cyrillic look-alike", "purple elephant dаnces"],
-    ["an emoji", "purple elephant dances 🐘"],
-    ["an invisible character", "purple\u200belephant dances"],
-  ])(
-    "refuses %s before Argon2 runs",
-    async (_, passphrase) => {
-      await expect(
-        derivePassphraseKek(passphrase, randomBytes(16), CURRENT_KDF_PARAMS),
-      ).rejects.toMatchObject({ code: "not-latin" });
-    },
-    // Production settings would take a second: refusing must not run them.
-    200,
-  );
+  // Which characters are refused: passphrase.test.ts. Here: that it happens first.
+  it("refuses text that is not plain Latin before Argon2 runs", async () => {
+    await expect(
+      derivePassphraseKek(
+        "фиолетовый слон танцует",
+        randomBytes(16),
+        CURRENT_KDF_PARAMS,
+      ),
+    ).rejects.toMatchObject({ code: "not-latin" });
+  }, 200); // Production settings would take a second: refusing must not run them.
 
   it("is a non-extractable key that can only wrap and unwrap", async () => {
     const kek = await derivePassphraseKek(

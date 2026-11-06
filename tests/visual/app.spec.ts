@@ -169,12 +169,14 @@ for (const theme of THEMES) {
       await page
         .getByRole("button", { name: "Delete account" })
         .click({ timeout: 90_000 });
-      await expect(
-        page.getByRole("alertdialog", { name: "Delete your account?" }),
-      ).toBeVisible();
+      const dialog = page.getByRole("alertdialog", {
+        name: "Delete your account?",
+      });
+      await expect(dialog).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
 
-      await expect(page).toHaveScreenshot(
+      // The dialog alone: a change to the page behind it is not a change to it.
+      await expect(dialog).toHaveScreenshot(
         `delete-account-${theme}-${String(width)}.png`,
       );
     });
