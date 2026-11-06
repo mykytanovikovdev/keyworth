@@ -1,8 +1,11 @@
 import type { DeviceSlotJson, KeysJson } from "../../../shared/schemas/keys.ts";
 import type { RecordKind, VaultWrite } from "../../../shared/schemas/vault.ts";
 import { ApiError, type VaultApi } from "../../../src/vault/api.ts";
-import { memoryDeviceKeys } from "../../../src/vault/device-keys.ts";
-import { type KeyValueStore, memoryStore } from "../../../src/vault/storage.ts";
+import {
+  type DeviceKeyStore,
+  isDeviceKey,
+} from "../../../src/vault/device-keys.ts";
+import type { KeyValueStore } from "../../../src/vault/storage.ts";
 import { createTabs, type LockReason } from "../../../src/vault/tabs.ts";
 import { Vault } from "../../../src/vault/vault.ts";
 import { ALICE, FAST_KDF } from "../crypto/fixtures.ts";
@@ -13,6 +16,44 @@ import { ALICE, FAST_KDF } from "../crypto/fixtures.ts";
  * the storage every tab shares, and real BroadcastChannels, so several Vault
  * objects behave like tabs of one browser.
  */
+
+/** localStorage or sessionStorage, in memory. */
+export function memoryStore(): KeyValueStore {
+  const values = new Map<string, string>();
+  return {
+    get: (key) => values.get(key) ?? null,
+    set: (key, value) => {
+      values.set(key, value);
+    },
+    remove: (key) => {
+      values.delete(key);
+    },
+  };
+}
+
+/** IndexedDB, in memory, with the same check on what it may store. */
+function memoryDeviceKeys(): DeviceKeyStore & {
+  keys: Map<string, CryptoKey>;
+} {
+  const keys = new Map<string, CryptoKey>();
+  return {
+    keys,
+    load: (userId) => Promise.resolve(keys.get(userId) ?? null),
+    save(userId, key) {
+      if (!isDeviceKey(key)) {
+        return Promise.reject(
+          new Error("Only a non-extractable device key may be stored."),
+        );
+      }
+      keys.set(userId, key);
+      return Promise.resolve();
+    },
+    remove(userId) {
+      keys.delete(userId);
+      return Promise.resolve();
+    },
+  };
+}
 
 interface StoredRecordRow {
   kind: RecordKind;
