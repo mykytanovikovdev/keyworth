@@ -114,6 +114,25 @@ test.describe("signed out", () => {
       page.getByRole("heading", { level: 1, name: "Terms" }),
     ).toBeVisible();
   });
+
+  test("says right under the button what continuing accepts, with links to both texts", async ({
+    page,
+  }) => {
+    await page.goto("/sign-in");
+
+    const consent = page
+      .getByRole("button", { name: "Continue with Google" })
+      .locator("+ p");
+    await expect(consent).toHaveText(
+      "By continuing with Google, you agree to the Terms and confirm you've read the Privacy policy.",
+    );
+
+    await consent.getByRole("link", { name: "Privacy policy" }).click();
+    await expect(page).toHaveURL(/\/privacy$/);
+    await page.goBack();
+    await consent.getByRole("link", { name: "Terms" }).click();
+    await expect(page).toHaveURL(/\/terms$/);
+  });
 });
 
 test.describe("signed in", () => {

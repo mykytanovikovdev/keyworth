@@ -56,11 +56,16 @@ export function SignInPage({ error }: { error?: string | undefined }) {
         >
           Continue with Google
         </Button>
+        {/* Right under the button and readable: this line is what makes
+            continuing an acceptance of the terms (worker/auth.ts records it). */}
+        <p className="mt-3 text-sm text-fg-muted">
+          By continuing with Google, you agree to the{" "}
+          <TextLink href="/terms">Terms</TextLink> and confirm you've read the{" "}
+          <TextLink href="/privacy">Privacy policy</TextLink>.
+        </p>
 
         <p className="mt-10 border-t border-line pt-4 text-xs text-fg-muted">
-          Invite only during the beta. By continuing you agree to the{" "}
-          <TextLink href="/terms">Terms</TextLink> and the{" "}
-          <TextLink href="/privacy">Privacy policy</TextLink>.
+          Invite only during the beta.
         </p>
       </div>
     </main>

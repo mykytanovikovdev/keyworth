@@ -31,7 +31,8 @@ Covered now:
     callback URL and a state value (the request to Google is intercepted);
   - the invite-list refusal is explained in the app's own words, and text in
     the URL is never shown; unknown error codes get a generic message;
-  - the privacy policy and terms are public;
+  - the privacy policy and terms are public; the line right under the Google
+    button says what continuing accepts and links to both;
   - signed in: the app opens (a new account on how its encryption works),
     `/sign-in` sends back to it, sign-out ends the session, account deletion
     works after confirmation, and a session older than 10 minutes is asked to
