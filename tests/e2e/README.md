@@ -37,7 +37,8 @@ Covered now:
     works after confirmation, and a session older than 10 minutes is asked to
     sign in again first.
 - **`encryption.spec.ts`** (Chromium, Firefox, WebKit; local builds only):
-  how the encryption works (steps both ways, axe), onboarding with the
+  the header at 320 px and its logo keeping the data open, how the encryption
+  works (steps both ways, axe), onboarding with the
   recovery key shown once and downloaded, printing the key
   alone, unlocking (wrong, non-Latin, right), one unlock per browser (a new tab
   gets the key, Lock locks every tab, unlocking one unlocks the other),

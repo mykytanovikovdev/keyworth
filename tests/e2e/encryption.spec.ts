@@ -611,6 +611,33 @@ test("the base currency is the first encrypted record", async ({
   await expect(currency).toHaveAccessibleName(/Euro/, AFTER_ARGON2);
 });
 
+test("the header fits a 320px screen, and its logo goes home without locking", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const { passphrase } = await returningUser(context, baseURL);
+  await page.goto("/settings");
+  await unlock(page, passphrase);
+  const settings = page.getByRole("link", { name: "Settings", exact: true });
+  await expect(settings).toBeVisible(AFTER_ARGON2);
+
+  const overflow = () =>
+    page.evaluate(
+      () =>
+        document.documentElement.scrollWidth -
+        document.documentElement.clientWidth,
+    );
+  expect(await overflow()).toBeLessThanOrEqual(0);
+
+  // Named for screen readers even where only the mark shows.
+  await page.getByRole("link", { name: "Keyworth", exact: true }).click();
+  await expect(welcome(page)).toBeVisible();
+  expect(await overflow()).toBeLessThanOrEqual(0);
+  await expect(unlockHeading(page)).toHaveCount(0);
+});
+
 test("Sign out everywhere signs out every tab", async ({
   page,
   context,

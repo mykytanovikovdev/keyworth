@@ -1,5 +1,6 @@
 import { Outlet } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
+import { Link } from "react-aria-components";
 import { VaultGate } from "../features/unlock/VaultGate.tsx";
 import { ButtonLink, KeyworthMark, ThemeToggle } from "../ui/index.ts";
 
@@ -10,13 +11,15 @@ export function AppShell() {
       <div className="flex min-h-dvh flex-col">
         <header className="border-b border-line">
           <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-            <a
+            {/* Through the router: a page reload would lock the data. */}
+            <Link
               href="/"
               className="flex items-center gap-2 rounded-md text-sm font-semibold"
             >
               <KeyworthMark />
-              Keyworth
-            </a>
+              {/* The narrowest phones have room for the mark alone. */}
+              <span className="max-[359px]:sr-only">Keyworth</span>
+            </Link>
             <div className="flex items-center gap-2">
               <ThemeToggle />
               <ButtonLink
