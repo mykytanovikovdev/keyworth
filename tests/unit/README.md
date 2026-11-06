@@ -38,7 +38,7 @@ numbers users see, so they get the most cases.
 Not here: anything that needs workerd (see [`integration/`](../integration/README.md))
 or a real browser engine. Node 24 implements WebCrypto with the browsers' API,
 so the crypto core runs here; that it also works in Chromium, Firefox and WebKit,
-under the production CSP, is checked by `tests/e2e/kdf-benchmark.spec.ts`.
+under the production CSP, is checked by `tests/e2e/encryption.spec.ts`.
 
 ## How to run
 

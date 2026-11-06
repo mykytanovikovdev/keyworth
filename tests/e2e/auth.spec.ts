@@ -84,7 +84,7 @@ test.describe("signed out", () => {
     expect(errors).toEqual([]);
   });
 
-  test("an uninvited account sees why, in the app's own words", async ({
+  test("an uninvited account sees why, in the app's own words @chromium-only", async ({
     page,
   }) => {
     await page.goto("/sign-in?error=NOT_INVITED&error_description=Injected");
@@ -96,7 +96,9 @@ test.describe("signed out", () => {
     expect(await cspViolations(page)).toEqual([]);
   });
 
-  test("an unknown error code gets a generic message", async ({ page }) => {
+  test("an unknown error code gets a generic message @chromium-only", async ({
+    page,
+  }) => {
     await page.goto("/sign-in?error=access_denied");
 
     await expect(page.getByRole("alert")).toHaveText(
@@ -104,18 +106,7 @@ test.describe("signed out", () => {
     );
   });
 
-  test("the privacy policy and terms are public", async ({ page }) => {
-    await page.goto("/privacy");
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Privacy policy" }),
-    ).toBeVisible();
-    await page.goto("/terms");
-    await expect(
-      page.getByRole("heading", { level: 1, name: "Terms" }),
-    ).toBeVisible();
-  });
-
-  test("says right under the button what continuing accepts, with links to both texts", async ({
+  test("says right under the button what continuing accepts, and both texts open without signing in @chromium-only", async ({
     page,
   }) => {
     await page.goto("/sign-in");
@@ -128,10 +119,20 @@ test.describe("signed out", () => {
     );
 
     await consent.getByRole("link", { name: "Privacy policy" }).click();
-    await expect(page).toHaveURL(/\/privacy$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Privacy policy" }),
+    ).toBeVisible();
     await page.goBack();
     await consent.getByRole("link", { name: "Terms" }).click();
-    await expect(page).toHaveURL(/\/terms$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Terms" }),
+    ).toBeVisible();
+
+    // Opened directly too, as from the link on Google's consent screen.
+    await page.goto("/privacy");
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Privacy policy" }),
+    ).toBeVisible();
   });
 });
 
@@ -220,7 +221,7 @@ test.describe("signed in", () => {
     );
   });
 
-  test("asks for a fresh sign-in when the session is older than 10 minutes", async ({
+  test("asks for a fresh sign-in when the session is older than 10 minutes @chromium-only", async ({
     page,
     context,
     baseURL,

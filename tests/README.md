@@ -29,7 +29,7 @@ Not covered on purpose: third-party services (Google, Anthropic, price APIs) are
 never called from automated tests. Encryption tests are mandatory and run in CI
 on every push: the core in `unit/crypto/`, storage, isolation and "no plaintext
 in the database" in `integration/keys.test.ts` and `integration/vault.test.ts`,
-and Argon2id in every browser engine in `e2e/kdf-benchmark.spec.ts`.
+and Argon2id in every browser engine in `e2e/encryption.spec.ts`.
 
 ## How to run
 

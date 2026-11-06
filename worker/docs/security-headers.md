@@ -93,8 +93,8 @@ exception needs the owner's approval and a justification here and in
 
 `tests/e2e/headers.spec.ts` (exact values on pages, deep links, assets and
 Worker responses; no inline code in `index.html`), every rendering e2e test
-(zero violations), `tests/e2e/kdf-benchmark.spec.ts` (Argon2id under the CSP),
+(zero violations), `tests/e2e/encryption.spec.ts` (Argon2id under the CSP),
 and the post-deploy smoke test against keyworth.app. See
 [tests/e2e/docs/csp-and-engines.md](../../tests/e2e/docs/csp-and-engines.md).
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-06

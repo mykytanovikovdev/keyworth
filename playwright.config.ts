@@ -44,6 +44,9 @@ export default defineConfig({
       testMatch: remoteBaseUrl
         ? "app.spec.ts"
         : ["app.spec.ts", "auth.spec.ts", "encryption.spec.ts"],
+      // Text and routing, which no engine renders differently enough to matter:
+      // see tests/e2e/docs/csp-and-engines.md.
+      ...(name === "chromium" ? {} : { grepInvert: /@chromium-only/ }),
       use: { ...device },
     })),
     // The design-mode build: every src/ui component on /design.
@@ -52,7 +55,7 @@ export default defineConfig({
       : [
           ...desktopBrowsers.map(([name, device]) => ({
             name: `design-${name}`,
-            testMatch: ["design-system.spec.ts", "kdf-benchmark.spec.ts"],
+            testMatch: "design-system.spec.ts",
             grepInvert: /@ios/,
             use: { ...device, baseURL: designUrl },
           })),

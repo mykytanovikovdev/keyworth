@@ -7,7 +7,9 @@ Chromium, Firefox and WebKit. The unit tests
 same flows' logic and failure cases against a fake server; this suite proves
 that the browser parts hold: IndexedDB, BroadcastChannel between real tabs,
 Web Locks, reloads, downloads, print styles, the session and device cookies,
-and the production Argon2 settings.
+and the production Argon2 settings. The three scenarios tagged `@chromium-only`
+(asking for a fresh sign-in, deleting from the recovery screen) run in Chromium
+alone: their screens are loaded in every engine by the other scenarios.
 
 ## Approach
 
