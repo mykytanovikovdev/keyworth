@@ -27,7 +27,8 @@ interface SelectProps {
 }
 
 /**
- * Pick one of a short list, such as a currency; the choice applies at once.
+ * Pick one of a list, such as a currency; the choice applies at once. A long
+ * list scrolls, and typing the first letters of a label jumps to it.
  *
  * Built as a menu of radio items (React Aria `Menu`), not React Aria's
  * `Select`: that one always adds a hidden native `<select>` for form autofill,
@@ -71,7 +72,9 @@ export function Select({
         </AriaButton>
         <Popover
           placement="bottom start"
-          className="w-max min-w-(--trigger-width) rounded-md border border-line bg-raised p-1 shadow-raised data-entering:animate-fade-in data-exiting:animate-fade-out"
+          // Never wider than the screen less React Aria's 12px margins: a long
+          // label wraps instead of pushing the page sideways on a phone.
+          className="w-max max-w-[calc(100vw-24px)] min-w-(--trigger-width) rounded-md border border-line bg-raised p-1 shadow-raised data-entering:animate-fade-in data-exiting:animate-fade-out"
         >
           <Menu
             aria-labelledby={labelId}

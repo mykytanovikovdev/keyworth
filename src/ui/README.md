@@ -179,7 +179,7 @@ and form controls match.
 | `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                  |
 | `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles                     |
 | `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill |
-| `Select`                  | React Aria `Menu`          | A short list that applies at once, such as a currency; not React Aria's `Select`   |
+| `Select`                  | React Aria `Menu`          | A list that applies at once, such as a currency; type-ahead; not React Aria's one  |
 | `Checkbox`                | React Aria `CheckboxField` | With `CheckboxButton`; label and an optional description line                      |
 | `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                        |
 | `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller            |

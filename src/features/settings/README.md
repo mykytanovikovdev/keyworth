@@ -44,7 +44,10 @@ shown in an `alertdialog` that only "I've saved it" closes, and only after the
 server stored its slot.
 
 **The base currency** is the first encrypted record (kind `settings`,
-`shared/schemas/settings.ts`), created on the first change; until then USD.
+`shared/schemas/settings.ts`), created on the first change; until then USD. The
+list is every currency a central bank publishes a rate for
+(`shared/schemas/currencies.ts`, 161), by name; typing a name's first letters
+jumps to it.
 Its id is derived from the user id (SHA-256, shaped as a UUID v4), so two
 devices that create it at once write the same record and the second gets a
 409, re-reads and applies its change on top, instead of leaving two competing
