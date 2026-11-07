@@ -21,6 +21,7 @@ lengths, so a malformed value is rejected before anything decodes it.
 | `vault.ts`       | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |
 | `me.ts`          | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)  |
 | `market.ts`      | Asset ids (`crypto:` and CoinGecko's id), limits, the shapes `/api/market` and `/api/assets` return          |
+| `currencies.ts`  | The 161 fiat currencies with a central bank's rate; a price currency is one of them, USDT or USDC            |
 | `transaction.ts` | The plaintext inside a `transaction` record, by type; amounts as strings of plain digits; loose              |
 | `settings.ts`    | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save |
 

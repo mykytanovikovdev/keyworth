@@ -1,4 +1,4 @@
-import { currencyCodeSchema } from "./settings.ts";
+import { priceCurrencySchema } from "./currencies.ts";
 import { z } from "./zod.ts";
 
 /*
@@ -26,17 +26,18 @@ const common = {
 const trade = {
   quantity: positiveDecimalString,
   price: positiveDecimalString,
-  priceCurrency: currencyCodeSchema,
+  /** A currency, or USDT or USDC at their own rate to the dollar. */
+  priceCurrency: priceCurrencySchema,
   fee: decimalString.optional(),
   /** The price currency when absent. */
-  feeCurrency: currencyCodeSchema.optional(),
+  feeCurrency: priceCurrencySchema.optional(),
 };
 
 /** A price is what these units were worth, so 0 is possible (an airdrop). */
 const received = {
   quantity: positiveDecimalString,
   price: decimalString,
-  priceCurrency: currencyCodeSchema,
+  priceCurrency: priceCurrencySchema,
 };
 
 export const transactionSchema = z.discriminatedUnion("type", [

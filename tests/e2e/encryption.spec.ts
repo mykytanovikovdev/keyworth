@@ -588,14 +588,29 @@ test("the base currency is the first encrypted record", async ({
   baseURL,
 }) => {
   const { passphrase, userId } = await returningUser(context, baseURL);
+  // The narrowest screen supported, where long currency names are hardest.
+  await page.setViewportSize({ width: 320, height: 800 });
   await page.goto("/settings");
   await unlock(page, passphrase);
 
   const currency = page.getByRole("button", { name: /^Base currency/ });
-  await expect(currency).toHaveAccessibleName(/US dollar/, AFTER_ARGON2);
+  await expect(currency).toHaveAccessibleName(
+    /United States Dollar/,
+    AFTER_ARGON2,
+  );
   await currency.click();
-  await page.getByRole("menuitemradio", { name: "Euro (EUR)" }).click();
-  await expect(currency).toHaveAccessibleName(/Euro/);
+  // Its longest names wrap: on a phone the open menu stays within the screen.
+  await expect(page.getByRole("menu")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  // Far down a list of 161: it has to scroll there.
+  await page
+    .getByRole("menuitemradio", { name: "Georgian Lari (GEL)" })
+    .click();
+  await expect(currency).toHaveAccessibleName(/Georgian Lari/);
   await expect(currency).toBeEnabled();
 
   const rows = await sql<{ kind: string; ciphertext: Buffer }>(
@@ -604,11 +619,11 @@ test("the base currency is the first encrypted record", async ({
   );
   expect(rows.map((row) => row.kind)).toEqual(["settings"]);
   const stored = rows[0]?.ciphertext.toString("latin1") ?? "";
-  expect(stored).not.toMatch(/EUR|baseCurrency/);
+  expect(stored).not.toMatch(/GEL|baseCurrency/);
 
   await page.reload();
   await unlock(page, passphrase);
-  await expect(currency).toHaveAccessibleName(/Euro/, AFTER_ARGON2);
+  await expect(currency).toHaveAccessibleName(/Georgian Lari/, AFTER_ARGON2);
 });
 
 test("the header fits a 320px screen, and its logo goes home without locking", async ({

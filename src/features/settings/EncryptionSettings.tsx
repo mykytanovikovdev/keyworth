@@ -1,5 +1,6 @@
 import { Lock, LogOut } from "lucide-react";
 import { useState } from "react";
+import { FIAT_CURRENCIES } from "../../../shared/schemas/currencies.ts";
 import {
   Button,
   Checkbox,
@@ -26,14 +27,11 @@ import { formText } from "../unlock/form-text.ts";
  * vault, and /design/encryption shows each state.
  */
 
-// The final list depends on the price source chosen in phase 4.
-const BASE_CURRENCIES: readonly SelectOption[] = [
-  { id: "USD", label: "US dollar (USD)" },
-  { id: "EUR", label: "Euro (EUR)" },
-  { id: "GBP", label: "British pound (GBP)" },
-  { id: "CHF", label: "Swiss franc (CHF)" },
-  { id: "JPY", label: "Japanese yen (JPY)" },
-];
+// Every currency with a central bank's rate, by name: typing the first letters
+// of a name jumps to it.
+const BASE_CURRENCIES: readonly SelectOption[] = [...FIAT_CURRENCIES]
+  .sort(([, a], [, b]) => a.localeCompare(b, "en"))
+  .map(([code, name]) => ({ id: code, label: `${name} (${code})` }));
 
 export function SignOutEverywhereSection({
   pending = false,

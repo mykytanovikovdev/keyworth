@@ -1,11 +1,11 @@
-import { decimal } from "../../shared/money/decimal.ts";
 import {
   type AssetJson,
   MARKET_LIMITS,
   type QuoteJson,
 } from "../../shared/schemas/market.ts";
 import { z } from "../../shared/schemas/zod.ts";
-import { cleanText, fetchJson, MarketError } from "./upstream.ts";
+import { type DailyPoint, DAY_MS } from "./series.ts";
+import { cleanText, fetchJson, MarketError, plainDigits } from "./upstream.ts";
 
 /*
  * CoinGecko's Demo API: the coin list and search, current prices and logos.
@@ -91,8 +91,7 @@ function quotesFrom(body: unknown): StoredQuote[] {
     return [
       {
         ...asset(coin.data),
-        // JSON brings a float, possibly written as 3.55e-7: plain digits from here on.
-        price: decimal(String(price)).toString(),
+        price: plainDigits(price),
         image: logoUrl(coin.data.image),
       },
     ];
@@ -153,4 +152,48 @@ export async function searchCoins(
         : [];
     })
     .slice(0, MARKET_LIMITS.searchResults);
+}
+
+const chartSchema = z.object({ prices: z.array(z.unknown()) });
+
+/**
+ * A coin's daily closing prices in US dollars for the past year, the Demo
+ * plan's limit. CoinGecko stamps a day's close at the next 00:00 UTC, so a
+ * point belongs to the day before it; its last point is the current price, not
+ * a close, and is left out. Empty for a coin CoinGecko does not know.
+ */
+export async function dailyHistory(
+  apiKey: string,
+  id: string,
+): Promise<DailyPoint[]> {
+  let body: unknown;
+  try {
+    body = await get(apiKey, `/coins/${id}/market_chart`, {
+      vs_currency: "usd",
+      days: "365",
+      interval: "daily",
+      precision: "full",
+    });
+  } catch (error) {
+    if (error instanceof MarketError && error.status === 404) return [];
+    throw error;
+  }
+  const chart = chartSchema.safeParse(body);
+  if (!chart.success) throw new MarketError(COINGECKO, "unexpected answer");
+  return chart.data.prices.flatMap((point): DailyPoint[] => {
+    if (!Array.isArray(point)) return [];
+    const [time, price] = point as unknown[];
+    if (
+      typeof time !== "number" ||
+      !Number.isInteger(time) ||
+      time % DAY_MS !== 0 ||
+      typeof price !== "number" ||
+      !Number.isFinite(price) ||
+      price < 0
+    ) {
+      return [];
+    }
+    const day = new Date(time - DAY_MS).toISOString().slice(0, 10);
+    return [[day, plainDigits(price)]];
+  });
 }

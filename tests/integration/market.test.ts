@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AssetSearchJson,
+  HistoryJson,
   PricesJson,
+  RatesJson,
 } from "../../shared/schemas/market.ts";
 import {
   api,
@@ -12,8 +14,9 @@ import {
 } from "./helpers.ts";
 
 /*
- * Market data through the real routes, with CoinGecko's answers replaced at
- * fetch. The cache is shared by every user, so each test starts it empty.
+ * Market data through the real routes, with CoinGecko's and Frankfurter's
+ * answers replaced at fetch. The cache is shared by every user, so each test
+ * starts it empty; one file, because files run in parallel on one database.
  */
 
 const IMAGES = "https://coin-images.coingecko.com/coins/images";
@@ -24,9 +27,9 @@ interface Call {
 }
 
 /**
- * Answers CoinGecko's requests with `answer`, records them, and refuses any other
- * host. Install it after signing in: the sign-in helper's own fetch mock restores
- * the real fetch when it is done, which would remove this one.
+ * Answers the sources' requests with `answer`, records them, and refuses any
+ * other host. Install it after signing in: the sign-in helper's own fetch mock
+ * restores the real fetch when it is done, which would remove this one.
  */
 function mockSources(answer: (url: URL) => Response | Promise<Response>) {
   const calls: Call[] = [];
@@ -35,7 +38,10 @@ function mockSources(answer: (url: URL) => Response | Promise<Response>) {
     .mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
       const request = new Request(input, init);
       const url = new URL(request.url);
-      if (!url.hostname.endsWith("coingecko.com")) {
+      if (
+        !url.hostname.endsWith("coingecko.com") &&
+        url.hostname !== "api.frankfurter.dev"
+      ) {
         throw new Error(`Unexpected request to ${url.hostname}`);
       }
       calls.push({ url, headers: request.headers });
@@ -91,7 +97,9 @@ const prices = async (cookie: string, ids?: string) => {
 };
 
 beforeEach(async () => {
-  await query("delete from market_cache where key like 'coingecko:%'");
+  await query(
+    "delete from market_cache where key like 'coingecko:%' or key like 'frankfurter:%'",
+  );
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -104,6 +112,8 @@ describe("the market routes", () => {
       "/api/market/prices",
       "/api/assets/search?q=bit",
       "/api/assets/crypto:bitcoin/logo",
+      "/api/market/history?asset=crypto:bitcoin&from=2026-01-01",
+      "/api/market/rates?quotes=EUR&from=2026-01-01",
     ]) {
       const response = await fetchWorker(path);
       expect(response.status, path).toBe(401);
@@ -425,25 +435,336 @@ describe("logos", () => {
 describe("what the cache keeps", () => {
   it("nothing about who asked", async () => {
     const user = await signedIn("cache-privacy");
-    mockSources((url) =>
-      url.pathname.endsWith("/search")
-        ? json({ coins: [] })
-        : defaultAnswer(url),
-    );
+    mockSources((url) => {
+      if (url.hostname === "api.frankfurter.dev") {
+        return json(fxRows("USD", "GEL", [["2026-03-01", 2.7]]));
+      }
+      if (url.pathname.endsWith("/search")) return json({ coins: [] });
+      if (url.pathname.endsWith("/market_chart")) {
+        return json({ prices: [], market_caps: [], total_volumes: [] });
+      }
+      return defaultAnswer(url);
+    });
     await prices(user.cookie);
     await api("/api/assets/search?q=private", { cookie: user.cookie });
+    await history(user.cookie, "crypto:held-coin", "2026-03-01");
+    await rates(user.cookie, "GEL", "2026-03-01");
 
     const rows = await query<{ key: string; value: string }>(
-      "select key, value::text from market_cache where key like 'coingecko:%'",
+      "select key, value::text from market_cache where key like 'coingecko:%' or key like 'frankfurter:%'",
     );
     expect(rows.map(({ key }) => key).sort()).toEqual([
+      "coingecko:history:held-coin",
       "coingecko:search:private",
       "coingecko:top",
+      "frankfurter:rate:GEL",
     ]);
     for (const { key, value } of rows) {
       for (const personal of [user.userId, user.email, user.ip]) {
         expect(`${key} ${value}`).not.toContain(personal);
       }
     }
+  });
+});
+
+/** Frankfurter's rows for one pair. */
+const fxRows = (base: string, quote: string, points: [string, unknown][]) =>
+  points.map(([date, rate]) => ({ date, base, quote, rate }));
+
+const history = async (cookie: string, asset: string, from: string) => {
+  const response = await api(
+    `/api/market/history?asset=${asset}&from=${from}`,
+    { cookie },
+  );
+  return {
+    status: response.status,
+    body: response.ok ? await response.json<HistoryJson>() : null,
+  };
+};
+
+const rates = async (cookie: string, quotes: string, from: string) => {
+  const response = await api(
+    `/api/market/rates?quotes=${quotes}&from=${from}`,
+    { cookie },
+  );
+  return {
+    status: response.status,
+    body: response.ok ? await response.json<RatesJson>() : null,
+  };
+};
+
+const frankfurter = (calls: Call[]) =>
+  calls.filter(({ url }) => url.hostname === "api.frankfurter.dev");
+
+describe("history from Coin Metrics", () => {
+  const BTC = fxRows("BTC", "USD", [
+    ["2026-03-01", 61000.5],
+    ["2026-03-02", 3.55e-7],
+    // 2026-03-03 missing: a gap stays a gap.
+    ["2026-03-04", 63000.25],
+  ]);
+
+  it("serves a covered coin's prices from the asked day, a value per day, plain digits", async () => {
+    const { cookie } = await signedIn("history-cm");
+    const { calls } = mockSources(() => json(BTC));
+
+    const { status, body } = await history(
+      cookie,
+      "crypto:bitcoin",
+      "2026-03-02",
+    );
+
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      asset: "crypto:bitcoin",
+      currency: "USD",
+      source: "coinmetrics",
+      prices: { from: "2026-03-02", values: ["0.000000355", null, "63000.25"] },
+    });
+    const [call] = frankfurter(calls);
+    expect(Object.fromEntries(call?.url.searchParams ?? [])).toEqual({
+      base: "BTC",
+      quotes: "USD",
+      providers: "CM",
+      from: "2010-07-18",
+    });
+  });
+
+  it("leaves out rows it cannot read, and days that cannot be", async () => {
+    const { cookie } = await signedIn("history-cm-bad");
+    mockSources(() =>
+      json([
+        ...BTC,
+        ...fxRows("BTC", "EUR", [["2026-03-03", 1]]),
+        ...fxRows("ETH", "USD", [["2026-03-03", 2]]),
+        ...fxRows("BTC", "USD", [
+          ["2026-03-03", -1],
+          ["2026-03-03", "62000"],
+          ["2026-02-30", 3],
+          ["9999-12-31", 4],
+          ["2009-01-03", 5],
+        ]),
+        null,
+        "row",
+      ]),
+    );
+
+    const { body } = await history(cookie, "crypto:bitcoin", "2026-01-01");
+
+    expect(body?.prices).toEqual({
+      from: "2026-03-01",
+      values: ["61000.5", "0.000000355", null, "63000.25"],
+    });
+  });
+
+  it("asks once for everyone, then only for the last week, keeping the rest", async () => {
+    const alice = await signedIn("history-cm-a");
+    const bob = await signedIn("history-cm-b");
+    let answer = BTC;
+    const { calls } = mockSources(() => json(answer));
+
+    await history(alice.cookie, "crypto:bitcoin", "2026-03-01");
+    await history(bob.cookie, "crypto:bitcoin", "2026-03-01");
+    expect(frankfurter(calls)).toHaveLength(1);
+
+    await query(
+      "update market_cache set fetched_at = now() - interval '7 hours' where key = 'frankfurter:price:BTC'",
+    );
+    // A revised last day and a new one.
+    answer = fxRows("BTC", "USD", [
+      ["2026-03-04", 63001],
+      ["2026-03-05", 64000],
+    ]);
+    const { body } = await history(
+      alice.cookie,
+      "crypto:bitcoin",
+      "2026-03-01",
+    );
+
+    expect(frankfurter(calls)[1]?.url.searchParams.get("from")).toBe(
+      "2026-02-25",
+    );
+    expect(body?.prices).toEqual({
+      from: "2026-03-01",
+      values: ["61000.5", "0.000000355", null, "63001", "64000"],
+    });
+  });
+
+  it("keeps serving what it has while Frankfurter fails, and answers 502 when it has nothing", async () => {
+    let up = true;
+    const { cookie } = await signedIn("history-cm-down");
+    mockSources(() => (up ? json(BTC) : new Response("down", { status: 503 })));
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const first = await history(cookie, "crypto:bitcoin", "2026-03-01");
+    await query(
+      "update market_cache set fetched_at = now() - interval '7 hours' where key = 'frankfurter:price:BTC'",
+    );
+    up = false;
+
+    const stale = await history(cookie, "crypto:bitcoin", "2026-03-01");
+    const missing = await history(cookie, "crypto:ethereum", "2026-03-01");
+
+    expect(stale.body?.prices).toEqual(first.body?.prices);
+    expect(missing.status).toBe(502);
+    expect(log).toHaveBeenCalledOnce();
+    expect(String(log.mock.calls[0]?.[0])).toBe(
+      "Market data unavailable: frankfurter: status 503",
+    );
+  });
+});
+
+describe("history from CoinGecko", () => {
+  const midnight = (day: string) => Date.parse(`${day}T00:00:00Z`);
+  const CHART = {
+    prices: [
+      [midnight("2026-03-05"), 0.5],
+      [midnight("2026-03-06"), 4.2e-7],
+      [midnight("2026-03-07"), 0.75],
+      // The current price, not a day's close.
+      [midnight("2026-03-07") + 11 * 60 * 60 * 1000, 0.8],
+      [midnight("2026-03-08"), null],
+      ["2026-03-09", 1],
+    ],
+    market_caps: [],
+    total_volumes: [],
+  };
+
+  it("serves another coin's past year, each close on the day it ends, once a day", async () => {
+    const { cookie } = await signedIn("history-cg");
+    const { calls } = mockSources(() => json(CHART));
+
+    const first = await history(cookie, "crypto:obscure-coin", "2026-01-01");
+    await history(cookie, "crypto:obscure-coin", "2026-01-01");
+
+    expect(first.body).toEqual({
+      asset: "crypto:obscure-coin",
+      currency: "USD",
+      source: "coingecko",
+      prices: {
+        from: "2026-03-04",
+        values: ["0.5", "0.00000042", "0.75"],
+      },
+    });
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.url.pathname).toBe(
+      "/api/v3/coins/obscure-coin/market_chart",
+    );
+    expect(Object.fromEntries(calls[0]?.url.searchParams ?? [])).toEqual({
+      vs_currency: "usd",
+      days: "365",
+      interval: "daily",
+      precision: "full",
+    });
+    expect(calls[0]?.headers.get("x-cg-demo-api-key")).toBe(
+      "test-coingecko-key",
+    );
+  });
+
+  it("has nothing for a coin CoinGecko does not know, and does not ask again that day", async () => {
+    const { cookie } = await signedIn("history-cg-unknown");
+    const { calls } = mockSources(
+      () => new Response('{"error":"coin not found"}', { status: 404 }),
+    );
+
+    const first = await history(cookie, "crypto:no-such-coin", "2026-01-01");
+    await history(cookie, "crypto:no-such-coin", "2026-01-01");
+
+    expect(first.status).toBe(200);
+    expect(first.body?.prices.values).toEqual([]);
+    expect(calls).toHaveLength(1);
+  });
+
+  it.each([
+    ["an asset without its kind", "asset=bitcoin&from=2026-01-01"],
+    ["no asset", "from=2026-01-01"],
+    ["no day", "asset=crypto:bitcoin"],
+    ["a day that does not exist", "asset=crypto:bitcoin&from=2026-02-30"],
+    ["a time instead of a day", "asset=crypto:bitcoin&from=2026-01-01T00:00"],
+  ])("refuses %s", async (_, params) => {
+    const { cookie } = await signedIn("history-bad");
+    mockSources(() => json(CHART));
+    const response = await api(`/api/market/history?${params}`, { cookie });
+    expect(response.status).toBe(400);
+  });
+});
+
+describe("exchange rates", () => {
+  const answer = (url: URL) => {
+    const quote = url.searchParams.get("quotes") ?? "";
+    return json(
+      fxRows("USD", quote, [
+        ["2026-03-01", quote === "USDT" ? 1.0014 : 0.9],
+        ["2026-03-02", quote === "USDT" ? 0.9986 : 0.91],
+      ]),
+    );
+  };
+
+  it("serves units per dollar for each currency, a stablecoin's from Coin Metrics", async () => {
+    const { cookie } = await signedIn("rates");
+    const { calls } = mockSources(answer);
+
+    const { status, body } = await rates(cookie, "EUR,USDT,EUR", "2026-03-02");
+
+    expect(status).toBe(200);
+    expect(body).toEqual({
+      base: "USD",
+      rates: {
+        EUR: { from: "2026-03-02", values: ["0.91"] },
+        USDT: { from: "2026-03-02", values: ["0.9986"] },
+      },
+    });
+    expect(
+      frankfurter(calls).map(({ url }) => Object.fromEntries(url.searchParams)),
+    ).toEqual([
+      { base: "USD", quotes: "EUR", from: "2010-07-18" },
+      { base: "USD", quotes: "USDT", from: "2010-07-18", providers: "CM" },
+    ]);
+  });
+
+  it("asks only for the currencies it does not have yet", async () => {
+    const { cookie } = await signedIn("rates-cache");
+    const { calls } = mockSources(answer);
+
+    await rates(cookie, "EUR", "2026-03-01");
+    await rates(cookie, "EUR,GEL", "2026-03-01");
+
+    expect(
+      frankfurter(calls).map(({ url }) => url.searchParams.get("quotes")),
+    ).toEqual(["EUR", "GEL"]);
+  });
+
+  it.each([
+    ["the dollar itself", "USD"],
+    ["a code in lower case", "eur"],
+    ["a code no central bank publishes", "XYZ"],
+    ["a coin", "BTC"],
+    ["nothing", ""],
+    ["more than 10 currencies", "EUR,GBP,CHF,JPY,GEL,RON,RUB,PLN,CZK,SEK,NOK"],
+  ])("refuses %s", async (_, quotes) => {
+    const { cookie } = await signedIn("rates-bad");
+    mockSources(answer);
+    expect((await rates(cookie, quotes, "2026-03-01")).status).toBe(400);
+  });
+});
+
+describe("how long the cache keeps a source's data", () => {
+  it("CoinGecko's a day at most, Frankfurter's 90 days", async () => {
+    const { cookie } = await signedIn("cache-lifetimes");
+    mockSources((url) =>
+      url.hostname === "api.frankfurter.dev"
+        ? json(fxRows("USD", "EUR", [["2026-03-01", 0.9]]))
+        : json({ prices: [], market_caps: [], total_volumes: [] }),
+    );
+    await history(cookie, "crypto:obscure-coin", "2026-03-01");
+    await rates(cookie, "EUR", "2026-03-01");
+
+    // Postgres sends numeric as text.
+    const rows = await query<{ key: string; days: string }>(
+      "select key, extract(epoch from expires_at - fetched_at) / 86400 as days from market_cache where key like 'coingecko:%' or key like 'frankfurter:%' order by key",
+    );
+    expect(rows.map(({ key, days }) => [key, Number(days)])).toEqual([
+      ["coingecko:history:obscure-coin", 1],
+      ["frankfurter:rate:EUR", 90],
+    ]);
   });
 });

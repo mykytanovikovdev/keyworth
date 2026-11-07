@@ -1,3 +1,5 @@
+import { decimal } from "../../shared/money/decimal.ts";
+
 /*
  * Calls to market data sources: a time limit, a size limit, and errors that
  * never name what was asked for. A request's URL holds asset ids or a search,
@@ -6,11 +8,24 @@
 
 const TIMEOUT_MS = 8000;
 
+/**
+ * A JSON number as plain digits: JavaScript writes 3.55e-7 for small ones.
+ * Only those go through the decimal library, which costs CPU on long series.
+ */
+export function plainDigits(value: number): string {
+  const text = String(value);
+  return /e/i.test(text) ? decimal(text).toString() : text;
+}
+
 /** A source failed. The message names the source and the kind of failure only. */
 export class MarketError extends Error {
-  constructor(source: string, reason: string) {
+  /** The source's HTTP status, when it answered with an error. */
+  readonly status: number | undefined;
+
+  constructor(source: string, reason: string, status?: number) {
     super(`${source}: ${reason}`);
     this.name = "MarketError";
+    this.status = status;
   }
 }
 
@@ -30,7 +45,11 @@ async function request(
   }
   if (!response.ok) {
     await response.body?.cancel();
-    throw new MarketError(source, `status ${String(response.status)}`);
+    throw new MarketError(
+      source,
+      `status ${String(response.status)}`,
+      response.status,
+    );
   }
   return response;
 }

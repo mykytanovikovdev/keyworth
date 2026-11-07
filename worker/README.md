@@ -42,20 +42,20 @@ Inside the Worker:
 /api/vault       encrypted records                          (routes/)
 ```
 
-| File                           | Role                                                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------------------- |
-| `index.ts`                     | Hono app: headers, per-request database and auth, session check                             |
-| `env.ts`                       | Types of the bindings and per-request values every route sees                               |
-| `limits.ts`                    | Rate limits, body size, fresh-session and same-origin checks                                |
-| `cleanup.ts`                   | Daily deletion of expired sessions, old counters and market data                            |
-| `market/`                      | Prices, search and logos from CoinGecko, cached for every user ([README](market/README.md)) |
-| `routes/`                      | `/api/keys`, `/api/vault`, `/api/market`, `/api/assets` ([README](routes/README.md))        |
-| `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits                            |
-| `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))                              |
-| `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)                              |
-| `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP                         |
-| `../wrangler.jsonc`            | Worker config: assets routing, observability, cron, compatibility date                      |
-| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)                                      |
+| File                           | Role                                                                                         |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `index.ts`                     | Hono app: headers, per-request database and auth, session check                              |
+| `env.ts`                       | Types of the bindings and per-request values every route sees                                |
+| `limits.ts`                    | Rate limits, body size, fresh-session and same-origin checks                                 |
+| `cleanup.ts`                   | Daily deletion of expired sessions, old counters and market data                             |
+| `market/`                      | Prices, history, rates, search and logos, cached for every user ([README](market/README.md)) |
+| `routes/`                      | `/api/keys`, `/api/vault`, `/api/market`, `/api/assets` ([README](routes/README.md))         |
+| `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits                             |
+| `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))                               |
+| `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)                               |
+| `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP                          |
+| `../wrangler.jsonc`            | Worker config: assets routing, observability, cron, compatibility date                       |
+| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)                                       |
 
 Production runs at **https://keyworth.app**, a Custom Domain declared in
 `wrangler.jsonc` (`routes` with `custom_domain: true`): each deploy keeps its DNS

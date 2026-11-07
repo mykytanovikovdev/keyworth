@@ -39,12 +39,12 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
    ├── /api/auth    sign-in with Google, invite-only beta
    ├── /api/keys    wrapped data keys (never the keys themselves)
    ├── /api/vault   encrypted records
-   ├── /api/market  prices: one snapshot for everyone, cached
+   ├── /api/market  prices, history, exchange rates: shared cache for everyone
    ├── /api/assets  coin search and logos, through the Worker
    └── /api/chat    pass-through to the model, never stored    (planned)
    │
    ├──► PostgreSQL (Neon, via Hyperdrive) — envelopes and service data only
-   ├──► CoinGecko — market data, asked by the server, never by the browser
+   ├──► CoinGecko, Frankfurter — market data, asked by the server, never by the browser
    └──► Anthropic API (Claude Haiku)                           (planned)
 ```
 
@@ -57,7 +57,7 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
 | Data     | PostgreSQL 18 (Neon in production, Docker locally) through Hyperdrive, Drizzle ORM and migrations |
 | Tests    | Vitest (Node and workerd + Postgres), Playwright (Chromium, Firefox, WebKit), axe, screenshots    |
 | Crypto   | WebCrypto (AES-256-GCM, HKDF), Argon2id from @noble/hashes (plain JavaScript), zod schemas        |
-| Money    | big.js decimals, pure calculations in `shared/metrics`; prices from CoinGecko through the Worker  |
+| Money    | big.js decimals, pure calculations in `shared/metrics`; prices and rates through the Worker       |
 | Planned  | AI SDK with Claude Haiku                                                                          |
 
 ## Getting started
