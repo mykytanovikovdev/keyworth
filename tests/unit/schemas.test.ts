@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { FIAT_CURRENCIES } from "../../shared/schemas/currencies.ts";
 import { envelopeSchema } from "../../shared/schemas/envelope.ts";
 import { KDF_LIMITS, kdfParamsSchema } from "../../shared/schemas/keys.ts";
+import { settingsSchema } from "../../shared/schemas/settings.ts";
 import { transactionSchema } from "../../shared/schemas/transaction.ts";
 import { recordKindSchema } from "../../shared/schemas/vault.ts";
 
@@ -124,6 +126,11 @@ describe("transactionSchema", () => {
     ["a transfer in", { ...buy, type: "transfer_in" }],
     ["an airdrop, at price 0", { ...buy, type: "transfer_in", price: "0" }],
     ["income", { ...buy, type: "income", source: "csv" }],
+    ["a price in USDT", { ...buy, priceCurrency: "USDT" }],
+    [
+      "a fee in USDC",
+      { ...buy, priceCurrency: "USDC", fee: "0.1", feeCurrency: "USDC" },
+    ],
     [
       "a transfer out, with no price",
       {
@@ -163,6 +170,7 @@ describe("transactionSchema", () => {
     ["a quantity of zero", { quantity: "0.0" }],
     ["a purchase at price zero", { price: "0" }],
     ["a lower-case currency", { priceCurrency: "usd" }],
+    ["a stablecoin other than USDT and USDC", { priceCurrency: "BUSD" }],
     ["a time with no zone", { executedAt: "2025-12-20T10:30:00" }],
     ["a time in another zone", { executedAt: "2025-12-20T10:30:00+04:00" }],
     ["a date alone", { executedAt: "2025-12-20" }],
@@ -184,5 +192,26 @@ describe("transactionSchema", () => {
     expect(transactionSchema.parse({ ...buy, later: 1 })).toMatchObject({
       later: 1,
     });
+  });
+});
+
+describe("currencies", () => {
+  it("lists each fiat currency once, by code, with a name", () => {
+    const codes = FIAT_CURRENCIES.map(([code]) => code);
+    expect(codes).toEqual([...new Set(codes)].sort());
+    expect(codes).toEqual(expect.arrayContaining(["USD", "EUR", "GEL"]));
+    for (const [code, name] of FIAT_CURRENCIES) {
+      expect(code).toMatch(/^[A-Z]{3}$/);
+      expect(name.trim()).not.toBe("");
+    }
+  });
+
+  it("keeps the base currency a fiat code: a stablecoin is a price currency only", () => {
+    expect(settingsSchema.safeParse({ baseCurrency: "GEL" }).success).toBe(
+      true,
+    );
+    expect(settingsSchema.safeParse({ baseCurrency: "USDT" }).success).toBe(
+      false,
+    );
   });
 });
