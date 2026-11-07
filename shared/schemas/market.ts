@@ -15,7 +15,15 @@ export const MARKET_LIMITS = {
   queryLength: 50,
   /** Results of a search. */
   searchResults: 20,
+  /** Currencies in one rates request. */
+  quotesPerRequest: 10,
 } as const;
+
+/** The first day with a market price for Bitcoin: no series starts earlier. */
+export const HISTORY_START = "2010-07-18";
+
+/** A UTC day, as `from` in the history and rates requests. */
+export const daySchema = z.iso.date();
 
 export interface AssetJson {
   id: string;
@@ -40,4 +48,28 @@ export interface PricesJson {
 
 export interface AssetSearchJson {
   assets: AssetJson[];
+}
+
+/**
+ * One value per UTC day: `values[i]` is for `from` plus i days, null where the
+ * source has none. Days, not dated points: half the size, and no date to parse.
+ */
+export interface DailySeriesJson {
+  from: string;
+  values: (string | null)[];
+}
+
+export interface HistoryJson {
+  asset: string;
+  currency: "USD";
+  /** Whose prices these are: the screen credits them next to the chart. */
+  source: "coinmetrics" | "coingecko";
+  /** The price at each day's end (00:00 UTC), plain digits; the latest day is yesterday. */
+  prices: DailySeriesJson;
+}
+
+export interface RatesJson {
+  base: "USD";
+  /** Units of each currency per US dollar, by code. */
+  rates: Record<string, DailySeriesJson>;
 }

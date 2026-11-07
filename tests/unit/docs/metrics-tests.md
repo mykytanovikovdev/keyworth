@@ -65,7 +65,9 @@ after a large change to the rules.
 
 ## Not here
 
-- Real prices and rates: tested where they arrive, later in phase 4.
+- Real prices and rates: tested where they arrive, in the Worker's market tests
+  ([storage-and-isolation.md](../../integration/docs/storage-and-isolation.md));
+  turning their answers into `PriceSeries` and `RateLookup` comes with the screens.
 - Screens and formatting: they come with the portfolio page.
 - Whether a form refuses an oversold sale: that is the transaction service, later
   in phase 4. Here, only what the calculations do when one is already stored.
@@ -88,4 +90,4 @@ it("realizes the move in the rate too", () => {
 });
 ```
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-07

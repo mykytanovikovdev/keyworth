@@ -1,11 +1,18 @@
 import { type Context, Hono } from "hono";
 import {
+  FIAT_CURRENCIES,
+  STABLECOINS,
+} from "../../shared/schemas/currencies.ts";
+import {
   type AssetJson,
   type AssetSearchJson,
   cryptoAssetIdSchema,
+  daySchema,
+  type HistoryJson,
   MARKET_LIMITS,
   type PricesJson,
   type QuoteJson,
+  type RatesJson,
 } from "../../shared/schemas/market.ts";
 import type { AppEnv } from "../env.ts";
 import { rateLimit } from "../limits.ts";
@@ -17,35 +24,62 @@ import {
 } from "../market/cache.ts";
 import {
   COINGECKO,
+  dailyHistory,
   quotesFor,
   searchCoins,
   type StoredAsset,
   type StoredQuote,
   topQuotes,
 } from "../market/coingecko.ts";
+import {
+  COIN_METRICS_CODES,
+  coinMetricsPricesSince,
+  FRANKFURTER,
+  ratesSince,
+} from "../market/frankfurter.ts";
+import {
+  dailySeries,
+  emptySeries,
+  mergeSeries,
+  sliceSeries,
+} from "../market/series.ts";
 import { fetchImage, MarketError } from "../market/upstream.ts";
 
 /*
- * /api/market and /api/assets: prices, search and logos, for signed-in users.
- * Everyone gets the same snapshot of the 250 largest coins, so a request for it
- * says nothing about what anyone owns. Only coins outside it are asked for by
- * id. See worker/market/docs/market-data.md.
+ * /api/market and /api/assets: prices, history, exchange rates, search and
+ * logos, for signed-in users. Everyone gets the same snapshot of the 250
+ * largest coins, so a request for it says nothing about what anyone owns. Only
+ * coins outside it, a coin's history and a currency's rates are asked for by
+ * name. See worker/market/docs/market-data.md.
  */
 
 export const market = new Hono<AppEnv>();
 export const assets = new Hono<AppEnv>();
 
 const MINUTE = 60 * 1000;
-const DAY = 24 * 60 * MINUTE;
+const HOUR = 60 * MINUTE;
+const DAY = 24 * HOUR;
 const PRICES = { freshForMs: 10 * MINUTE, keepForMs: DAY };
 // CoinGecko's terms: refresh what is kept at least once a day.
 const SEARCH = { freshForMs: DAY, keepForMs: DAY };
+const COINGECKO_HISTORY = { freshForMs: 12 * HOUR, keepForMs: DAY };
+// Frankfurter's past days do not change; a refresh asks for the last week again.
+const SERIES = { freshForMs: 6 * HOUR, keepForMs: 90 * DAY };
 const LOGO_MAX_BYTES = 100 * 1024;
 
 const TOP = `${COINGECKO}:top`;
 const quoteKey = (id: string) => `${COINGECKO}:quote:${id}`;
 const searchKey = (query: string) => `${COINGECKO}:search:${query}`;
 const logoKey = (id: string) => `${COINGECKO}:logo:${id}`;
+const historyKey = (id: string) => `${COINGECKO}:history:${id}`;
+const coinMetricsKey = (code: string) => `${FRANKFURTER}:price:${code}`;
+const rateKey = (code: string) => `${FRANKFURTER}:rate:${code}`;
+
+/** Currencies with a rate to the dollar: the dollar itself needs none. */
+const RATE_CODES: ReadonlySet<string> = new Set([
+  ...FIAT_CURRENCIES.flatMap(([code]) => (code === "USD" ? [] : [code])),
+  ...STABLECOINS,
+]);
 
 /** A source's failure is a 502 and one log line, which names neither assets nor searches. */
 function onMarketError(error: Error, c: Context<AppEnv>) {
@@ -174,6 +208,92 @@ market.get("/prices", limitPrices, async (c) => {
     fetchedAt: new Date(oldest).toISOString(),
     quotes: entries.flatMap(({ value }) =>
       value.quote ? [publicQuote(value.quote)] : [],
+    ),
+  });
+});
+
+const limitHistory = rateLimit("history", 120);
+
+/**
+ * A coin's daily prices from `from` (a day): Coin Metrics' long history for the
+ * 35 coins it covers, otherwise CoinGecko's past year. One source per coin, so
+ * a chart has no seam where two sources disagree.
+ */
+market.get("/history", limitHistory, async (c) => {
+  const asset = c.req.query("asset") ?? "";
+  const from = c.req.query("from") ?? "";
+  if (!cryptoAssetIdSchema.safeParse(asset).success) {
+    return c.json({ error: "invalid_asset" }, 400);
+  }
+  if (!daySchema.safeParse(from).success) {
+    return c.json({ error: "invalid_from" }, 400);
+  }
+  const db = c.get("db");
+  const id = asset.slice("crypto:".length);
+  const code = COIN_METRICS_CODES.get(id);
+  if (code) {
+    const [series] = await dailySeries(
+      db,
+      [
+        {
+          key: coinMetricsKey(code),
+          load: (since) => coinMetricsPricesSince(code, since),
+        },
+      ],
+      SERIES,
+    );
+    return c.json<HistoryJson>({
+      asset,
+      currency: "USD",
+      source: "coinmetrics",
+      prices: sliceSeries(series ?? emptySeries(), from),
+    });
+  }
+  const { value } = await cached(
+    db,
+    historyKey(id),
+    COINGECKO_HISTORY,
+    async () =>
+      mergeSeries(null, await dailyHistory(c.env.COINGECKO_API_KEY, id)),
+  );
+  return c.json<HistoryJson>({
+    asset,
+    currency: "USD",
+    source: "coingecko",
+    prices: sliceSeries(value, from),
+  });
+});
+
+const limitRates = rateLimit("rates", 60);
+
+/** Units of each currency per US dollar, day by day from `from`. */
+market.get("/rates", limitRates, async (c) => {
+  const quotes = [...new Set((c.req.query("quotes") ?? "").split(","))];
+  const from = c.req.query("from") ?? "";
+  if (
+    quotes.length > MARKET_LIMITS.quotesPerRequest ||
+    !quotes.every((code) => RATE_CODES.has(code))
+  ) {
+    return c.json({ error: "invalid_quotes" }, 400);
+  }
+  if (!daySchema.safeParse(from).success) {
+    return c.json({ error: "invalid_from" }, 400);
+  }
+  const series = await dailySeries(
+    c.get("db"),
+    quotes.map((code) => ({
+      key: rateKey(code),
+      load: (since: string) => ratesSince(code, since),
+    })),
+    SERIES,
+  );
+  return c.json<RatesJson>({
+    base: "USD",
+    rates: Object.fromEntries(
+      quotes.map((code, index) => [
+        code,
+        sliceSeries(series[index] ?? emptySeries(), from),
+      ]),
     ),
   });
 });

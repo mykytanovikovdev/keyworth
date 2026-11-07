@@ -58,10 +58,12 @@ whom, and what it does not protect. The mechanisms are described in
 - When a user writes (the rate-limit window) and, from the requests themselves,
   when they unlock: the vault is loaded at every unlock.
 - Prices: everyone loads the same snapshot of the 250 largest coins, which says
-  nothing about holdings. A coin outside it is asked for by id, so at that
-  moment the server sees which coins the user asks about; nothing keeps that,
-  and no log records it. Searches are kept for a day under their text, unlinked
-  to who typed them ([worker/market/docs/market-data.md](../../../worker/market/docs/market-data.md)).
+  nothing about holdings. A coin outside it, a coin's price history and a
+  currency's exchange rates are asked for by name, so at that moment the server
+  sees which coins and currencies the user asks about (in practice, what they
+  hold and their base currency); nothing keeps that, and no log records it.
+  Searches are kept for a day under their text, unlinked to who typed them
+  ([worker/market/docs/market-data.md](../../../worker/market/docs/market-data.md)).
 - Token usage (phase 5).
 
 ## In transit through the server

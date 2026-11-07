@@ -7,7 +7,7 @@ shares, value over time, drawdown, volatility, correlation. Pure functions, run 
 the browser on decrypted data, so the server never sees these figures and the
 model only explains them.
 
-Not here: fetching prices and rates (`worker/market`, later in phase 4), reading records
+Not here: fetching prices and rates (`worker/market`), reading records
 (`src/vault`), formatting, screens.
 
 ## How it works

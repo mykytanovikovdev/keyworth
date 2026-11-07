@@ -36,7 +36,24 @@ through the real Google flow (only Google's token endpoint is replaced).
   results; empty or over-long searches are refused.
 - Logos: the small variant, cached a day with `private, max-age=86400`, from
   the snapshot or a search; none for an unseen coin or another host; SVG refused.
-- `market_cache` holds no user id, email or address.
+- History: the 35 coins Coin Metrics covers take its series through Frankfurter
+  (`base=<coin>&quotes=USD&providers=CM`, from 2010-07-18), any other coin
+  CoinGecko's past year; a CoinGecko point closes the day before it and its
+  current price is left out; one value per day from the asked day, `null` in a
+  gap; rows of another pair, not a number, negative or not a real day (including
+  9999-12-31 and before 2010-07-18) are left out; an unknown coin has an empty
+  history, cached.
+- Series refresh: one call serves every user; a stale series asks only from a
+  week before its last day and keeps the rest; a failing source leaves an
+  unexpired series as it is, and with nothing usable answers 502 with one log
+  line naming only the source.
+- Rates: units per dollar for each currency asked, USDT and USDC from Coin
+  Metrics; only the currencies not cached cost a call; USD, unknown or
+  lower-case codes, coins and more than 10 are refused, as are a malformed asset
+  or day in a history request.
+- CoinGecko's data is kept a day at most, Frankfurter's 90 days.
+- `market_cache` holds no user id, email or address, for prices, searches,
+  history and rates alike.
 - The cleanup deletes expired market data and keeps the rest.
 
 **Sign-in and sessions** (`auth.test.ts`)
