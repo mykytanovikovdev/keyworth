@@ -108,7 +108,8 @@ For end-to-end tests, install the browsers once:
 
 ```
 src/        React SPA; src/ui/ is the design system, src/crypto/ the encryption core
-shared/     zod schemas and other definitions shared by the browser and the Worker
+shared/     definitions and logic shared by the browser and the Worker: zod schemas,
+            decimal money and the portfolio calculations
 worker/     Cloudflare Worker (Hono): API, sign-in, security headers, daily cleanup; db/ is the database
 drizzle/    SQL migrations
 public/     static files, including _headers (page CSP) and robots.txt
@@ -122,7 +123,8 @@ Every major folder has its own README explaining what it does, why it is built
 that way, and its pitfalls; critical features and their tests are described in
 depth in `docs/` folders next to the code. READMEs: [design system](src/ui/README.md),
 [encryption](src/crypto/README.md), [privacy policy and terms](src/features/legal/README.md),
-[shared schemas](shared/schemas/README.md),
+[shared schemas](shared/schemas/README.md), [money](shared/money/README.md),
+[calculations](shared/metrics/README.md),
 [worker](worker/README.md), [database](worker/db/README.md), [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).
 

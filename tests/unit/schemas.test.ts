@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { envelopeSchema } from "../../shared/schemas/envelope.ts";
 import { KDF_LIMITS, kdfParamsSchema } from "../../shared/schemas/keys.ts";
+import { transactionSchema } from "../../shared/schemas/transaction.ts";
 import { recordKindSchema } from "../../shared/schemas/vault.ts";
 
 // Base64url lengths: 12-byte IV → 16 characters; 256-byte bucket + tag → 363.
@@ -97,5 +98,89 @@ describe("recordKindSchema", () => {
       expect(recordKindSchema.safeParse(kind).success).toBe(true);
     }
     expect(recordKindSchema.safeParse("password").success).toBe(false);
+  });
+});
+
+describe("transactionSchema", () => {
+  const buy = {
+    type: "buy",
+    assetId: "bitcoin",
+    executedAt: "2025-12-20T10:30:00Z",
+    quantity: "0.5",
+    price: "60000.03",
+    priceCurrency: "USD",
+    source: "manual",
+  };
+  const parses = (value: unknown) => transactionSchema.safeParse(value).success;
+
+  it.each([
+    ["a buy", buy],
+    [
+      "a sell with a fee",
+      { ...buy, type: "sell", fee: "1.5", feeCurrency: "EUR" },
+    ],
+    ["a free trade fee", { ...buy, fee: "0" }],
+    ["18 decimal places", { ...buy, quantity: "0.000000000000000001" }],
+    ["a transfer in", { ...buy, type: "transfer_in" }],
+    ["an airdrop, at price 0", { ...buy, type: "transfer_in", price: "0" }],
+    ["income", { ...buy, type: "income", source: "csv" }],
+    [
+      "a transfer out, with no price",
+      {
+        type: "transfer_out",
+        assetId: "bitcoin",
+        executedAt: buy.executedAt,
+        quantity: "0.5",
+        source: "chat",
+      },
+    ],
+    [
+      "a split, with a ratio and no quantity",
+      {
+        type: "split",
+        assetId: "aapl",
+        executedAt: buy.executedAt,
+        ratio: "0.1",
+        source: "manual",
+      },
+    ],
+  ])("accepts %s", (_, value) => {
+    expect(parses(value)).toBe(true);
+  });
+
+  it.each([
+    ["an exponent", { quantity: "1e5" }],
+    ["a comma", { quantity: "1,5" }],
+    ["a sign", { quantity: "+1" }],
+    ["a negative amount", { price: "-1" }],
+    ["a leading zero", { quantity: "01" }],
+    ["no digit before the point", { quantity: ".5" }],
+    ["no digit after the point", { quantity: "5." }],
+    ["19 decimal places", { quantity: "0.0000000000000000001" }],
+    ["a number instead of a string", { quantity: 1 }],
+    ["a quantity of zero", { quantity: "0.0" }],
+    ["a purchase at price zero", { price: "0" }],
+    ["a lower-case currency", { priceCurrency: "usd" }],
+    ["a time with no zone", { executedAt: "2025-12-20T10:30:00" }],
+    ["a time in another zone", { executedAt: "2025-12-20T10:30:00+04:00" }],
+    ["a date alone", { executedAt: "2025-12-20" }],
+    ["an unknown source", { source: "import" }],
+    ["an unknown type", { type: "gift" }],
+    ["a note too long", { note: "x".repeat(1001) }],
+  ])("refuses %s", (_, change) => {
+    expect(parses({ ...buy, ...change })).toBe(false);
+  });
+
+  it("needs a price for what comes in: it becomes the cost", () => {
+    expect(parses({ ...buy, type: "transfer_in", price: undefined })).toBe(
+      false,
+    );
+    expect(parses({ ...buy, type: "income", price: undefined })).toBe(false);
+  });
+
+  it("keeps fields a newer version added", () => {
+    expect(transactionSchema.parse({ ...buy, later: 1 })).toMatchObject({
+      later: 1,
+    });
   });
 });

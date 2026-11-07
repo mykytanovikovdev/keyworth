@@ -1,0 +1,196 @@
+import { describe, expect, it } from "vitest";
+import {
+  eachDay,
+  type HistoryPoint,
+  type PriceSeries,
+  portfolioHistory,
+} from "../../../shared/metrics/history.ts";
+import { decimal } from "../../../shared/money/decimal.ts";
+import {
+  buy,
+  entries,
+  income,
+  sell,
+  split,
+  transferIn,
+  transferOut,
+  USD,
+  usdWithRates,
+} from "./fixtures.ts";
+
+const series = (
+  points: Record<string, string>,
+  currency = "USD",
+): PriceSeries => ({
+  currency,
+  points: Object.entries(points).map(([date, price]) => ({
+    date,
+    price: decimal(price),
+  })),
+});
+
+const shown = ({ date, value, inflow, outflow, movedIn }: HistoryPoint) => [
+  date,
+  value?.toString() ?? null,
+  inflow?.toString() ?? null,
+  outflow?.toString() ?? null,
+  movedIn?.toString() ?? null,
+];
+
+describe("eachDay", () => {
+  it("crosses months and a daylight-saving change, both ends included", () => {
+    expect(eachDay("2025-03-29", "2025-04-01")).toEqual([
+      "2025-03-29",
+      "2025-03-30",
+      "2025-03-31",
+      "2025-04-01",
+    ]);
+  });
+});
+
+describe("portfolioHistory", () => {
+  const PRICES = series({
+    "2025-01-01": "100",
+    "2025-01-02": "110",
+    "2025-01-03": "120",
+    "2025-01-04": "130",
+  });
+  const run = (
+    transactions: Parameters<typeof entries>,
+    from = "2025-01-01",
+    to = "2025-01-04",
+    money = USD,
+  ) =>
+    portfolioHistory(entries(...transactions), {
+      money,
+      prices: () => PRICES,
+      from,
+      to,
+    }).map(shown);
+
+  it("values holdings each day and shows purchases and sales as money moved", () => {
+    expect(
+      run([
+        buy("2025-01-02", "2", "105", { fee: "1" }),
+        sell("2025-01-03", "1", "125", { fee: "2" }),
+      ]),
+    ).toEqual([
+      ["2025-01-01", "0", "0", "0", "0"],
+      // 2 × 110; in: 2 × 105 + 1.
+      ["2025-01-02", "220", "211", "0", "0"],
+      // 1 × 120; out: 125 − 2.
+      ["2025-01-03", "120", "0", "123", "0"],
+      ["2025-01-04", "130", "0", "0", "0"],
+    ]);
+  });
+
+  it("starts from what was bought before the range, without counting it as money in", () => {
+    expect(
+      run([buy("2024-12-01", "1", "50")], "2025-01-01", "2025-01-02"),
+    ).toEqual([
+      ["2025-01-01", "100", "0", "0", "0"],
+      ["2025-01-02", "110", "0", "0", "0"],
+    ]);
+  });
+
+  it("stops at the end of the range", () => {
+    expect(
+      run([buy("2025-02-01", "1", "50")], "2025-01-01", "2025-01-01"),
+    ).toEqual([["2025-01-01", "0", "0", "0", "0"]]);
+  });
+
+  it("values a transfer at the day's price, whatever cost it states", () => {
+    expect(
+      run(
+        [transferIn("2025-01-02", "1", "1"), transferOut("2025-01-03", "1")],
+        "2025-01-02",
+        "2025-01-03",
+      ),
+    ).toEqual([
+      ["2025-01-02", "110", "0", "0", "110"],
+      ["2025-01-03", "0", "0", "120", "0"],
+    ]);
+  });
+
+  it("treats income as earned, not as money put in", () => {
+    expect(
+      run(
+        [buy("2025-01-01", "1", "100"), income("2025-01-02", "1", "110")],
+        "2025-01-02",
+        "2025-01-02",
+      ),
+    ).toEqual([["2025-01-02", "220", "0", "0", "0"]]);
+  });
+
+  it("follows a split in the units without money moving", () => {
+    expect(
+      run(
+        [buy("2025-01-01", "1", "100"), split("2025-01-02", "2")],
+        "2025-01-02",
+        "2025-01-02",
+      ),
+    ).toEqual([["2025-01-02", "220", "0", "0", "0"]]);
+  });
+
+  it("counts only the held part of an oversold sale", () => {
+    expect(
+      run(
+        [buy("2025-01-01", "1", "100"), sell("2025-01-02", "3", "90")],
+        "2025-01-02",
+        "2025-01-02",
+      ),
+    ).toEqual([["2025-01-02", "0", "0", "90", "0"]]);
+  });
+
+  it("keeps the last price across a gap in the history (a weekend)", () => {
+    const history = portfolioHistory(entries(buy("2025-01-03", "1", "100")), {
+      money: USD,
+      prices: () => series({ "2025-01-03": "100", "2025-01-06": "130" }),
+      from: "2025-01-03",
+      to: "2025-01-06",
+    }).map(({ date, value }) => [date, value?.toString()]);
+    expect(history).toEqual([
+      ["2025-01-03", "100"],
+      ["2025-01-04", "100"],
+      ["2025-01-05", "100"],
+      ["2025-01-06", "130"],
+    ]);
+  });
+
+  it("has no value before an asset's first price, or without a series", () => {
+    const value = (prices: PriceSeries | null) =>
+      portfolioHistory(entries(buy("2025-01-01", "1", "100")), {
+        money: USD,
+        prices: () => prices,
+        from: "2025-01-01",
+        to: "2025-01-01",
+      })[0]?.value;
+    expect(value(series({ "2025-01-02": "100" }))).toBeNull();
+    expect(value(null)).toBeNull();
+  });
+
+  it("converts at each day's own rate, and has no value when it is missing", () => {
+    const history = portfolioHistory(entries(buy("2025-01-01", "1", "100")), {
+      money: usdWithRates({ "EUR 2025-01-02": "2" }),
+      prices: () => series({ "2025-01-01": "100", "2025-01-02": "100" }, "EUR"),
+      from: "2025-01-01",
+      to: "2025-01-02",
+    });
+    expect(history[0]?.value).toBeNull();
+    expect(history[1]?.value?.toString()).toBe("200");
+  });
+
+  it("has no money figure when a day's flow cannot be priced", () => {
+    const [day] = portfolioHistory(
+      entries(buy("2025-01-01", "1", "100", { priceCurrency: "EUR" })),
+      {
+        money: USD,
+        prices: () => series({ "2025-01-01": "100" }),
+        from: "2025-01-01",
+        to: "2025-01-01",
+      },
+    );
+    expect(day?.inflow).toBeNull();
+    expect(day?.value?.toString()).toBe("100");
+  });
+});

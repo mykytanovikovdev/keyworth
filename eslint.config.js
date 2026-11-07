@@ -58,6 +58,15 @@ const zodMessage =
 const zodDirect = [{ name: "zod", message: zodMessage }];
 const zodSubpaths = [{ group: ["zod/*"], message: zodMessage }];
 
+// Its default settings round differently and accept floats.
+const bigDirect = [
+  {
+    name: "big.js",
+    message:
+      "Import decimal from shared/money/decimal.ts, which configures it.",
+  },
+];
+
 export default defineConfig([
   globalIgnores([
     "dist",
@@ -86,7 +95,7 @@ export default defineConfig([
       "no-restricted-imports": [
         "error",
         {
-          paths: [...animeUnsafeExports, ...zodDirect],
+          paths: [...animeUnsafeExports, ...zodDirect, ...bigDirect],
           patterns: [...animeUnsafeModules, ...zodSubpaths],
         },
       ],
@@ -107,8 +116,8 @@ export default defineConfig([
     },
   },
   {
-    // The one module allowed to import zod: it configures it first.
-    files: ["shared/schemas/zod.ts"],
+    // The one module allowed to import each: it configures it first.
+    files: ["shared/schemas/zod.ts", "shared/money/decimal.ts"],
     rules: {
       "no-restricted-imports": [
         "error",
