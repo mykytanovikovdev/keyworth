@@ -7,6 +7,7 @@ import { connect } from "./db/client.ts";
 import type { AppEnv } from "./env.ts";
 import { freshForSeconds, requireSameOrigin } from "./limits.ts";
 import { keys } from "./routes/keys.ts";
+import { assets, market } from "./routes/market.ts";
 import { vault } from "./routes/vault.ts";
 import { securityHeaders } from "./security-headers.ts";
 
@@ -58,6 +59,9 @@ api.get("/me", (c) =>
 // End-to-end encryption: wrapped keys and encrypted records (phase 3).
 api.route("/keys", keys);
 api.route("/vault", vault);
+// Market data (phase 4): the same for everyone, behind the session all the same.
+api.route("/market", market);
+api.route("/assets", assets);
 
 const app = new Hono<AppEnv>();
 

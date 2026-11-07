@@ -3,6 +3,7 @@ import type { Database } from "./db/client.ts";
 import {
   apiRateLimits,
   deviceUnlocks,
+  marketCache,
   rateLimit,
   session,
 } from "./db/schema.ts";
@@ -15,8 +16,8 @@ const COUNTER_MAX_AGE_MS = 60 * 60 * 1000;
 /**
  * Deletes what no longer has a use, on the schedule in wrangler.jsonc: expired
  * sessions with the IP address and browser they hold (a remembered device goes
- * with its session), remembered devices past their limit, and old request
- * counters. The privacy policy promises how long these stay; nothing else
+ * with its session), remembered devices past their limit, old request
+ * counters, and expired market data (CoinGecko's terms: nothing older than a day). The privacy policy promises how long these stay; nothing else
  * removes them while their owner stays away.
  */
 export async function deleteExpiredData(db: Database): Promise<void> {
@@ -32,4 +33,5 @@ export async function deleteExpiredData(db: Database): Promise<void> {
   await db
     .delete(apiRateLimits)
     .where(lt(apiRateLimits.windowStart, new Date(counterCutoff)));
+  await db.delete(marketCache).where(lt(marketCache.expiresAt, new Date(now)));
 }

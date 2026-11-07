@@ -18,25 +18,28 @@ request ─► security headers (every response)
 
 ## Guards
 
-| Guard              | Where                                                | Rule                                                                                       | Answer                                                           |
-| ------------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
-| Session            | every route                                          | A session row from the cookie; the user id comes only from it                              | 401 `unauthorized`                                               |
-| Same origin        | every POST, PUT, DELETE                              | `Origin` must equal the origin of `BETTER_AUTH_URL`                                        | 403 `forbidden_origin`                                           |
-| Rate limit (keys)  | writes to `/api/keys`                                | 20 per user per minute                                                                     | 429 `rate_limited` + `Retry-After`                               |
-| Rate limit (vault) | writes to `/api/vault`                               | 120 per user per minute                                                                    | 429 `rate_limited` + `Retry-After`                               |
-| Fresh session      | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery` | Session created in the last 10 minutes (`GET /api/me` says how long is left)               | 403 `session_not_fresh`                                          |
-| Body size          | `/api/keys` writes; `PUT /api/vault/:id`             | 4 KB; 96 KB                                                                                | 413 `body_too_large`                                             |
-| Schema             | every body and id                                    | Exact shapes from `shared/schemas` (lengths, buckets, Argon2 limits, no extra fields)      | 400 `invalid_body` / `invalid_id` / `invalid_kind`               |
-| Revision           | `PUT /api/vault/:id`                                 | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change  | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
-| Quotas             | `PUT /api/vault/:id`                                 | At most 20,000 records and 50 MiB of ciphertext per user, checked in the writing statement | 413 `quota_exceeded`                                             |
-| One-time setup     | `POST /api/keys`                                     | The check value and both slots once, in one transaction: all three or none                 | 409 `already_set_up`                                             |
-| Expected slot      | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery` | `expectedIv` must equal the stored slot's IV                                               | 409 `conflict` + stored `iv`, or 404                             |
-| Device unlock      | `GET /api/keys/device`                               | Same session **and** the device cookie's token hash, remembered less than 14 days ago      | `{ slot: null }` (200: "not remembered" is no error)             |
+| Guard               | Where                                                | Rule                                                                                       | Answer                                                           |
+| ------------------- | ---------------------------------------------------- | ------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| Session             | every route                                          | A session row from the cookie; the user id comes only from it                              | 401 `unauthorized`                                               |
+| Same origin         | every POST, PUT, DELETE                              | `Origin` must equal the origin of `BETTER_AUTH_URL`                                        | 403 `forbidden_origin`                                           |
+| Rate limit (keys)   | writes to `/api/keys`                                | 20 per user per minute                                                                     | 429 `rate_limited` + `Retry-After`                               |
+| Rate limit (vault)  | writes to `/api/vault`                               | 120 per user per minute                                                                    | 429 `rate_limited` + `Retry-After`                               |
+| Rate limit (market) | `GET /api/market/prices`; `GET /api/assets/search`   | 120; 60 per user per minute (they can spend calls to CoinGecko)                            |
+| Fresh session       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery` | Session created in the last 10 minutes (`GET /api/me` says how long is left)               | 403 `session_not_fresh`                                          |
+| Body size           | `/api/keys` writes; `PUT /api/vault/:id`             | 4 KB; 96 KB                                                                                | 413 `body_too_large`                                             |
+| Schema              | every body and id                                    | Exact shapes from `shared/schemas` (lengths, buckets, Argon2 limits, no extra fields)      | 400 `invalid_body` / `invalid_id` / `invalid_kind`               |
+| Revision            | `PUT /api/vault/:id`                                 | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change  | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
+| Quotas              | `PUT /api/vault/:id`                                 | At most 20,000 records and 50 MiB of ciphertext per user, checked in the writing statement | 413 `quota_exceeded`                                             |
+| One-time setup      | `POST /api/keys`                                     | The check value and both slots once, in one transaction: all three or none                 | 409 `already_set_up`                                             |
+| Expected slot       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery` | `expectedIv` must equal the stored slot's IV                                               | 409 `conflict` + stored `iv`, or 404                             |
+| Device unlock       | `GET /api/keys/device`                               | Same session **and** the device cookie's token hash, remembered less than 14 days ago      | `{ slot: null }` (200: "not remembered" is no error)             |
 
 **Rate limiting** keeps one row per user and bucket in `api_rate_limits`
 (window start and count), updated by a single upsert that resets the count when
 the window has passed and returns the seconds left in it (`Retry-After`). It
-runs on every write, including Lock (`DELETE /api/keys/device`). A row untouched
+runs on every write, including Lock (`DELETE /api/keys/device`), and on the
+market reads that can reach CoinGecko; logos are left out on purpose
+([market-data.md](../../market/docs/market-data.md)). A row untouched
 for an hour goes with the daily cleanup
 ([data-inventory.md](../../db/docs/data-inventory.md)).
 
@@ -106,4 +109,4 @@ A new route gets `rateLimit()` and `maxBody()` on writes, a schema from
 `shared/schemas`, queries scoped by `c.get("user").id`, and tests for each
 refusal and for another user's attempt — in the same commit.
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-07

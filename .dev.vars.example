@@ -9,3 +9,6 @@ BETTER_AUTH_SECRET=
 # real Google account locally; automated tests use their own fake values.
 GOOGLE_CLIENT_ID=
 GOOGLE_CLIENT_SECRET=
+# CoinGecko's Demo API key (its Developer Dashboard). Needed only to load
+# prices locally; automated tests replace CoinGecko's answers.
+COINGECKO_API_KEY=

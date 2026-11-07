@@ -57,7 +57,12 @@ whom, and what it does not protect. The mechanisms are described in
   address and browser).
 - When a user writes (the rate-limit window) and, from the requests themselves,
   when they unlock: the vault is loaded at every unlock.
-- Which prices are requested (not linked to users in logs) and token usage.
+- Prices: everyone loads the same snapshot of the 250 largest coins, which says
+  nothing about holdings. A coin outside it is asked for by id, so at that
+  moment the server sees which coins the user asks about; nothing keeps that,
+  and no log records it. Searches are kept for a day under their text, unlinked
+  to who typed them ([worker/market/docs/market-data.md](../../../worker/market/docs/market-data.md)).
+- Token usage (phase 5).
 
 ## In transit through the server
 
@@ -174,4 +179,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-07

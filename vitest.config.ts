@@ -45,12 +45,17 @@ export default defineConfig({
             wrangler: { configPath: "./wrangler.jsonc" },
             miniflare: {
               hyperdrives: { HYPERDRIVE: TEST_DATABASE_URL },
+              // No real network: a request a test did not replace fails loudly
+              // instead of reaching Google or a price source.
+              outboundService: () =>
+                new Response("No network in tests", { status: 599 }),
               // Test-only values: nothing here is a real credential.
               bindings: {
                 BETTER_AUTH_URL: "https://keyworth.test",
                 BETTER_AUTH_SECRET: "integration-tests-only-0123456789abcdef",
                 GOOGLE_CLIENT_ID: "test-client-id.apps.googleusercontent.com",
                 GOOGLE_CLIENT_SECRET: "test-client-secret",
+                COINGECKO_API_KEY: "test-coingecko-key",
               },
             },
           }),
