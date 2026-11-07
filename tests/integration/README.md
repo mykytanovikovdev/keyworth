@@ -14,6 +14,11 @@ Covered now:
 - **`cleanup.test.ts`**, through the Worker's real `scheduled` handler: expired
   sessions go with their remembered devices, devices past 14 days go while their
   session stays, counters older than an hour go; live rows stay in every case.
+- **`market.test.ts`**: prices, search and logos with CoinGecko replaced at
+  `fetch`: what is served and in what form, one call for everyone, stale and
+  expired data, failures (one log line naming no request), limits, logos only
+  from CoinGecko's host and never SVG, and a cache that keeps nothing about who
+  asked.
 - **`auth.test.ts`**, through the real Google sign-in flow (state cookie,
   callback, database hooks, session):
   - an invited user gets a session, and `/api/me` returns only their own profile
@@ -116,6 +121,11 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
 `query()` runs SQL as the Worker's role.
 
 ## Pitfalls
+
+- **No network.** `outboundService` in `vitest.config.ts` answers every request
+  that leaves the Worker with 599, so a test must replace what it calls with
+  `vi.spyOn(globalThis, "fetch")`. Do that after signing in: the sign-in helper
+  restores the real `fetch` when it is done, which removes any earlier mock.
 
 - **The database must be running** (`npm run db:up`); the setup fails with that
   hint otherwise.

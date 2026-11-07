@@ -116,4 +116,22 @@ describe("the daily cleanup", () => {
       ]),
     ).toEqual([{ bucket: "recent" }]);
   });
+
+  it("deletes market data once it expires, and keeps what has not", async () => {
+    const label = crypto.randomUUID();
+    await query(
+      `insert into market_cache (key, value, fetched_at, expires_at) values
+         ($1, '1', now() - interval '25 hours', now() - interval '1 hour'),
+         ($2, '1', now(), now() + interval '1 hour')`,
+      [`test:${label}:old`, `test:${label}:new`],
+    );
+
+    await runCleanup();
+
+    expect(
+      await query(`select key from market_cache where key like $1`, [
+        `test:${label}:%`,
+      ]),
+    ).toEqual([{ key: `test:${label}:new` }]);
+  });
 });

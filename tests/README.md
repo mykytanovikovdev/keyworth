@@ -16,8 +16,8 @@ details.
 
 Planned, each arriving with the code it tests:
 
-- `e2e/` grows with encryption setup, unlock and recovery (phase 3) and
-  recording a trade through chat (phase 7).
+- `e2e/` grows with trades and the portfolio page (phase 4) and recording a trade
+  through chat (phase 7).
 - `visual/` grows with the app's screens as they are built.
 - `agent/` — the chat agent with a scripted mock model from `ai/test`:
   deterministic, runs in CI (phases 5–7).
@@ -25,7 +25,7 @@ Planned, each arriving with the code it tests:
   saved for comparison when the prompt changes (phase 9).
 
 Not covered on purpose: third-party services (Google, Anthropic, price APIs) are
-never called from automated tests. Encryption tests are mandatory and run in CI
+never called from automated tests; the Worker tests have no network at all. Encryption tests are mandatory and run in CI
 on every push: the core in `unit/crypto/`, storage, isolation and "no plaintext
 in the database" in `integration/keys.test.ts` and `integration/vault.test.ts`,
 and Argon2id in every browser engine in `e2e/encryption.spec.ts`.

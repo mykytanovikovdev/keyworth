@@ -17,7 +17,7 @@ const at = (date: string) => `${date}T12:00:00Z`;
 
 function make(fields: Record<string, unknown>): Transaction {
   return transactionSchema.parse({
-    assetId: "btc",
+    assetId: "crypto:bitcoin",
     source: "manual",
     priceCurrency: "USD",
     ...fields,

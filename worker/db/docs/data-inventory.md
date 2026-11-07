@@ -20,6 +20,7 @@ not listed here, it should not exist. Schema: `schema.ts` and the generated
 | `vault_records`   | per record: id, kind, revision, envelope version, IV, **ciphertext**, dates                                                   | Only kind, size, revision and dates                              | user                                    |
 | `device_unlocks`  | per session: SHA-256 of the device cookie's token, IV, **data key wrapped by a device-only key**, date (unused after 14 days) | Only the hash and date                                           | session and user; cleanup after 14 days |
 | `api_rate_limits` | per user and bucket: window start and count                                                                                   | Yes                                                              | user; cleanup after an hour             |
+| `market_cache`    | answers of price sources by request: the snapshot, a coin, a search (with its text)                                           | Yes; nothing in it belongs to a user                             | cleanup once expired (a day)            |
 
 `allowed_emails` and `blocked_emails` are keyed by email, not by user, so they
 survive account deletion on purpose: a deleted account is still invited (it can
@@ -74,8 +75,11 @@ run wakes the database, and a day is short enough for the promise).
 5. A user has both slots and a check value, or none of them: setup writes them
    in one transaction, and migration `0005` refuses to run over slots made
    before check values existed.
-6. Expired sessions, remembered devices past 14 days and counters older than an
-   hour never survive a cleanup run; nothing else is touched by it.
+6. Expired sessions, remembered devices past 14 days, counters older than an
+   hour and expired market data never survive a cleanup run; nothing else is
+   touched by it.
+7. `market_cache` holds no user id, email or address
+   ([worker/market/docs/market-data.md](../../market/docs/market-data.md)).
 
 ## How it is tested
 
@@ -93,4 +97,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-07

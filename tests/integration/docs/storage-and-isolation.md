@@ -19,6 +19,26 @@ through the real Google flow (only Google's token endpoint is replaced).
   at its own rows. No other file ages a row past these limits and then expects it
   to exist.
 
+**Market data** (`market.test.ts`, CoinGecko replaced at `fetch`)
+
+- The snapshot is served as plain digits (`3.55498e-7` becomes
+  `0.000000355498`), symbols in upper case, names without control or invisible
+  characters; coins with no price, a negative one or a malformed id are left out;
+  the logo's location never reaches the browser; the API key goes in its header.
+- One call serves every user for 10 minutes, then the next request refreshes it.
+- A failing source: an unexpired entry is served with its real age; with nothing
+  usable, 502 and exactly one log line, which names neither the asset nor the
+  request; past a day nothing is served.
+- By id: coins in the snapshot cost no call; the others are asked for together,
+  once, and an unknown coin is cached too. Malformed ids and more than 50 are
+  refused.
+- Search: one call per distinct search whatever its case and spaces, at most 20
+  results; empty or over-long searches are refused.
+- Logos: the small variant, cached a day with `private, max-age=86400`, from
+  the snapshot or a search; none for an unseen coin or another host; SVG refused.
+- `market_cache` holds no user id, email or address.
+- The cleanup deletes expired market data and keeps the rest.
+
 **Sign-in and sessions** (`auth.test.ts`)
 
 - Without a session or with a forged cookie: 401.
@@ -150,4 +170,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-07

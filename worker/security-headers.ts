@@ -21,7 +21,9 @@ const baseHeaders = secureHeaders({
 
 export const securityHeaders: MiddlewareHandler = async (c, next) => {
   await baseHeaders(c, next);
-  // Responses may contain user data (encrypted or not): never cache them.
-  c.header("Cache-Control", "no-store");
+  // Responses may contain user data (encrypted or not): never cache them,
+  // unless a route says so for data that is the same for everyone (logos).
+  if (!c.res.headers.has("Cache-Control"))
+    c.header("Cache-Control", "no-store");
   c.header("X-Robots-Tag", "noindex, nofollow");
 };

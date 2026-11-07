@@ -17,6 +17,7 @@ export const TEST_SECRETS = {
   BETTER_AUTH_SECRET: "browser-tests-only-0123456789abcdef",
   GOOGLE_CLIENT_ID: "test-client-id.apps.googleusercontent.com",
   GOOGLE_CLIENT_SECRET: "test-client-secret",
+  COINGECKO_API_KEY: "test-coingecko-key",
 };
 
 /** `wrangler dev` flags that give a local server the values above. */

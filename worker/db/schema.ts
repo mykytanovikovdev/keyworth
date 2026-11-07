@@ -207,3 +207,19 @@ export const apiRateLimits = pgTable(
   },
   (table) => [primaryKey({ columns: [table.userId, table.bucket] })],
 );
+
+/**
+ * Market data shared by every user: answers of price sources, by request (the
+ * snapshot, a coin, a search). It holds no user id; a search is kept with its
+ * text, unlinked to who typed it. Rows go once they expire (worker/cleanup.ts).
+ */
+export const marketCache = pgTable(
+  "market_cache",
+  {
+    key: text("key").primaryKey(),
+    value: jsonb("value").notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [index("market_cache_expires_at").on(table.expiresAt)],
+);

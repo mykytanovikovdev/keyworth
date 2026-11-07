@@ -48,7 +48,8 @@ require-trusted-types-for 'script'; trusted-types 'none'
 
 JSON is never a document: `Content-Security-Policy: default-src 'none';
 frame-ancestors 'none'`, `Cache-Control: no-store` (nothing user-related is
-cached), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+cached; a route may set its own only for data that is the same for everyone,
+which today means coin logos: `private, max-age=86400`), `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
 `Referrer-Policy: no-referrer`, CORP and COOP `same-origin`, HSTS, `X-Robots-Tag:
 noindex, nofollow`, no `X-Powered-By`. Applied to every Worker response,
 including 404s and errors.
@@ -67,7 +68,8 @@ exception needs the owner's approval and a justification here and in
 1. Zero CSP or Trusted Types violations on every page, in every engine (the e2e
    suite fails on any).
 2. `index.html` contains no inline scripts, styles or event handlers.
-3. Every Worker response has `no-store` and its own CSP.
+3. Every Worker response has its own CSP, and `no-store` unless its route set a
+   `Cache-Control` for data that is the same for everyone (coin logos).
 
 ## Decisions and alternatives
 
@@ -97,4 +99,4 @@ Worker responses; no inline code in `index.html`), every rendering e2e test
 and the post-deploy smoke test against keyworth.app. See
 [tests/e2e/docs/csp-and-engines.md](../../tests/e2e/docs/csp-and-engines.md).
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-07

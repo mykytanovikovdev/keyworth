@@ -34,6 +34,7 @@
       "BETTER_AUTH_SECRET",
       "GOOGLE_CLIENT_ID",
       "GOOGLE_CLIENT_SECRET",
+      "COINGECKO_API_KEY",
     ],
   },
   // Once a day: deletes expired sessions and old counters (worker/cleanup.ts).

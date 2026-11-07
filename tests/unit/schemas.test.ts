@@ -104,7 +104,7 @@ describe("recordKindSchema", () => {
 describe("transactionSchema", () => {
   const buy = {
     type: "buy",
-    assetId: "bitcoin",
+    assetId: "crypto:bitcoin",
     executedAt: "2025-12-20T10:30:00Z",
     quantity: "0.5",
     price: "60000.03",
@@ -128,7 +128,7 @@ describe("transactionSchema", () => {
       "a transfer out, with no price",
       {
         type: "transfer_out",
-        assetId: "bitcoin",
+        assetId: "crypto:bitcoin",
         executedAt: buy.executedAt,
         quantity: "0.5",
         source: "chat",
@@ -138,7 +138,7 @@ describe("transactionSchema", () => {
       "a split, with a ratio and no quantity",
       {
         type: "split",
-        assetId: "aapl",
+        assetId: "stock:BRK.B",
         executedAt: buy.executedAt,
         ratio: "0.1",
         source: "manual",
@@ -149,6 +149,8 @@ describe("transactionSchema", () => {
   });
 
   it.each([
+    ["an asset id without its kind", { assetId: "bitcoin" }],
+    ["an asset id with a space", { assetId: "crypto:bit coin" }],
     ["an exponent", { quantity: "1e5" }],
     ["a comma", { quantity: "1,5" }],
     ["a sign", { quantity: "+1" }],

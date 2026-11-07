@@ -39,10 +39,12 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
    ├── /api/auth    sign-in with Google, invite-only beta
    ├── /api/keys    wrapped data keys (never the keys themselves)
    ├── /api/vault   encrypted records
-   ├── /api/chat    pass-through to the model, never stored    (planned)
-   └── /api/market  cached prices, not linked to users         (planned)
+   ├── /api/market  prices: one snapshot for everyone, cached
+   ├── /api/assets  coin search and logos, through the Worker
+   └── /api/chat    pass-through to the model, never stored    (planned)
    │
    ├──► PostgreSQL (Neon, via Hyperdrive) — envelopes and service data only
+   ├──► CoinGecko — market data, asked by the server, never by the browser
    └──► Anthropic API (Claude Haiku)                           (planned)
 ```
 
@@ -55,6 +57,7 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
 | Data     | PostgreSQL 18 (Neon in production, Docker locally) through Hyperdrive, Drizzle ORM and migrations |
 | Tests    | Vitest (Node and workerd + Postgres), Playwright (Chromium, Firefox, WebKit), axe, screenshots    |
 | Crypto   | WebCrypto (AES-256-GCM, HKDF), Argon2id from @noble/hashes (plain JavaScript), zod schemas        |
+| Money    | big.js decimals, pure calculations in `shared/metrics`; prices from CoinGecko through the Worker  |
 | Planned  | AI SDK with Claude Haiku                                                                          |
 
 ## Getting started
@@ -110,7 +113,8 @@ For end-to-end tests, install the browsers once:
 src/        React SPA; src/ui/ is the design system, src/crypto/ the encryption core
 shared/     definitions and logic shared by the browser and the Worker: zod schemas,
             decimal money and the portfolio calculations
-worker/     Cloudflare Worker (Hono): API, sign-in, security headers, daily cleanup; db/ is the database
+worker/     Cloudflare Worker (Hono): API, sign-in, security headers, market data, daily cleanup;
+            db/ is the database
 drizzle/    SQL migrations
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
@@ -125,7 +129,8 @@ depth in `docs/` folders next to the code. READMEs: [design system](src/ui/READM
 [encryption](src/crypto/README.md), [privacy policy and terms](src/features/legal/README.md),
 [shared schemas](shared/schemas/README.md), [money](shared/money/README.md),
 [calculations](shared/metrics/README.md),
-[worker](worker/README.md), [database](worker/db/README.md), [design](design/README.md),
+[worker](worker/README.md), [database](worker/db/README.md), [market data](worker/market/README.md),
+[design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).
 
 ## Quality gates

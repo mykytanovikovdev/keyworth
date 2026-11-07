@@ -11,7 +11,7 @@ describe("valuePositions", () => {
   const { positions } = computePositions(
     entries(
       buy("2025-01-01", "2", "100"),
-      buy("2025-01-01", "10", "20", { assetId: "eth" }),
+      buy("2025-01-01", "10", "20", { assetId: "crypto:ethereum" }),
     ),
     USD,
   );
@@ -20,7 +20,7 @@ describe("valuePositions", () => {
     const { rows, total, complete } = valuePositions(positions, {
       money: USD,
       date: DATE,
-      quote: (assetId) => usd(assetId === "btc" ? "150" : "10"),
+      quote: (assetId) => usd(assetId === "crypto:bitcoin" ? "150" : "10"),
     });
     expect(total.toString()).toBe("400");
     expect(complete).toBe(true);
@@ -50,7 +50,7 @@ describe("valuePositions", () => {
     const { rows, total, complete } = valuePositions(positions, {
       money: USD,
       date: DATE,
-      quote: (assetId) => (assetId === "btc" ? usd("150") : null),
+      quote: (assetId) => (assetId === "crypto:bitcoin" ? usd("150") : null),
     });
     expect(total.toString()).toBe("300");
     expect(complete).toBe(false);
