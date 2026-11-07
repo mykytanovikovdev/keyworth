@@ -316,7 +316,7 @@ describe("currencies", () => {
       {
         kind: "missing-rate",
         transactionId: "t2",
-        assetId: "btc",
+        assetId: "crypto:bitcoin",
         currency: "EUR",
         date: "2025-01-02",
       },
@@ -345,7 +345,7 @@ describe("selling more than is held", () => {
     // 1 × 100, less a third of the fee, less the cost of 50.
     expect(amounts?.realizedPnl.toString()).toBe("40");
     expect(issues).toMatchObject([
-      { kind: "oversold", transactionId: "t2", assetId: "btc" },
+      { kind: "oversold", transactionId: "t2", assetId: "crypto:bitcoin" },
     ]);
     expect(issues[0]?.kind === "oversold" && issues[0].missing.toString()).toBe(
       "2",
@@ -408,7 +408,7 @@ describe("order", () => {
     const { positions } = computePositions(
       entries(
         buy("2025-01-01", "1", "100"),
-        buy("2025-01-01", "2", "10", { assetId: "eth" }),
+        buy("2025-01-01", "2", "10", { assetId: "crypto:ethereum" }),
       ),
       USD,
     );
@@ -418,8 +418,8 @@ describe("order", () => {
         amounts?.costBasis.toString(),
       ]),
     ).toEqual([
-      ["btc", "100"],
-      ["eth", "20"],
+      ["crypto:bitcoin", "100"],
+      ["crypto:ethereum", "20"],
     ]);
   });
 });

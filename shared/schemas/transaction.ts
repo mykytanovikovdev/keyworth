@@ -15,7 +15,8 @@ const positiveDecimalString = decimalString.refine((value) =>
 );
 
 const common = {
-  assetId: z.string().min(1).max(100),
+  /** Kind and the source's id: "crypto:bitcoin" (shared/schemas/market.ts). */
+  assetId: z.string().regex(/^[a-z]+:[A-Za-z0-9._-]{1,90}$/),
   /** ISO 8601 in UTC. */
   executedAt: z.iso.datetime(),
   note: z.string().max(1000).optional(),
