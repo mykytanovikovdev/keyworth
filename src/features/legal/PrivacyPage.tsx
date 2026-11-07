@@ -38,6 +38,17 @@ export function PrivacyPage() {
             you.
           </li>
           <li>
+            <strong>Market data requests.</strong> To value your portfolio, the
+            app asks our server for prices, price histories and exchange rates.
+            Current prices for the 250 largest coins are one list, the same for
+            everyone. Anything else is asked for by name: a coin outside that
+            list, a coin's price history, the rates for your currencies, a coin
+            search. So while answering, our server sees which coins and
+            currencies your account asks about. It doesn't record that: what it
+            keeps is the market data itself, shared by everyone and not linked
+            to you. Legal basis: our contract with you.
+          </li>
+          <li>
             <strong>Security.</strong> The IP address and browser of each
             sign-in session, request counters per IP address, and the invite and
             block lists (email addresses and, for a block, the reason). We use
@@ -121,6 +132,12 @@ export function PrivacyPage() {
           reach account data from there; the EU has not issued an adequacy
           decision for Georgia. Your portfolio stays encrypted wherever it goes.
         </p>
+        <p>
+          Prices, exchange rates and coin logos come from CoinGecko and from
+          Frankfurter (central banks' rates, and daily coin prices from Coin
+          Metrics). Our server asks them on its own, so they receive no personal
+          data: neither your IP address nor anything about your account.
+        </p>
         <p>We share your data with nobody else unless the law requires it.</p>
       </section>
 
@@ -152,6 +169,11 @@ export function PrivacyPage() {
           <li>
             <strong>Your messages:</strong> as long as we need to answer you and
             to show what was asked and done.
+          </li>
+          <li>
+            <strong>Market data:</strong> prices, coin searches and logos for up
+            to a day; exchange rates and price histories for up to 90 days. None
+            of it is linked to you.
           </li>
           <li>
             <strong>Error logs:</strong> up to 7 days. They record what failed,
