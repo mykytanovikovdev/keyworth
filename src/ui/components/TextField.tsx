@@ -17,6 +17,8 @@ interface TextFieldProps extends Omit<
   /** Shown, and announced, when `isInvalid` is true. */
   errorMessage?: string;
   placeholder?: string;
+  /** A unit inside the field, after what is typed: "BTC". */
+  suffix?: string;
   /** Layout only (margins, width). */
   className?: string;
 }
@@ -31,6 +33,7 @@ export function TextField({
   description,
   errorMessage,
   placeholder,
+  suffix,
   className = "",
   ...props
 }: TextFieldProps) {
@@ -41,10 +44,20 @@ export function TextField({
       className={`flex flex-col gap-1.5 ${className}`}
     >
       <Label className="text-sm font-medium text-fg">{label}</Label>
-      <Input
-        {...(placeholder !== undefined && { placeholder })}
-        className={`h-10 px-3 ${fieldBoxClassName}`}
-      />
+      <div className="relative">
+        <Input
+          {...(placeholder !== undefined && { placeholder })}
+          className={`h-10 px-3 ${suffix ? "pr-16" : ""} ${fieldBoxClassName}`}
+        />
+        {suffix && (
+          <span
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-fg-muted"
+          >
+            {suffix}
+          </span>
+        )}
+      </div>
       {description && (
         <Text slot="description" className="text-xs text-fg-muted">
           {description}

@@ -8,10 +8,17 @@ import { UNSTABLE_ToastQueue as ToastQueue } from "react-aria-components";
 
 export type ToastTone = "neutral" | "success" | "error";
 
+export interface ToastAction {
+  label: string;
+  onAction: () => void;
+}
+
 export interface ToastContent {
   title: string;
   description?: string;
   tone: ToastTone;
+  /** One button, such as Undo; pressing it also closes the toast. */
+  action?: ToastAction;
 }
 
 export const toastQueue = new ToastQueue<ToastContent>({ maxVisibleToasts: 3 });
@@ -19,6 +26,7 @@ export const toastQueue = new ToastQueue<ToastContent>({ maxVisibleToasts: 3 });
 interface ShowToastOptions {
   description?: string;
   tone?: ToastTone;
+  action?: ToastAction;
 }
 
 /**
@@ -28,9 +36,10 @@ interface ShowToastOptions {
  */
 export function showToast(
   title: string,
-  { description, tone = "neutral" }: ShowToastOptions = {},
+  { description, tone = "neutral", action }: ShowToastOptions = {},
 ): string {
   const content: ToastContent = { title, tone };
   if (description !== undefined) content.description = description;
+  if (action !== undefined) content.action = action;
   return toastQueue.add(content, tone === "error" ? {} : { timeout: 5000 });
 }
