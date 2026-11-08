@@ -79,7 +79,10 @@ exception needs the owner's approval and a justification here and in
   rejected for this).
 - **Dependencies that probe `eval`:** zod's probe is switched off (jitless mode,
   `shared/schemas/zod.ts`); anime.js modules that write `innerHTML` are banned
-  by ESLint.
+  by ESLint; React Aria's live announcer clears with `innerHTML = ''`, so its
+  two regions clear with `replaceChildren()` instead
+  ([src/ui/live-announcer.ts](../../src/ui/live-announcer.ts)), without a
+  Trusted Types policy.
 
 ## Edge cases
 
@@ -99,4 +102,4 @@ Worker responses; no inline code in `index.html`), every rendering e2e test
 and the post-deploy smoke test against keyworth.app. See
 [tests/e2e/docs/csp-and-engines.md](../../tests/e2e/docs/csp-and-engines.md).
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-08

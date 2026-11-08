@@ -8,92 +8,15 @@ import {
   unlock,
   WCAG_TAGS,
 } from "./signed-in.ts";
+import { stubMarket } from "./market.ts";
 import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 
 /*
  * Transactions in the production build, in Chromium, Firefox and WebKit:
  * added through the form, encrypted in the vault, listed, edited, deleted with
  * Undo, refused when they would sell more than was held. Market data is
- * answered in the browser (page.route), so no test reaches CoinGecko.
+ * answered in the browser (`market.ts`), so no test reaches CoinGecko.
  */
-
-const COINS = [
-  {
-    id: "crypto:bitcoin",
-    symbol: "BTC",
-    name: "Bitcoin",
-    rank: 1,
-    price: "75000",
-  },
-  {
-    id: "crypto:ethereum",
-    symbol: "ETH",
-    name: "Ethereum",
-    rank: 2,
-    price: "2300.5",
-  },
-  {
-    id: "crypto:litecoin",
-    symbol: "LTC",
-    name: "Litecoin",
-    rank: 20,
-    price: "62",
-  },
-];
-
-// A 1×1 PNG: logos load, so no 404 reaches the console.
-const PNG = Buffer.from(
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=",
-  "base64",
-);
-
-/** Keyworth's market routes, answered with sample data. */
-async function stubMarket(page: Page) {
-  await page.route(
-    (url) =>
-      url.pathname.startsWith("/api/market/") ||
-      url.pathname.startsWith("/api/assets/"),
-    async (route) => {
-      const url = new URL(route.request().url());
-      const fetchedAt = new Date().toISOString();
-      if (url.pathname.endsWith("/logo")) {
-        await route.fulfill({ body: PNG, contentType: "image/png" });
-      } else if (url.pathname === "/api/market/prices") {
-        const ids = url.searchParams.get("ids")?.split(",");
-        await route.fulfill({
-          json: {
-            currency: "USD",
-            fetchedAt,
-            quotes: COINS.filter((coin) => !ids || ids.includes(coin.id)),
-          },
-        });
-      } else if (url.pathname === "/api/assets/search") {
-        await route.fulfill({ json: { assets: [] } });
-      } else if (url.pathname === "/api/market/history") {
-        await route.fulfill({
-          json: {
-            asset: url.searchParams.get("asset"),
-            currency: "USD",
-            source: "coinmetrics",
-            prices: { from: url.searchParams.get("from"), values: ["60000.5"] },
-          },
-        });
-      } else if (url.pathname === "/api/market/rates") {
-        const quote = url.searchParams.get("quotes") ?? "";
-        await route.fulfill({
-          json: {
-            base: "USD",
-            rates: {
-              [quote]: { from: url.searchParams.get("from"), values: ["0.9"] },
-            },
-          },
-        });
-      } else {
-        await route.fulfill({ status: 404, json: { error: "not_found" } });
-      }
-    },
-  );
-}
 
 test.beforeEach(async ({ page }) => {
   test.slow();
@@ -210,6 +133,28 @@ test("a purchase is encrypted, listed, and still there after unlocking again", a
   await page.reload();
   await unlock(page, passphrase);
   await expect(visible(page, "+0.5 BTC")).toBeVisible(AFTER_ARGON2);
+  expect(errors).toEqual([]);
+  expect(await cspViolations(page)).toEqual([]);
+});
+
+test("takes a date typed from the keyboard, under the CSP", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const errors = collectErrors(page);
+  await openApp(page, context, baseURL);
+  await page.getByRole("button", { name: "Add transaction" }).click();
+  const dialog = dialogOf(page, "Add transaction");
+
+  await dialog
+    .getByRole("group", { name: "Date" })
+    .getByRole("spinbutton")
+    .first()
+    .click();
+  await page.keyboard.type("20122025");
+
+  await expect(dialog.getByText("December 20, 2025")).toBeVisible();
   expect(errors).toEqual([]);
   expect(await cspViolations(page)).toEqual([]);
 });

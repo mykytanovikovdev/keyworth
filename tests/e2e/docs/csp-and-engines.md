@@ -19,7 +19,9 @@ violation, console error or page error**; Trusted Types actually block an
 `innerHTML` string; the page is cross-origin isolated; React Aria's two hashed
 styles are applied; the `/design` page is absent from production. These checks
 found that zod's eval probe triggers a Trusted Types report, which led to zod's
-jitless mode.
+jitless mode. A date typed digit by digit (`/design` and the transaction form)
+covers React Aria's live announcer, which clears with `innerHTML`; a button that
+fills the date does not reach that code.
 
 **Argon2id under the CSP** (`encryption.spec.ts`): in each engine, the production
 build runs Argon2id with the production settings under the real CSP and Trusted
@@ -64,4 +66,4 @@ The encryption screens have their own suite, with the same CSP checks:
   (`watchCspViolations` in `support.ts`); a test that opens a page without it
   sees nothing.
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-08

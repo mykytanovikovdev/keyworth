@@ -10,6 +10,7 @@ export { DateField } from "./components/DateField.tsx";
 export { Dialog, DialogActions, DialogTrigger } from "./components/Dialog.tsx";
 export { fieldBoxClassName } from "./components/field-styles.ts";
 export { KeyworthMark } from "./components/KeyworthMark.tsx";
+export { guardLiveAnnouncer } from "./live-announcer.ts";
 export { ButtonLink, TextLink } from "./components/Link.tsx";
 export { Notice, type NoticeTone } from "./components/Notice.tsx";
 export { PasswordField } from "./components/PasswordField.tsx";

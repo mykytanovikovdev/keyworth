@@ -11,6 +11,9 @@ the database together, with Argon2 at its production settings.
   shown) is one `transaction` record whose ciphertext holds neither the coin, the
   price nor the source; it is listed, and still listed after a reload and a new
   unlock. No console error and no CSP violation on the way.
+- **A date typed from the keyboard:** typed digit by digit, it is taken and
+  shown in words, with no error and no CSP violation (React Aria's announcer
+  under Trusted Types, [src/ui/README.md](../../../src/ui/README.md)).
 - **The ledger's rule at the form:** selling more than was held shows "You held
   0.5 BTC on …" at the quantity, and the database keeps only the purchase.
 - **Editing, deleting, Undo:** an edit is saved and listed; deleting removes the

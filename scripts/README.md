@@ -3,8 +3,9 @@
 ## Purpose
 
 Small project tooling run by Node directly: the dependency license check, the
-local runner for visual tests, user management (invites, sessions, blocks,
-account deletion) and the auth schema generator. Not application code: nothing here is bundled into
+documentation check, the mutation runner and the bundle size report, the local
+runner for visual tests, user management (invites, sessions, blocks, account
+deletion) and the auth schema generator. Not application code: nothing here is bundled into
 the SPA or the Worker.
 
 ## How it works
@@ -17,6 +18,12 @@ the SPA or the Worker.
 | `users.ts`                | `npm run users`: invites, sessions, blocks and account deletion           |
 | `user-admin.ts`           | The SQL behind `users.ts`, without I/O, so the Worker tests can run it    |
 | `generate-auth-schema.ts` | `npm run db:auth-schema`: regenerates Better Auth's tables                |
+| `check-docs.ts`           | `npm run docs:check`: public Markdown against `docs-policy.ts`            |
+| `docs-policy.ts`          | Links, review dates and forbidden content, as pure functions              |
+| `mutate.ts`               | `npm run mutate -- <plan.json>`: do the tests notice a broken line?       |
+| `mutation-plan.ts`        | The plan's format, its validation and the exact-once replacement          |
+| `bundle-size.ts`          | `npm run bundle:size`: script chunks, and the largest one by package      |
+| `bundle-map.ts`           | Sizes per source and package from a source map (its own VLQ decoder)      |
 
 The check walks every entry in `package-lock.json` (lockfile v3 records each
 package's `license` field and whether it is a dev-only dependency), parses the
@@ -32,6 +39,44 @@ SPDX expression and decides:
 Scripts are TypeScript run by Node's built-in type stripping (Node 24), which is
 why the project enables `erasableSyntaxOnly`: no enums or other syntax that would
 need a compiler.
+
+### The documentation check
+
+`npm run docs:check` (part of `npm run check`, so CI runs it) reads every
+README and `docs/` file git tracks or would add; ignored working notes are
+never read. It fails on:
+
+- a relative link to a file or folder that does not exist (links inside code
+  are examples and are skipped);
+- a `docs/` file whose last line is not `Last reviewed: YYYY-MM-DD`, a real day
+  that has come;
+- a database connection string other than a local one, a Neon password or
+  host, an email address outside the example domains (`example.com`, `*.test`),
+  an IP address outside loopback and the documentation ranges (RFC 5737), and a
+  credit to a development assistant. It reports the file and line, never the
+  text found: that may be the secret.
+
+It does not judge prose: whether a document is still true, and whether it
+names a user or an open weakness, is the review that the date records.
+
+### Mutation runs
+
+A test suite that passes says nothing about what it would catch. `npm run
+mutate -- plan.json` takes a list of deliberate breakages (format in
+`mutation-plan.ts`; the plan is written for one branch and kept out of the
+repository), checks that each `from` text occurs exactly once and that the
+tests pass before any change, then for each one: breaks the line, runs the
+tests, restores the file (also on Ctrl+C). A breakage the tests miss is
+reported as `SURVIVED` and fails the run. It is a review tool, not part of
+`npm run check`: plans go stale as the code changes.
+
+### Bundle size
+
+`npm run bundle:size` builds with source maps into a temporary folder, lists
+every script chunk with its gzip size, and splits the largest chunk by package
+(`react-aria`, `zod`) and project folder (`src/features`). The real `dist/` is
+not touched, and the deploy target that every build rewrites
+(`.wrangler/deploy/config.json`) is put back.
 
 ## Why this way
 
@@ -53,6 +98,13 @@ Rejected alternatives:
 - **GitHub `dependency-review-action`:** needs GitHub Advanced Security on private
   repositories.
 
+- **Own scripts for docs, mutations and bundle sizes:** no Markdown linter,
+  mutation framework or bundle visualizer as dependencies. Each fits on a
+  screen and its rules are this project's (review dates, no secrets, no
+  assistant credits); Stryker and similar tools would mutate everything and
+  take minutes per run, while a hand-written plan targets the lines a branch
+  changed.
+
 ## Pitfalls & gotchas
 
 - The check trusts each package's declared `license` field; it does not read
@@ -60,6 +112,13 @@ Rejected alternatives:
 - An exception in `LICENSE_EXCEPTIONS` is tied to the exact license string, so a
   license change in a new version fails again and needs a fresh review.
 - Lockfile v3 is required (npm 7+); older lockfiles do not record licenses.
+- **Every `vite build` rewrites `.wrangler/deploy/config.json`** to point
+  `wrangler deploy` at its output. `bundle-size.ts` restores it; a new script
+  that builds elsewhere must do the same.
+- **A mutation run killed hard (`kill -9`) leaves the file broken.** Ctrl+C
+  restores it; otherwise `git diff` shows the change.
+- **The docs check knows only patterns.** A secret in an unusual shape passes
+  it; gitleaks (pre-commit and CI) is the second net.
 
 ## How to work with it
 
@@ -68,6 +127,15 @@ Rejected alternatives:
   genuinely compatible, add it to the right list with a row in the table above; for
   a one-off, add a `LICENSE_EXCEPTIONS` entry with the reason.
 - Tests: [`tests/unit/license-policy.test.ts`](../tests/unit/license-policy.test.ts).
+- `npm run docs:check` — before reporting a branch ready (also in `npm run
+check`). A false positive: use an example address or range rather than widen
+  the rules. Tests: [`tests/unit/docs-policy.test.ts`](../tests/unit/docs-policy.test.ts).
+- `npm run mutate -- plan.json` — after writing tests for risky code: one
+  mutation per rule the tests should guard, the cheapest command that runs
+  those tests. Tests: [`tests/unit/mutation-plan.test.ts`](../tests/unit/mutation-plan.test.ts).
+- `npm run bundle:size` (`-- --all` for every package) — before and after a
+  change that adds a dependency or splits code. Tests:
+  [`tests/unit/bundle-map.test.ts`](../tests/unit/bundle-map.test.ts).
 - `npm run users -- <command>` — targets `DATABASE_URL` when set, the local
   database otherwise, and always prints which one first. Commands, when to use
   which, and blocking IP addresses at Cloudflare:

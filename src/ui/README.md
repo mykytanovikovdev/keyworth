@@ -28,6 +28,7 @@ phase 4, and take their colors from the tokens below).
 | `toast.ts`                     | The toast queue and `showToast()`, callable from anywhere                 |
 | `motion.ts`                    | anime.js helpers for charts and choreographed reveals; duration tokens    |
 | `viewport.ts`                  | The visible part of the page on iOS; fine pointer; closing the keyboard   |
+| `live-announcer.ts`            | Lets React Aria clear its screen-reader announcements under Trusted Types |
 | `gallery/DesignSystemPage.tsx` | The `/design` page: every component and state                             |
 | `index.ts`                     | The public surface: import from `src/ui/index.ts`, not from inner files   |
 
@@ -320,9 +321,15 @@ the constant `false`, so the page's code is not even in the bundle
   always adds a hidden one for form autofill; our `Select` is therefore a menu
   of radio items (`MenuTrigger` + `Menu`). The e2e suite fails on the
   violation in WebKit.
-- **Spin-button fields (NumberField, DateField) clear an announcement with
-  `innerHTML = ''`**, which Trusted Types may block. Check them under the real
-  CSP before using them (phase 4, trade entry).
+- **React Aria's live announcer clears with `innerHTML = ''`**, which Trusted
+  Types blocks: typing in a spin-button field (DateField, a future NumberField)
+  broke the field. `guardLiveAnnouncer()` (called once in `src/main.tsx`) gives
+  the announcer's two regions an `innerHTML` setter that clears with
+  `replaceChildren()` and passes anything else to the browser, so the CSP stays
+  as it is. It depends on React Aria's markup (`[data-live-announcer]`,
+  `role="log"`); the e2e suites type a date under the real CSP, so an update
+  that changes it fails there. Test a new field by typing into it, not only
+  through its buttons.
 - **`vite preview` serves whichever build ran last**, and `vite build --mode
 design` also redirects `wrangler deploy` to `dist-design/` until the next
   production build. So the previews run `wrangler dev` with each build's own

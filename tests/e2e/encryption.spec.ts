@@ -10,6 +10,7 @@ import {
   unlock,
   WCAG_TAGS,
 } from "./signed-in.ts";
+import { stubMarket } from "./market.ts";
 import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 
 /*
@@ -25,6 +26,7 @@ const RECOVERY_KEY_LABEL = /^Recovery key: ([0-9A-Z]{4}-){8}[0-9A-Z]{4}$/;
 test.beforeEach(async ({ page }) => {
   test.slow();
   await watchCspViolations(page);
+  await stubMarket(page);
 });
 
 const unlockHeading = (page: Page) =>
