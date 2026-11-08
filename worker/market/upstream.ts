@@ -130,19 +130,3 @@ export async function fetchImage(
   }
   return { body: await readCapped(source, response, maxBytes), type };
 }
-
-/**
- * Text from a source, made safe to show and to hand to the model later: no
- * control or invisible characters (bidi overrides included), one space between
- * words, and a length limit. It stays data; nothing ever runs it.
- */
-export function cleanText(value: string, maxLength: number): string {
-  return (
-    value
-      // Line breaks and tabs are spaces first, so no two words run together.
-      .replace(/\s+/g, " ")
-      .replace(/[\p{Cc}\p{Cf}]/gu, "")
-      .trim()
-      .slice(0, maxLength)
-  );
-}

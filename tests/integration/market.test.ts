@@ -342,6 +342,8 @@ describe("search", () => {
   it.each([
     ["an empty search", ""],
     ["a search longer than 50 characters", "x".repeat(51)],
+    ["a search with a hidden character", "bit%E2%80%AEcoin"],
+    ["a search on two lines", "bit%0Acoin"],
   ])("refuses %s", async (_, q) => {
     const { cookie } = await signedIn("search-bad");
     mockSources(() => json(SEARCH));

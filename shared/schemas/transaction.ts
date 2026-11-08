@@ -1,4 +1,5 @@
 import { priceCurrencySchema } from "./currencies.ts";
+import { plainTextSchema } from "./text.ts";
 import { z } from "./zod.ts";
 
 /*
@@ -14,12 +15,17 @@ const positiveDecimalString = decimalString.refine((value) =>
   /[1-9]/.test(value),
 );
 
+export const TRANSACTION_LIMITS = {
+  /** Characters in a note: one line, as `cleanText` leaves it. */
+  noteLength: 1000,
+} as const;
+
 const common = {
   /** Kind and the source's id: "crypto:bitcoin" (shared/schemas/market.ts). */
   assetId: z.string().regex(/^[a-z]+:[A-Za-z0-9._-]{1,90}$/),
   /** ISO 8601 in UTC. */
   executedAt: z.iso.datetime(),
-  note: z.string().max(1000).optional(),
+  note: plainTextSchema(TRANSACTION_LIMITS.noteLength).optional(),
   source: z.enum(["manual", "chat", "csv"]),
 };
 

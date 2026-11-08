@@ -3,9 +3,10 @@ import {
   MARKET_LIMITS,
   type QuoteJson,
 } from "../../shared/schemas/market.ts";
+import { cleanText } from "../../shared/schemas/text.ts";
 import { z } from "../../shared/schemas/zod.ts";
 import { type DailyPoint, DAY_MS } from "./series.ts";
-import { cleanText, fetchJson, MarketError, plainDigits } from "./upstream.ts";
+import { fetchJson, MarketError, plainDigits } from "./upstream.ts";
 
 /*
  * CoinGecko's Demo API: the coin list and search, current prices and logos.

@@ -21,6 +21,7 @@ lengths, so a malformed value is rejected before anything decodes it.
 | `vault.ts`       | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |
 | `me.ts`          | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)  |
 | `market.ts`      | Asset ids (`crypto:` and CoinGecko's id), limits, the shapes `/api/market` and `/api/assets` return          |
+| `text.ts`        | Free text: `typedText` (a field's filter), `cleanText` (what is kept), `plainTextSchema`, hidden characters  |
 | `currencies.ts`  | The 161 fiat currencies with a central bank's rate; a price currency is one of them, USDT or USDC            |
 | `transaction.ts` | The plaintext inside a `transaction` record, by type; amounts as strings of plain digits; loose              |
 | `settings.ts`    | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save |
@@ -70,6 +71,8 @@ Tests: `tests/unit/schemas.test.ts` (accepted and rejected inputs for each schem
 
 ## Related
 
+- [docs/input-validation.md](docs/input-validation.md): the rules for every input, the attacks they stop, the
+  checklist for a new field
 - [src/crypto/docs/envelopes.md](../../src/crypto/docs/envelopes.md): what the envelope schema enforces and why
 - [worker/routes/docs/api-guards.md](../../worker/routes/docs/api-guards.md): how the Worker uses these schemas
 

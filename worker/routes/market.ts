@@ -3,6 +3,7 @@ import {
   FIAT_CURRENCIES,
   STABLECOINS,
 } from "../../shared/schemas/currencies.ts";
+import { hasHiddenCharacters } from "../../shared/schemas/text.ts";
 import {
   type AssetJson,
   type AssetSearchJson,
@@ -301,8 +302,14 @@ market.get("/rates", limitRates, async (c) => {
 const limitSearch = rateLimit("search", 60);
 
 assets.get("/search", limitSearch, async (c) => {
-  const query = (c.req.query("q") ?? "").trim().toLowerCase();
-  if (query.length === 0 || query.length > MARKET_LIMITS.queryLength) {
+  const raw = c.req.query("q") ?? "";
+  // One spelling per search for the cache: composed, lower case, no edges.
+  const query = raw.normalize("NFC").trim().toLowerCase();
+  if (
+    query.length === 0 ||
+    query.length > MARKET_LIMITS.queryLength ||
+    hasHiddenCharacters(raw)
+  ) {
     return c.json({ error: "invalid_query" }, 400);
   }
   const db = c.get("db");

@@ -3,6 +3,12 @@ import { FIAT_CURRENCIES } from "../../shared/schemas/currencies.ts";
 import { envelopeSchema } from "../../shared/schemas/envelope.ts";
 import { KDF_LIMITS, kdfParamsSchema } from "../../shared/schemas/keys.ts";
 import { settingsSchema } from "../../shared/schemas/settings.ts";
+import {
+  cleanText,
+  hasHiddenCharacters,
+  plainTextSchema,
+  typedText,
+} from "../../shared/schemas/text.ts";
 import { transactionSchema } from "../../shared/schemas/transaction.ts";
 import { recordKindSchema } from "../../shared/schemas/vault.ts";
 
@@ -177,6 +183,9 @@ describe("transactionSchema", () => {
     ["an unknown source", { source: "import" }],
     ["an unknown type", { type: "gift" }],
     ["a note too long", { note: "x".repeat(1001) }],
+    ["a note that reverses its text", { note: "fee \u202Eeert" }],
+    ["a note with an invisible space", { note: "Bin\u200Bance" }],
+    ["a note on two lines", { note: "first\nsecond" }],
   ])("refuses %s", (_, change) => {
     expect(parses({ ...buy, ...change })).toBe(false);
   });
@@ -213,5 +222,57 @@ describe("currencies", () => {
     expect(settingsSchema.safeParse({ baseCurrency: "USDT" }).success).toBe(
       false,
     );
+  });
+});
+
+describe("free text", () => {
+  // Bidi override, zero-width space, a line break: as a hostile name could carry.
+  const hostile = "Tiny‮​\nCoin";
+
+  it("keeps one clean line: no hidden characters, single spaces, no edges", () => {
+    expect(cleanText(hostile, 100)).toBe("Tiny Coin");
+    expect(cleanText("  a ​ b\t\tc  ", 100)).toBe("a b c");
+    expect(cleanText("NUL\u0000ESC\u001B", 100)).toBe("NULESC");
+  });
+
+  it("composes accents into one character, however they were typed", () => {
+    expect(cleanText("café", 100)).toBe("café");
+  });
+
+  it("keeps markup as the text it is: it is only ever shown as text", () => {
+    const markup = "<img src=x onerror=alert(1)>";
+    expect(cleanText(markup, 100)).toBe(markup);
+  });
+
+  it("cuts at the limit without splitting a character or ending on a space", () => {
+    expect(cleanText("\u{1F600}\u{1F600}", 3)).toBe("\u{1F600}");
+    expect(cleanText("abc def", 4)).toBe("abc");
+  });
+
+  it("changes nothing when cleaning twice", () => {
+    for (const text of [hostile, "a ​ b", "abc def", "café "]) {
+      const once = cleanText(text, 5);
+      expect(cleanText(once, 5)).toBe(once);
+    }
+  });
+
+  it("lets a field keep spaces as typed, so the next word can follow", () => {
+    expect(typedText("a ‮b\nc ", 100)).toBe("a b c ");
+    expect(typedText("x".repeat(60), 50)).toHaveLength(50);
+  });
+
+  it("finds what cannot be seen", () => {
+    expect(hasHiddenCharacters("plain text")).toBe(false);
+    expect(hasHiddenCharacters("Bin​ance")).toBe(true);
+    expect(hasHiddenCharacters("line\nbreak")).toBe(true);
+  });
+
+  it("accepts in a schema only text already as clean as cleanText leaves it", () => {
+    const note = plainTextSchema(20);
+    expect(note.safeParse("Bought on Kraken").success).toBe(true);
+    expect(note.safeParse(" padded").success).toBe(false);
+    expect(note.safeParse("café").success).toBe(false);
+    expect(note.safeParse(hostile).success).toBe(false);
+    expect(note.safeParse("x".repeat(21)).success).toBe(false);
   });
 });

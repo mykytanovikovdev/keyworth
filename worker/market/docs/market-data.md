@@ -24,7 +24,7 @@ browser ── /api/market/prices ──────────┐
 | `market/frankfurter.ts` | Frankfurter's API: exchange rates, Coin Metrics' prices, the coin-to-code map |
 | `market/series.ts`      | Daily series kept whole: merge, slice, refresh only the last days             |
 | `market/cache.ts`       | `cached`, `readCached`, `storeCached` over the `market_cache` table           |
-| `market/upstream.ts`    | Time and size limits, `MarketError`, plain digits, `cleanText`, raster only   |
+| `market/upstream.ts`    | Time and size limits, `MarketError`, plain digits, raster images only         |
 
 | Route                                  | Source call                                                         | Fresh for                                   | Kept for                   |
 | -------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------- | -------------------------- |
@@ -90,8 +90,11 @@ user's first trade) cuts the series; the server keeps it whole.
 2. Nothing from CoinGecko is served or kept for more than a day (its API terms);
    the daily cleanup deletes expired rows. Frankfurter's data, free of such
    terms, is kept for 90 days from its last refresh.
-3. Text from a source is cleaned before anything keeps it: no control or
-   invisible characters, length limits. Coins it cannot read are left out.
+3. Text from a source is cleaned before anything keeps it (`cleanText` in
+   `shared/schemas/text.ts`): one line, no control or invisible characters,
+   length limits. Coins it cannot read are left out. A search with hidden
+   characters is refused (400). The rules for every input:
+   [input-validation.md](../../../shared/schemas/docs/input-validation.md).
 4. A logo comes only from CoinGecko's image host, only as PNG, JPEG, WebP or GIF,
    at most 100 KB. An SVG is a document that can carry script, so it is refused.
 5. A source gets at most 8 seconds per answer, and 2 MB (CoinGecko) or 1 MB
@@ -175,4 +178,4 @@ ids, currencies or search text into an error message or a log line. A new
 entry in `COIN_METRICS_CODES` is checked first by comparing the two sources'
 prices for the coin.
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-08
