@@ -128,7 +128,7 @@ that way, and its pitfalls; critical features and their tests are described in
 depth in `docs/` folders next to the code. READMEs: [design system](src/ui/README.md),
 [encryption](src/crypto/README.md), [privacy policy and terms](src/features/legal/README.md),
 [shared schemas](shared/schemas/README.md), [money](shared/money/README.md),
-[calculations](shared/metrics/README.md),
+[calculations](shared/metrics/README.md), [transactions](src/features/transactions/README.md),
 [worker](worker/README.md), [database](worker/db/README.md), [market data](worker/market/README.md),
 [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).

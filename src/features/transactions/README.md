@@ -1,0 +1,79 @@
+# src/features/transactions/
+
+## Purpose
+
+Transactions are the source of truth: positions, P&L and every figure are
+computed from them in the browser ([shared/metrics/](../../../shared/metrics/README.md)),
+and none of those results is stored. This folder is the one way to add, change
+or delete a transaction, whether it comes from the form, the chat (phase 7) or
+a CSV file (4.5): each change meets the same rules before anything is
+encrypted. Not here: the screens (the form and the list come next), the
+schema itself ([shared/schemas/transaction.ts](../../../shared/schemas/transaction.ts)),
+and the calculations.
+
+## How it works
+
+| File         | Role                                                                             |
+| ------------ | -------------------------------------------------------------------------------- |
+| `check.ts`   | The rules, pure: the schema, no date in the future, no sale beyond what was held |
+| `service.ts` | Load, save (add or replace) and delete through the vault; `TransactionError`     |
+
+Each transaction is its own encrypted record of kind `transaction` with a random
+id. `loadTransactions` reads every page of them and splits them into
+`records` (with the revision each was read with) and `damaged` (ids of records
+that do not decrypt or do not fit the schema).
+
+`saveTransaction(access, list, { id?, value })` and
+`deleteTransaction(access, list, id)` take the list as last read and return it
+with the change applied; nothing is written when a rule fails. They throw a
+`TransactionError` whose `problems` say why:
+
+| Problem             | When                                                                                                                           |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `invalid`           | The value does not fit the schema; `fields` names them                                                                         |
+| `in-the-future`     | Dated more than 10 minutes ahead of this device's clock                                                                        |
+| `oversold`          | A sale or transfer out, this one or a later one, would move more than was held at its moment: `asked`, `held`, the transaction |
+| `changed-elsewhere` | The record was edited or deleted on another device since it was read; `latest` holds the list as it is now                     |
+
+## Why this way
+
+- **One service for every way in.** The form, the chat's confirmation card and
+  the CSV import differ only in how they collect a value; the rules, the record
+  ids and the encryption are the same, so a trade cannot pass one way and fail
+  another.
+- **The whole ledger decides a sale.** A sale dated in the past changes what is
+  held for every later one, so a change is checked by replaying the ledger
+  before and after it (`computePositions`, the same code the figures use). A
+  backdated sale that would leave a later one short is refused and names that
+  one; so is shrinking or deleting a purchase a later sale needs.
+- **Short already is allowed to stay short.** A sale imported short (or written
+  by an older version) may be edited without being fixed first, as long as it
+  is not made shorter: refusing every change until then would block the fix.
+  The figures still count only what was held.
+- **The other device wins.** A change to a record that changed elsewhere is
+  refused rather than written over it; the user sees the current version and
+  decides again. A record deleted elsewhere counts as deleted.
+- **The vault and the API are arguments**, so the unit tests run the service
+  against a fake server with a real vault; the app passes its own.
+
+## Pitfalls & gotchas
+
+- Pass the list as last read, not one assembled by hand: its revisions are what
+  a change sends back.
+- Two devices adding transactions at the same moment each check against their
+  own list; the server does not see inside records, so it cannot stop a sale
+  that only the two together make short. The figures then count what was held
+  and show the shortfall.
+- `damaged` records count in no figure; they can be deleted like any other.
+
+## How to work with it
+
+- Run the tests: `npx vitest run --project unit tests/unit/transactions`.
+- A new rule: add it to `check.ts` as a problem kind, test it there through the
+  service, and give it words where the problems are shown.
+
+## Related
+
+- [src/vault/](../../vault/README.md): records, revisions and encryption
+- [shared/metrics/docs/calculations.md](../../../shared/metrics/docs/calculations.md): how the figures treat a shortfall
+- [worker/routes/README.md](../../../worker/routes/README.md): `GET /api/vault` in pages
