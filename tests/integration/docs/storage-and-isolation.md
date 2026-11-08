@@ -33,7 +33,8 @@ through the real Google flow (only Google's token endpoint is replaced).
   once, and an unknown coin is cached too. Malformed ids and more than 50 are
   refused.
 - Search: one call per distinct search whatever its case and spaces, at most 20
-  results; empty or over-long searches are refused.
+  results; empty or over-long searches, and searches with a hidden character or
+  a line break, are refused.
 - Logos: the small variant, cached a day with `private, max-age=86400`, from
   the snapshot or a search; none for an unseen coin or another host; SVG refused.
 - History: the 35 coins Coin Metrics covers take its series through Frankfurter

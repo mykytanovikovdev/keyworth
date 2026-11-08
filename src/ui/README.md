@@ -177,15 +177,19 @@ and form controls match.
 | ------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
 | `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending`¹  |
 | `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                  |
-| `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles                     |
+| `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles; `suffix` (a unit)  |
 | `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill |
 | `Select`                  | React Aria `Menu`          | A list that applies at once, such as a currency; type-ahead; not React Aria's one  |
 | `Checkbox`                | React Aria `CheckboxField` | With `CheckboxButton`; label and an optional description line                      |
+| `ComboBox`                | React Aria `ComboBox`      | Type to filter or search, pick from a list; a picture and a detail per option      |
+| `DateField`               | React Aria `DateField`     | Day / month / year segments (`en-GB` order), the date repeated in words below      |
+| `SegmentedControl`        | `ToggleButtonGroup`        | A few options, all visible, such as a form's tabs (Buy, Sell, Receive, Send)       |
+| `ActionMenu`              | React Aria `Menu`          | A "⋯" button with an item's actions (Edit, Delete)                                 |
 | `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                        |
 | `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller            |
 | `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon               |
 | `Dialog`, `DialogActions` | React Aria `Modal`         | Focus trap and return, scroll lock; `alertdialog` ignores Escape                   |
-| `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds                   |
+| `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds; one `action`     |
 | `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                                |
 | `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                            |
 | `ThemeToggle`             | `ToggleButtonGroup`        | Icons in the header, icons with text in settings                                   |
@@ -202,7 +206,11 @@ React Aria parts, such as the recovery key field) share one box style,
 `fieldBoxClassName` in `components/field-styles.ts`: the same border,
 background and hover, focus, invalid and disabled states. `PasswordField`,
 `Select`, `Checkbox` and `Notice` were approved on 2026-10-31 for the
-encryption screens.
+encryption screens; `ComboBox`, `DateField`, `SegmentedControl` and `ActionMenu`,
+a `TextField` unit and a toast's action (Undo) on 2026-11-08 for the
+transactions screens, where `/design/transactions` shows them in every state.
+`ComboBox` and `DateField` share the box style of text fields, drawn on their
+group (`data-focus-within`) rather than on the input.
 
 Links are React Aria `Link`s, so they share the buttons' hover, press and
 focus states. `UIProvider` receives the app router's `navigate`, which keeps
@@ -281,6 +289,18 @@ the constant `false`, so the page's code is not even in the bundle
   interface is English only.
 
 ## Pitfalls & gotchas
+
+- **Every field follows the input rules** in
+  [shared/schemas/docs/input-validation.md](../../shared/schemas/docs/input-validation.md):
+  a limit (`maxLength`), its kind's filter (`typedAmount`, `typedText`; `ComboBox`
+  filters its search text itself), and data shown only as text, never in `href`,
+  `src` or `style`.
+- **`ComboBox` shows the chosen option's label whenever nobody is typing:** the
+  typed search is a draft that ends on blur or on a choice, so a `value` that
+  arrives later (a saved setting) shows at once. React Aria also calls
+  `onChange` on blur with the value as it stands; only a different option counts
+  as a choice. Tab accepts the highlighted option, as WAI-ARIA's combobox
+  pattern says.
 
 - **React Aria's two runtime `<style>` blocks are allowed by hash** in
   `public/_headers`: `touch-action` for every pressable element, and

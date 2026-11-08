@@ -12,13 +12,17 @@ import {
   Settings,
   TriangleAlert,
 } from "lucide-react";
+import { parseDate } from "@internationalized/date";
 import { useState, type ReactNode } from "react";
 import {
+  ActionMenu,
   Badge,
   Button,
   ButtonLink,
   Card,
   Checkbox,
+  ComboBox,
+  DateField,
   Dialog,
   DialogActions,
   DialogTrigger,
@@ -26,6 +30,7 @@ import {
   KeyworthMark,
   Notice,
   PasswordField,
+  SegmentedControl,
   Select,
   showToast,
   Skeleton,
@@ -311,10 +316,82 @@ function Fields() {
       <TextField label="Asset" placeholder="Search by name or ticker" />
       <TextField label="Exchange" defaultValue="Binance" isDisabled />
       <Select label="Base currency" options={CURRENCIES} defaultValue="USD" />
+      <TextField label="Holding" defaultValue="0.5" suffix="BTC" />
+      <SearchField />
+      <Day />
       <Checkbox
         label="Remember this device"
         description="Stay unlocked in this browser until you lock Keyworth."
       />
+    </div>
+  );
+}
+
+// Searched by name or code; the detail is quieter text after the label.
+const SEARCHABLE = [
+  { id: "EUR", label: "Euro", detail: "EUR" },
+  { id: "GEL", label: "Georgian Lari", detail: "GEL" },
+  { id: "JPY", label: "Japanese Yen", detail: "JPY" },
+  { id: "RON", label: "Romanian Leu", detail: "RON" },
+  { id: "USD", label: "United States Dollar", detail: "USD" },
+];
+
+function SearchField() {
+  const [value, setValue] = useState<string | null>("GEL");
+  return (
+    <ComboBox
+      label="Currency"
+      placeholder="Search currencies"
+      options={SEARCHABLE}
+      value={value}
+      onChange={setValue}
+      emptyMessage="No currency matches."
+    />
+  );
+}
+
+function Day() {
+  const [day, setDay] = useState(() => parseDate("2025-12-20"));
+  return (
+    <DateField
+      label="Date"
+      value={day}
+      onChange={(next) => {
+        if (next) setDay(next);
+      }}
+      action={<Button variant="ghost">Today</Button>}
+    />
+  );
+}
+
+function Choices() {
+  const [kind, setKind] = useState("buy");
+  return (
+    <div className="flex flex-col gap-4">
+      <Row label="Segmented">
+        <SegmentedControl
+          label="Kind of transaction"
+          options={[
+            { id: "buy", label: "Buy" },
+            { id: "sell", label: "Sell" },
+            { id: "receive", label: "Receive" },
+            { id: "send", label: "Send" },
+          ]}
+          value={kind}
+          onChange={setKind}
+          isFullWidth
+          className="w-full max-w-sm"
+        />
+      </Row>
+      <Row label="Row actions">
+        <ActionMenu
+          label="Actions for Buy 0.5 BTC"
+          actions={[
+            { id: "edit", label: "Edit" },
+            { id: "delete", label: "Delete" },
+          ]}
+        />
+      </Row>
     </div>
   );
 }
@@ -456,6 +533,15 @@ function Toasts() {
         Show error
       </Button>
       <Button onPress={() => showToast("Prices updated")}>Show info</Button>
+      <Button
+        onPress={() =>
+          showToast("Transaction deleted", {
+            action: { label: "Undo", onAction: () => undefined },
+          })
+        }
+      >
+        Show with an action
+      </Button>
     </Row>
   );
 }
@@ -605,6 +691,13 @@ export default function DesignSystemPage() {
           description="Always a visible label. Errors say what is wrong and how to fix it. Secrets have a show button and no autocorrect."
         >
           <Fields />
+        </Section>
+        <Section
+          id="choices"
+          title="Choices"
+          description="Segmented options and a row's actions."
+        >
+          <Choices />
         </Section>
         <Section
           id="notices"

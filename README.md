@@ -197,6 +197,13 @@ isolation, HSTS and a deny-by-default Permissions Policy. Details and the
 reasoning behind each header are in [worker/README.md](worker/README.md); the e2e
 suite asserts every value.
 
+**Input validation (in place).** Every field, address parameter, API request and
+market source answer goes through the same layers: the field keeps out what can
+never be valid, a shared schema refuses the rest, the server checks again, and
+data is only ever shown as text. Free text keeps no hidden or direction-changing
+characters. The rules, the attacks they stop and the checklist for a new field:
+[shared/schemas/docs/input-validation.md](shared/schemas/docs/input-validation.md).
+
 ### Reporting a vulnerability
 
 The repository is private during early development, and a dedicated private

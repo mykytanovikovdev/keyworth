@@ -7,16 +7,47 @@ computed from them in the browser ([shared/metrics/](../../../shared/metrics/REA
 and none of those results is stored. This folder is the one way to add, change
 or delete a transaction, whether it comes from the form, the chat (phase 7) or
 a CSV file (4.5): each change meets the same rules before anything is
-encrypted. Not here: the screens (the form and the list come next), the
-schema itself ([shared/schemas/transaction.ts](../../../shared/schemas/transaction.ts)),
-and the calculations.
+encrypted. It also holds the screens that add, edit and list transactions.
+Not here: the schema itself
+([shared/schemas/transaction.ts](../../../shared/schemas/transaction.ts)) and the
+calculations.
 
 ## How it works
 
-| File         | Role                                                                             |
-| ------------ | -------------------------------------------------------------------------------- |
-| `check.ts`   | The rules, pure: the schema, no date in the future, no sale beyond what was held |
-| `service.ts` | Load, save (add or replace) and delete through the vault; `TransactionError`     |
+| File                   | Role                                                                                          |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| `check.ts`             | The rules, pure: the schema, no date in the future, no sale beyond what was held              |
+| `service.ts`           | Load, save (add or replace) and delete through the vault; `TransactionError`                  |
+| `form-values.ts`       | The form's fields: four tabs to five kinds, amounts as typed (`typedAmount`), errors in words |
+| `coin-search.ts`       | Finding a coin: the shared snapshot's 250 first, the server's search only after them          |
+| `format.ts`            | Dates in words, amounts with every digit they have                                            |
+| `AssetLogo.tsx`        | A coin's logo through the server, or its symbol in a circle                                   |
+| `TransactionForm.tsx`  | The "Add transaction" / "Edit transaction" dialog                                             |
+| `TransactionList.tsx`  | Columns on a wide screen, two lines a row on a phone; the empty state; unreadable records     |
+| `TransactionsPage.tsx` | The app's start page until the portfolio: the list, the form and Undo wired to the service    |
+| `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
+| `market.ts`            | The snapshot, coins outside it, the server's search, "Price that day" from history and rates  |
+
+**The form** (owner's decisions, 2026-11-08): tabs Buy, Sell, Receive and Send
+(Receive with an Income box for staking and interest); the date typed as day /
+month / year and repeated in words; a price currency from the 161 fiat
+currencies, USDT and USDC; "Price that day" from `/api/market/history` and
+`/api/market/rates`. A picked day is kept as noon UTC, which stays that day from
+UTC−11 to UTC+11, or as now when noon is still ahead. Amounts take digits and one
+separator only, a point or a comma. Deleting is at once, with Undo in the toast.
+Every screen and state is on `/design/transactions` (dev and design builds).
+
+**Wiring.** The page reads the list once and keeps it as a query; every change
+goes through the service, which returns the new list, and the query takes it as
+it is (no reload). A refusal comes back next to its field; `changed-elsewhere`
+shows the other device's version in the form (a new `key`) or, when it was
+deleted, closes the form. Undo puts the deleted transaction back under a new id.
+Market data: the shared snapshot names most coins and offers them first in the
+search; names of coins outside it, and "Price that day", are asked for by id
+and kept under `["vault", …]`, which the app clears when the vault locks (they
+say what the user holds). "Price that day" is the day's close from the coin's
+history, or the current price for today, converted at the day's rate (or the
+last one before it) when the price currency is not the dollar.
 
 Each transaction is its own encrypted record of kind `transaction` with a random
 id. `loadTransactions` reads every page of them and splits them into
@@ -58,6 +89,15 @@ with the change applied; nothing is written when a rule fails. They throw a
 
 ## Pitfalls & gotchas
 
+- The form starts from `initial` once: to show a newer version (after
+  `changed-elsewhere`), give it a new `key`.
+- `shared/money` decimals are strict: compare and compute with `decimal("1")`,
+  never a plain number (`gte(1)` throws "Invalid value").
+- A query that names coins goes under `["vault", userId, …]`; only the snapshot,
+  the same for everyone, may stay outside it.
+- A new field follows [input-validation.md](../../../shared/schemas/docs/input-validation.md):
+  its limit, its kind's filter, a schema, and text-only output.
+
 - Pass the list as last read, not one assembled by hand: its revisions are what
   a change sends back.
 - Two devices adding transactions at the same moment each check against their
@@ -69,6 +109,7 @@ with the change applied; nothing is written when a rule fails. They throw a
 ## How to work with it
 
 - Run the tests: `npx vitest run --project unit tests/unit/transactions`.
+- Look at the screens: `npm run dev` → `/design/transactions`.
 - A new rule: add it to `check.ts` as a problem kind, test it there through the
   service, and give it words where the problems are shown.
 

@@ -11,13 +11,13 @@ import { sessionQuery } from "../features/auth/client.ts";
 import { SignInPage } from "../features/auth/SignInPage.tsx";
 import { PrivacyPage } from "../features/legal/PrivacyPage.tsx";
 import { TermsPage } from "../features/legal/TermsPage.tsx";
+import { TransactionsPage } from "../features/transactions/TransactionsPage.tsx";
 import {
   type SettingsAction,
   SettingsPage,
 } from "../features/settings/SettingsPage.tsx";
 import { RecoverPage } from "../features/unlock/RecoverPage.tsx";
 import { AppShell } from "./AppShell.tsx";
-import { HomePage } from "./HomePage.tsx";
 import { NotFoundPage } from "./NotFoundPage.tsx";
 
 /*
@@ -70,7 +70,7 @@ const SETTINGS_ACTIONS: readonly string[] = [
 const homeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  component: HomePage,
+  component: TransactionsPage,
 });
 
 const settingsRoute = createRoute({
@@ -151,6 +151,18 @@ const encryptionMockupsRoute =
       })
     : null;
 
+// Same condition: mockups of the 4.3b screens (transactions), for review.
+const transactionsMockupsRoute =
+  import.meta.env.DEV || import.meta.env.MODE === "design"
+    ? createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/design/transactions",
+        component: lazyRouteComponent(
+          () => import("./TransactionsMockupsPage.tsx"),
+        ),
+      })
+    : null;
+
 const routeTree = rootRoute.addChildren([
   sessionRoute.addChildren([
     appRoute.addChildren([homeRoute, settingsRoute]),
@@ -162,6 +174,7 @@ const routeTree = rootRoute.addChildren([
   ...(designRoute ? [designRoute] : []),
   ...(kdfBenchmarkRoute ? [kdfBenchmarkRoute] : []),
   ...(encryptionMockupsRoute ? [encryptionMockupsRoute] : []),
+  ...(transactionsMockupsRoute ? [transactionsMockupsRoute] : []),
 ]);
 
 export function createAppRouter(queryClient: QueryClient) {

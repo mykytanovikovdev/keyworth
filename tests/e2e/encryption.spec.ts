@@ -1,10 +1,15 @@
 import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
-import { type BrowserContext, expect, type Page, test } from "@playwright/test";
-import { Pool } from "pg";
-import { TEST_DATABASE_URL } from "../support/database.ts";
-import { setUpKeys } from "../support/keys.ts";
-import { createSignedInUser } from "../support/session.ts";
+import { expect, type Page, test } from "@playwright/test";
+import {
+  AFTER_ARGON2,
+  appHome,
+  returningUser,
+  signIn,
+  sql,
+  unlock,
+  WCAG_TAGS,
+} from "./signed-in.ts";
 import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 
 /*
@@ -17,75 +22,13 @@ import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 const RECOVERY_KEY = /^([0-9A-Z]{4}-){8}[0-9A-Z]{4}$/;
 const RECOVERY_KEY_LABEL = /^Recovery key: ([0-9A-Z]{4}-){8}[0-9A-Z]{4}$/;
 
-/**
- * Argon2 with the production settings takes about a second per derivation on
- * a laptop and several in CI, slowest in WebKit on Linux; a test here runs up
- * to six. So every test gets three times the usual time, and every wait that
- * follows a derivation gets this much.
- */
-const AFTER_ARGON2 = { timeout: 30_000 };
-
-const WCAG_TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
-
 test.beforeEach(async ({ page }) => {
   test.slow();
   await watchCspViolations(page);
 });
 
-async function sql<T extends Record<string, unknown>>(
-  query: string,
-  params: unknown[],
-): Promise<T[]> {
-  const pool = new Pool({ connectionString: TEST_DATABASE_URL });
-  try {
-    return (await pool.query<T>(query, params)).rows;
-  } finally {
-    await pool.end();
-  }
-}
-
-async function signIn(context: BrowserContext, baseURL: string | undefined) {
-  const email = `e2e-keys-${crypto.randomUUID().slice(0, 8)}@example.com`;
-  await context.addCookies(
-    await createSignedInUser({
-      databaseUrl: TEST_DATABASE_URL,
-      baseURL: baseURL ?? "",
-      email,
-      name: "Alex Example",
-    }),
-  );
-  return email;
-}
-
-/** A signed-in user who set up keys earlier, on another visit. */
-async function returningUser(
-  context: BrowserContext,
-  baseURL: string | undefined,
-) {
-  const email = await signIn(context, baseURL);
-  return {
-    email,
-    ...(await setUpKeys({ databaseUrl: TEST_DATABASE_URL, email })),
-  };
-}
-
 const unlockHeading = (page: Page) =>
   page.getByRole("heading", { level: 1, name: "Unlock Keyworth" });
-const welcome = (page: Page) =>
-  page.getByRole("heading", { level: 1, name: "Welcome, Alex" });
-
-async function unlock(page: Page, passphrase: string, remember = false) {
-  await page.getByLabel("Passphrase", { exact: true }).fill(passphrase);
-  if (remember) {
-    // The box is drawn over a hidden input: click the label, as people do.
-    await page.getByText("Remember this device", { exact: true }).click();
-    await expect(
-      page.getByRole("checkbox", { name: "Remember this device" }),
-    ).toBeChecked();
-  }
-  await page.getByRole("button", { name: "Unlock" }).click();
-}
-
 /**
  * Records, from now on, each status the keyhole mark shows: "working" while
  * Argon2 runs (the ring), "opened" while the lock turns before the next
@@ -173,7 +116,7 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
   expect(await readFile(await download.path(), "utf8")).toContain(recoveryKey);
 
   await page.getByRole("button", { name: "I've saved it" }).click();
-  await expect(welcome(page)).toBeVisible();
+  await expect(appHome(page)).toBeVisible();
   const slots = await sql<{ kind: string }>(
     `select kind from user_key_slots
       where user_id = (select id from "user" where email = $1) order by kind`,
@@ -319,12 +262,12 @@ test("one unlock per browser: a new tab gets the key, Lock locks every tab", asy
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase);
-  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
 
   const second = await context.newPage();
   await watchCspViolations(second);
   await second.goto("/");
-  await expect(welcome(second)).toBeVisible();
+  await expect(appHome(second)).toBeVisible();
 
   await openSettings(page);
   // Lock reloads every tab; act only once each has reloaded.
@@ -336,7 +279,7 @@ test("one unlock per browser: a new tab gets the key, Lock locks every tab", asy
   await expect(unlockHeading(second)).toBeVisible();
   // Unlocking one tab unlocks the other again.
   await unlock(page, passphrase);
-  await expect(welcome(second)).toBeVisible(AFTER_ARGON2);
+  await expect(appHome(second)).toBeVisible(AFTER_ARGON2);
   expect(await cspViolations(second)).toEqual([]);
 });
 
@@ -349,13 +292,13 @@ test("Remember this device: a reload opens the app; Lock forgets the device", as
   const { passphrase, userId } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase, true);
-  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
   expect(
     await sql("select 1 from device_unlocks where user_id = $1", [userId]),
   ).toHaveLength(1);
 
   await page.reload();
-  await expect(welcome(page)).toBeVisible();
+  await expect(appHome(page)).toBeVisible();
 
   await openSettings(page);
   await expect(page.getByText("and forgets this device")).toBeVisible();
@@ -383,7 +326,7 @@ test("locks after 15 minutes without activity, and says so", async ({
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase);
-  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
 
   // As if the last key press were 16 minutes ago and the tab came back now.
   const reloaded = page.waitForEvent("load");
@@ -427,12 +370,12 @@ test("recovery: the recovery key and a new passphrase open the data", async ({
 
   await keyField.fill(recoveryKey.replaceAll("-", " "));
   await submit.click();
-  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
   expect((await keyMarkSeen(page))?.slice(-2)).toEqual(["working", "opened"]);
 
   await page.reload();
   await unlock(page, "a brand new passphrase");
-  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
   expect(await cspViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
 });
@@ -593,24 +536,22 @@ test("the base currency is the first encrypted record", async ({
   await page.goto("/settings");
   await unlock(page, passphrase);
 
-  const currency = page.getByRole("button", { name: /^Base currency/ });
-  await expect(currency).toHaveAccessibleName(
-    /United States Dollar/,
-    AFTER_ARGON2,
-  );
-  await currency.click();
-  // Its longest names wrap: on a phone the open menu stays within the screen.
-  await expect(page.getByRole("menu")).toBeVisible();
+  const currency = page.getByRole("combobox", { name: "Base currency" });
+  await expect(currency).toHaveValue("United States Dollar", AFTER_ARGON2);
+  await page
+    .getByRole("button", { name: "Show base currency options" })
+    .click();
+  // Its longest names wrap: on a phone the open list stays within the screen.
+  await expect(page.getByRole("listbox")).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,
     ),
   ).toBe(true);
-  // Far down a list of 161: it has to scroll there.
-  await page
-    .getByRole("menuitemradio", { name: "Georgian Lari (GEL)" })
-    .click();
-  await expect(currency).toHaveAccessibleName(/Georgian Lari/);
+  // One of 161, found by typing part of its name.
+  await currency.fill("lari");
+  await page.getByRole("option", { name: /Georgian Lari/ }).click();
+  await expect(currency).toHaveValue("Georgian Lari");
   await expect(currency).toBeEnabled();
 
   const rows = await sql<{ kind: string; ciphertext: Buffer }>(
@@ -623,7 +564,7 @@ test("the base currency is the first encrypted record", async ({
 
   await page.reload();
   await unlock(page, passphrase);
-  await expect(currency).toHaveAccessibleName(/Georgian Lari/, AFTER_ARGON2);
+  await expect(currency).toHaveValue("Georgian Lari", AFTER_ARGON2);
 });
 
 test("the header fits a 320px screen, and its logo goes home without locking", async ({
@@ -648,7 +589,7 @@ test("the header fits a 320px screen, and its logo goes home without locking", a
 
   // Named for screen readers even where only the mark shows.
   await page.getByRole("link", { name: "Keyworth", exact: true }).click();
-  await expect(welcome(page)).toBeVisible();
+  await expect(appHome(page)).toBeVisible();
   expect(await overflow()).toBeLessThanOrEqual(0);
   await expect(unlockHeading(page)).toHaveCount(0);
 });
@@ -661,7 +602,7 @@ test("Sign out everywhere signs out every tab", async ({
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/");
   await unlock(page, passphrase);
-  await expect(welcome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
   const second = await context.newPage();
   await second.goto("/settings");
   await expect(

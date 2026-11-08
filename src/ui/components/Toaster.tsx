@@ -41,6 +41,17 @@ export function Toaster() {
               </Text>
             )}
           </ToastContent>
+          {toast.content.action && (
+            <AriaButton
+              onPress={() => {
+                toast.content.action?.onAction();
+                toastQueue.close(toast.key);
+              }}
+              className="-my-1 inline-flex h-8 shrink-0 items-center rounded-md px-2 text-sm font-medium text-accent transition-colors duration-(--kw-duration-fast) data-hovered:bg-hover"
+            >
+              {toast.content.action.label}
+            </AriaButton>
+          )}
           <AriaButton
             slot="close"
             aria-label="Dismiss"

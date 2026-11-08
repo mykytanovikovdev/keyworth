@@ -16,7 +16,12 @@ const genericError = "Sign-in didn't finish. Try again.";
 
 export function SignInPage({ error }: { error?: string | undefined }) {
   const [pending, setPending] = useState(false);
-  const message = error ? (errorMessages[error] ?? genericError) : undefined;
+  // Own keys only: "?error=constructor" must not find Object's constructor.
+  const message = error
+    ? Object.hasOwn(errorMessages, error)
+      ? errorMessages[error]
+      : genericError
+    : undefined;
 
   return (
     <main className="flex min-h-dvh items-center justify-center px-4 py-10">
