@@ -295,6 +295,12 @@ the constant `false`, so the page's code is not even in the bundle
   a limit (`maxLength`), its kind's filter (`typedAmount`, `typedText`; `ComboBox`
   filters its search text itself), and data shown only as text, never in `href`,
   `src` or `style`.
+- **`ComboBox` shows the chosen option's label whenever nobody is typing:** the
+  typed search is a draft that ends on blur or on a choice, so a `value` that
+  arrives later (a saved setting) shows at once. React Aria also calls
+  `onChange` on blur with the value as it stands; only a different option counts
+  as a choice. Tab accepts the highlighted option, as WAI-ARIA's combobox
+  pattern says.
 
 - **React Aria's two runtime `<style>` blocks are allowed by hash** in
   `public/_headers`: `touch-action` for every pressable element, and

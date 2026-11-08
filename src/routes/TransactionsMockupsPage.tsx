@@ -404,7 +404,10 @@ function MockShell({ children }: { children: ReactNode }) {
 }
 
 function SettingsCurrency() {
-  const [value, setValue] = useState<string | null>("GEL");
+  // Like Settings: the choice is saved, the field waits disabled meanwhile,
+  // and the saved value arrives a moment after the press.
+  const [stored, setStored] = useState("GEL");
+  const [saving, setSaving] = useState<string | null>(null);
   return (
     <MockShell>
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-10 sm:px-6">
@@ -418,8 +421,18 @@ function SettingsCurrency() {
             hideLabel
             placeholder="Search currencies"
             options={BASE_CURRENCIES}
-            value={value}
-            onChange={setValue}
+            value={saving ?? stored}
+            isDisabled={saving !== null}
+            onChange={(currency) => {
+              if (!currency || currency === stored) return;
+              void Promise.resolve().then(() => {
+                setSaving(currency);
+                window.setTimeout(() => {
+                  setStored(currency);
+                  setSaving(null);
+                }, 600);
+              });
+            }}
             emptyMessage="No currency matches."
             className="w-full sm:w-64"
           />

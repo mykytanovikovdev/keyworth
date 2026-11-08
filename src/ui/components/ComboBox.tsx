@@ -90,8 +90,11 @@ export function ComboBox({
   className = "",
 }: ComboBoxProps) {
   const selected = options.find((option) => option.id === value) ?? null;
-  const [ownText, setOwnText] = useState(selected?.label ?? "");
-  const text = inputValue ?? ownText;
+  // What is typed while searching; null shows the chosen option's label. With
+  // the text derived from `value` the rest of the time, the field always shows
+  // what is chosen, whenever and however `value` changes.
+  const [draft, setDraft] = useState<string | null>(null);
+  const text = inputValue ?? draft ?? selected?.label ?? "";
   // The chosen option's own label is no search: the list shows everything.
   const showsChoice = selected !== null && text === selected.label;
   const shown =
@@ -105,17 +108,31 @@ export function ComboBox({
       inputValue={text}
       onInputChange={(next) => {
         const kept = typedText(next, maxLength);
-        setOwnText(kept);
+        if (inputValue === undefined) {
+          setDraft(kept === (selected?.label ?? "") ? null : kept);
+        }
         onInputChange?.(kept);
       }}
       onChange={(key) => {
-        const chosen = options.find((option) => option.id === key);
-        // With the text in our hands, the chosen label has to be put in it.
-        if (chosen) {
-          setOwnText(chosen.label);
-          onInputChange?.(chosen.label);
+        const id = typeof key === "string" ? key : null;
+        setDraft(null);
+        // React Aria also calls this on blur with the value as it stands:
+        // only a different option is a choice.
+        if (id === value) return;
+        const chosen = options.find((option) => option.id === id);
+        if (chosen) onInputChange?.(chosen.label);
+        onChange?.(id);
+      }}
+      onBlur={() => {
+        // Leaving the field ends a search: it shows the chosen option again.
+        setDraft(null);
+        if (
+          inputValue !== undefined &&
+          selected &&
+          inputValue !== selected.label
+        ) {
+          onInputChange?.(selected.label);
         }
-        onChange?.(typeof key === "string" ? key : null);
       }}
       menuTrigger="input"
       allowsEmptyCollection
