@@ -69,8 +69,10 @@ after a large change to the rules.
   ([storage-and-isolation.md](../../integration/docs/storage-and-isolation.md));
   turning their answers into `PriceSeries` and `RateLookup` comes with the screens.
 - Screens and formatting: they come with the portfolio page.
-- Whether a form refuses an oversold sale: that is the transaction service, later
-  in phase 4. Here, only what the calculations do when one is already stored.
+- Whether a form refuses an oversold sale: that is the transaction service
+  (`src/features/transactions`, tested in
+  `tests/unit/transactions/service.test.ts`). Here, only what the calculations do
+  when one is already stored.
 
 ## Adding a case
 
@@ -90,4 +92,4 @@ it("realizes the move in the rate too", () => {
 });
 ```
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-08
