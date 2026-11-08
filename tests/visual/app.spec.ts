@@ -148,7 +148,7 @@ for (const theme of THEMES) {
       ).toBeVisible({ timeout: 90_000 });
       // The base currency comes from an encrypted record: loaded when enabled.
       await expect(
-        page.getByRole("button", { name: /^Base currency/ }),
+        page.getByRole("combobox", { name: "Base currency" }),
       ).toBeEnabled();
       await page.evaluate(() => document.fonts.ready);
 

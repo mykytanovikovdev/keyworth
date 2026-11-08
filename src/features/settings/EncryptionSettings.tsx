@@ -7,9 +7,9 @@ import {
   Dialog,
   DialogActions,
   hasFinePointer,
+  ComboBox,
+  type ComboBoxOption,
   PasswordField,
-  Select,
-  type SelectOption,
 } from "../../ui/index.ts";
 import {
   messages,
@@ -27,11 +27,11 @@ import { formText } from "../unlock/form-text.ts";
  * vault, and /design/encryption shows each state.
  */
 
-// Every currency with a central bank's rate, by name: typing the first letters
-// of a name jumps to it.
-const BASE_CURRENCIES: readonly SelectOption[] = [...FIAT_CURRENCIES]
+// Every currency with a central bank's rate, by name; typing finds one by its
+// name or its code ("lari", "GEL").
+const BASE_CURRENCIES: readonly ComboBoxOption[] = [...FIAT_CURRENCIES]
   .sort(([, a], [, b]) => a.localeCompare(b, "en"))
-  .map(([code, name]) => ({ id: code, label: `${name} (${code})` }));
+  .map(([code, name]) => ({ id: code, label: name, detail: code }));
 
 export function SignOutEverywhereSection({
   pending = false,
@@ -70,13 +70,18 @@ export function BaseCurrencySection({
       title="Base currency"
       description="Totals, gains and charts are shown in this currency. Saved encrypted, like your trades."
     >
-      <Select
+      <ComboBox
         label="Base currency"
         hideLabel
+        placeholder="Search currencies"
         options={BASE_CURRENCIES}
         value={value}
         isDisabled={isDisabled}
-        {...(onChange && { onChange })}
+        emptyMessage="No currency matches."
+        className="w-full sm:w-64"
+        onChange={(currency) => {
+          if (currency) onChange?.(currency);
+        }}
       />
     </Section>
   );
