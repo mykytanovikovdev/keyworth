@@ -7,14 +7,14 @@ and the pages that belong to no feature (home, not found).
 
 ## How it works
 
-| File                        | Role                                                                                   |
-| --------------------------- | -------------------------------------------------------------------------------------- |
-| `router.tsx`                | Every route, declared in code, and the router factory                                  |
-| `AppShell.tsx`              | Behind the key gate: header (mark, theme, settings) and content                        |
-| `HomePage.tsx`              | The signed-in start page (a placeholder until the portfolio)                           |
-| `NotFoundPage.tsx`          | Any unknown path                                                                       |
-| `KdfBenchmarkPage.tsx`      | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)     |
-| `EncryptionMockupsPage.tsx` | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2 |
+| File                        | Role                                                                                                                              |
+| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `router.tsx`                | Every route, declared in code, and the router factory                                                                             |
+| `AppShell.tsx`              | Behind the key gate: header (mark, theme, settings) and content                                                                   |
+| `/` → `TransactionsPage`    | The signed-in start page: the transactions ([src/features/transactions](../features/transactions/README.md)), until the portfolio |
+| `NotFoundPage.tsx`          | Any unknown path                                                                                                                  |
+| `KdfBenchmarkPage.tsx`      | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                                                |
+| `EncryptionMockupsPage.tsx` | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2                                            |
 
 ```
              ┌ session layout: no session → redirect to /sign-in

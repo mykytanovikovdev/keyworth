@@ -43,7 +43,12 @@ export default defineConfig({
       name,
       testMatch: remoteBaseUrl
         ? "app.spec.ts"
-        : ["app.spec.ts", "auth.spec.ts", "encryption.spec.ts"],
+        : [
+            "app.spec.ts",
+            "auth.spec.ts",
+            "encryption.spec.ts",
+            "transactions.spec.ts",
+          ],
       // Text and routing, which no engine renders differently enough to matter:
       // see tests/e2e/docs/csp-and-engines.md.
       ...(name === "chromium" ? {} : { grepInvert: /@chromium-only/ }),

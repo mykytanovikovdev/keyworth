@@ -137,9 +137,10 @@ export function TransactionList({
                 </span>
                 <AriaButton
                   onPress={() => onEdit?.(entry.id)}
-                  aria-label={`Edit ${kind} ${quantity} on ${date}`}
                   className="col-span-2 -mx-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-md px-2 py-1 text-left transition-colors duration-(--kw-duration-fast) data-hovered:bg-hover sm:col-span-5 sm:grid-cols-[7rem_5.5rem_minmax(0,1fr)_9rem_9rem] sm:items-center"
                 >
+                  {/* The row's own text is its name (WCAG 2.5.3), after what pressing it does. */}
+                  <span className="sr-only">Edit </span>
                   <span className="truncate text-sm font-medium sm:hidden">
                     {kind} · {entry.name}
                   </span>

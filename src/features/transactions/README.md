@@ -14,16 +14,19 @@ calculations.
 
 ## How it works
 
-| File                  | Role                                                                                          |
-| --------------------- | --------------------------------------------------------------------------------------------- |
-| `check.ts`            | The rules, pure: the schema, no date in the future, no sale beyond what was held              |
-| `service.ts`          | Load, save (add or replace) and delete through the vault; `TransactionError`                  |
-| `form-values.ts`      | The form's fields: four tabs to five kinds, amounts as typed (`typedAmount`), errors in words |
-| `coin-search.ts`      | Finding a coin: the shared snapshot's 250 first, the server's search only after them          |
-| `format.ts`           | Dates in words, amounts with every digit they have                                            |
-| `AssetLogo.tsx`       | A coin's logo through the server, or its symbol in a circle                                   |
-| `TransactionForm.tsx` | The "Add transaction" / "Edit transaction" dialog                                             |
-| `TransactionList.tsx` | Columns on a wide screen, two lines a row on a phone; the empty state; unreadable records     |
+| File                   | Role                                                                                          |
+| ---------------------- | --------------------------------------------------------------------------------------------- |
+| `check.ts`             | The rules, pure: the schema, no date in the future, no sale beyond what was held              |
+| `service.ts`           | Load, save (add or replace) and delete through the vault; `TransactionError`                  |
+| `form-values.ts`       | The form's fields: four tabs to five kinds, amounts as typed (`typedAmount`), errors in words |
+| `coin-search.ts`       | Finding a coin: the shared snapshot's 250 first, the server's search only after them          |
+| `format.ts`            | Dates in words, amounts with every digit they have                                            |
+| `AssetLogo.tsx`        | A coin's logo through the server, or its symbol in a circle                                   |
+| `TransactionForm.tsx`  | The "Add transaction" / "Edit transaction" dialog                                             |
+| `TransactionList.tsx`  | Columns on a wide screen, two lines a row on a phone; the empty state; unreadable records     |
+| `TransactionsPage.tsx` | The app's start page until the portfolio: the list, the form and Undo wired to the service    |
+| `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
+| `market.ts`            | The snapshot, coins outside it, the server's search, "Price that day" from history and rates  |
 
 **The form** (owner's decisions, 2026-11-08): tabs Buy, Sell, Receive and Send
 (Receive with an Income box for staking and interest); the date typed as day /
@@ -33,6 +36,18 @@ currencies, USDT and USDC; "Price that day" from `/api/market/history` and
 UTC−11 to UTC+11, or as now when noon is still ahead. Amounts take digits and one
 separator only, a point or a comma. Deleting is at once, with Undo in the toast.
 Every screen and state is on `/design/transactions` (dev and design builds).
+
+**Wiring.** The page reads the list once and keeps it as a query; every change
+goes through the service, which returns the new list, and the query takes it as
+it is (no reload). A refusal comes back next to its field; `changed-elsewhere`
+shows the other device's version in the form (a new `key`) or, when it was
+deleted, closes the form. Undo puts the deleted transaction back under a new id.
+Market data: the shared snapshot names most coins and offers them first in the
+search; names of coins outside it, and "Price that day", are asked for by id
+and kept under `["vault", …]`, which the app clears when the vault locks (they
+say what the user holds). "Price that day" is the day's close from the coin's
+history, or the current price for today, converted at the day's rate (or the
+last one before it) when the price currency is not the dollar.
 
 Each transaction is its own encrypted record of kind `transaction` with a random
 id. `loadTransactions` reads every page of them and splits them into
@@ -76,6 +91,10 @@ with the change applied; nothing is written when a rule fails. They throw a
 
 - The form starts from `initial` once: to show a newer version (after
   `changed-elsewhere`), give it a new `key`.
+- `shared/money` decimals are strict: compare and compute with `decimal("1")`,
+  never a plain number (`gte(1)` throws "Invalid value").
+- A query that names coins goes under `["vault", userId, …]`; only the snapshot,
+  the same for everyone, may stay outside it.
 - A new field follows [input-validation.md](../../../shared/schemas/docs/input-validation.md):
   its limit, its kind's filter, a schema, and text-only output.
 

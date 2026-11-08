@@ -41,6 +41,10 @@ Covered now:
   what typing and pasting let through. Hostile text (`rendering.test.ts`): a note
   or a coin's name with markup reaches the page as text, rendered to a string
   with `react-dom/server`; an asset id in a logo's address stays encoded.
+  "Price that day" (`market.test.ts`, a stubbed `fetch`): today's current
+  price, an earlier day's close with its source, a rate from the day or the last
+  one before it, six significant digits under a dollar, none before a history
+  starts.
 - **Free text:** `shared/schemas/text.ts` (in `schemas.test.ts`) — hidden
   characters dropped as typed, refused by the schema, cleaning twice changes
   nothing ([input-validation.md](../../shared/schemas/docs/input-validation.md)).

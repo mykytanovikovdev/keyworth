@@ -47,9 +47,18 @@ Covered now:
   "Remember this device" and Lock, the 15-minute idle lock, recovery (a typo
   caught, then a new passphrase), deleting the account from the recovery
   screen, a fresh Google sign-in asked before secrets are typed, changing the passphrase and creating a new recovery key in
-  Settings, the base currency stored encrypted, and Sign out everywhere
-  reaching every tab. What it proves:
+  Settings, the base currency found by typing and stored encrypted, and Sign
+  out everywhere reaching every tab. What it proves:
   [docs/encryption-flows.md](docs/encryption-flows.md).
+- **`transactions.spec.ts`** (Chromium, Firefox, WebKit; local builds only): a
+  purchase added through the form (a coin found by typing, today, the day's
+  price used with one press) is stored encrypted, listed and still there after
+  unlocking again; a sale of more than was held is refused with how much was,
+  and nothing is stored; editing, deleting and Undo; a note with markup shown
+  as text that runs nothing; the list and the form at 320 px with no axe
+  violations. Market data is answered in the browser (`page.route`), so no test
+  reaches CoinGecko. What it proves:
+  [docs/transaction-flows.md](docs/transaction-flows.md).
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:
   - every component used for real (dialog, confirmation, toast, tooltip) with
@@ -114,6 +123,15 @@ No account, database or network access to third parties is needed.
   injected before any page script, and through console errors.
 - Expected header values are written out in the test, never imported from the
   config files they check.
+- **Shared signed-in helpers** (`signed-in.ts`): a user with keys set up as on an
+  earlier visit, unlocking, the app's start page, reading the test database.
+- **Market data stubbed in the browser:** `page.route` answers Keyworth's own
+  `/api/market` and `/api/assets` routes, so the tests need neither the
+  CoinGecko key nor the network; the routes themselves are tested in
+  `tests/integration/market.test.ts`.
+- **axe and React Aria's announcer:** after a combobox closes, React Aria's live
+  region keeps for seven seconds a `role="img"` entry pointing at an option that
+  is gone; `transactions.spec.ts` excludes exactly those entries.
 
 ## Adding a test
 
