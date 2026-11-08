@@ -96,14 +96,23 @@ test.describe("signed out", () => {
     expect(await cspViolations(page)).toEqual([]);
   });
 
-  test("an unknown error code gets a generic message @chromium-only", async ({
+  test("an unknown error code gets a generic message, a built-in name too @chromium-only", async ({
     page,
   }) => {
-    await page.goto("/sign-in?error=access_denied");
+    // "constructor" and "toString" are names every object has: the lookup
+    // must use the page's own codes, not find a function and show nothing.
+    for (const code of [
+      "access_denied",
+      "constructor",
+      "toString",
+      "__proto__",
+    ]) {
+      await page.goto(`/sign-in?error=${code}`);
 
-    await expect(page.getByRole("alert")).toHaveText(
-      "Sign-in didn't finish. Try again.",
-    );
+      await expect(page.getByRole("alert"), code).toHaveText(
+        "Sign-in didn't finish. Try again.",
+      );
+    }
   });
 
   test("says right under the button what continuing accepts, and both texts open without signing in @chromium-only", async ({
