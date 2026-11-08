@@ -18,12 +18,13 @@
 
 const ANNOUNCER = "[data-live-announcer]";
 const LOG = ':scope > [role="log"]';
-const browserInnerHtml = Object.getOwnPropertyDescriptor(
-  Element.prototype,
-  "innerHTML",
-);
 
 function guard(announcer: Element) {
+  // Looked up here, not on import: the module also loads in Node (unit tests).
+  const browserInnerHtml = Object.getOwnPropertyDescriptor(
+    Element.prototype,
+    "innerHTML",
+  );
   for (const log of announcer.querySelectorAll(LOG)) {
     Object.defineProperty(log, "innerHTML", {
       configurable: true,
