@@ -125,10 +125,14 @@ No account, database or network access to third parties is needed.
   config files they check.
 - **Shared signed-in helpers** (`signed-in.ts`): a user with keys set up as on an
   earlier visit, unlocking, the app's start page, reading the test database.
-- **Market data stubbed in the browser:** `page.route` answers Keyworth's own
-  `/api/market` and `/api/assets` routes, so the tests need neither the
-  CoinGecko key nor the network; the routes themselves are tested in
-  `tests/integration/market.test.ts`.
+- **Market data stubbed in the browser:** `stubMarket(page)` (`market.ts`)
+  answers Keyworth's own `/api/market` and `/api/assets` routes, so the tests
+  need neither the CoinGecko key nor the network; the routes themselves are
+  tested in `tests/integration/market.test.ts`. Every spec that signs in calls
+  it in `beforeEach`: the signed-in start page asks for prices at once, and
+  without a key the e2e Worker answers 502, which the browser logs as a console
+  error. How fast that happens depends on the network (a blocked connection
+  only hangs), so a missing stub fails some runs and not others.
 - **axe and React Aria's announcer:** after a combobox closes, React Aria's live
   region keeps for seven seconds a `role="img"` entry pointing at an option that
   is gone; `transactions.spec.ts` excludes exactly those entries.
