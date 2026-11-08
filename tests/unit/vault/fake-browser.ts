@@ -164,6 +164,12 @@ export function fakeServer(userId = ALICE) {
         });
         return revision;
       }),
+    deleteRecord: (id) =>
+      call("deleteRecord", () => {
+        if (!records.delete(id)) {
+          throw new ApiError(404, { error: "not_found" });
+        }
+      }),
   };
   return {
     api,

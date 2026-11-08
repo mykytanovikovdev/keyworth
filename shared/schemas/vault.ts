@@ -34,6 +34,24 @@ export const VAULT_LIMITS = Object.freeze({
   maxBytes: 50 * 1024 * 1024,
 });
 
+/**
+ * One page of `GET /api/vault`. A Worker has 128 MB of memory and a user up
+ * to 50 MiB of ciphertext, so the records come in pages; the record that
+ * crosses `maxBytes` is still included, so a page always moves forward.
+ */
+export const VAULT_PAGE = Object.freeze({
+  maxRecords: 5000,
+  /** Ciphertext bytes. */
+  maxBytes: 4 * 1024 * 1024,
+});
+
+/**
+ * Where the next page starts: when the last record was created (microseconds
+ * since 1970) and its id. Opaque to the browser, which only sends it back.
+ */
+export const VAULT_CURSOR =
+  /^(\d{1,17})_([0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})$/;
+
 /** Revisions are stored in a 32-bit integer column. */
 export const MAX_REVISION = 2_147_483_647;
 
@@ -61,4 +79,10 @@ export interface VaultRecordJson {
   revision: number;
   envelope: z.infer<typeof envelopeSchema>;
   updatedAt: string;
+}
+
+/** A page of records, oldest first; `next` is null on the last page. */
+export interface VaultPageJson {
+  records: VaultRecordJson[];
+  next: string | null;
 }
