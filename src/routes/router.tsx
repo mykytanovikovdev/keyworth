@@ -151,6 +151,18 @@ const encryptionMockupsRoute =
       })
     : null;
 
+// Same condition: mockups of the 4.3b screens (transactions), for review.
+const transactionsMockupsRoute =
+  import.meta.env.DEV || import.meta.env.MODE === "design"
+    ? createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/design/transactions",
+        component: lazyRouteComponent(
+          () => import("./TransactionsMockupsPage.tsx"),
+        ),
+      })
+    : null;
+
 const routeTree = rootRoute.addChildren([
   sessionRoute.addChildren([
     appRoute.addChildren([homeRoute, settingsRoute]),
@@ -162,6 +174,7 @@ const routeTree = rootRoute.addChildren([
   ...(designRoute ? [designRoute] : []),
   ...(kdfBenchmarkRoute ? [kdfBenchmarkRoute] : []),
   ...(encryptionMockupsRoute ? [encryptionMockupsRoute] : []),
+  ...(transactionsMockupsRoute ? [transactionsMockupsRoute] : []),
 ]);
 
 export function createAppRouter(queryClient: QueryClient) {

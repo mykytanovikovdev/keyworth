@@ -37,7 +37,13 @@ Covered now:
   (this one, a later one, or after shrinking or deleting a purchase it needs),
   a sale already short allowed to stay so but not grow, edits of records
   changed or deleted on another device refused with the current list, damaged
-  records named and deletable.
+  records named and deletable. The form's amount fields (`form-values.test.ts`):
+  what typing and pasting let through. Hostile text (`rendering.test.ts`): a note
+  or a coin's name with markup reaches the page as text, rendered to a string
+  with `react-dom/server`; an asset id in a logo's address stays encoded.
+- **Free text:** `shared/schemas/text.ts` (in `schemas.test.ts`) — hidden
+  characters dropped as typed, refused by the schema, cleaning twice changes
+  nothing ([input-validation.md](../../shared/schemas/docs/input-validation.md)).
 
 - **Calculations:** `shared/money` and `shared/metrics` (positions, average cost,
   P&L, splits, transfers, currencies, time-weighted returns, drawdown, volatility,

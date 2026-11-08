@@ -4,6 +4,8 @@
     "tsBuildInfoFile": "../../node_modules/.tmp/tsconfig.unit.tsbuildinfo",
     // DOM: src/crypto is browser code (CryptoKey, KeyUsage) tested under Node.
     "lib": ["ES2024", "DOM"],
+    // Components rendered to a string (tests/unit/transactions/rendering.test.ts).
+    "jsx": "react-jsx",
     "types": ["node"]
   },
   "include": ["./**/*.ts"]
