@@ -85,7 +85,7 @@ For end-to-end tests, install the browsers once:
 | `npm run dev`                | Vite dev server with the Worker running in workerd                        |
 | `npm run build`              | Production build: `dist/client` (static) and `dist/keyworth` (Worker)     |
 | `npm run preview`            | Serve the production build locally in workerd                             |
-| `npm run check`              | Format, lint, types, Worker types, tests, licenses, build — before "done" |
+| `npm run check`              | Format, lint, types, Worker types, tests, licenses, docs, build pre-merge |
 | `npm test`                   | Unit (Node) and Worker (workerd) tests                                    |
 | `npm run test:e2e`           | Playwright against fresh production and design builds                     |
 | `npm run test:visual`        | Screenshots of `/design` against the baselines (needs Docker)             |
@@ -94,6 +94,9 @@ For end-to-end tests, install the browsers once:
 | `npm run format`             | Prettier                                                                  |
 | `npm run typecheck`          | TypeScript project references                                             |
 | `npm run licenses`           | Dependency license check                                                  |
+| `npm run docs:check`         | Links, review dates and forbidden content in READMEs and `docs/`          |
+| `npm run bundle:size`        | Script chunks and the largest one by package                              |
+| `npm run mutate -- <plan>`   | Break lines on purpose and see whether the tests notice                   |
 | `npm run cf:types`           | Regenerate Worker types after changing `wrangler.jsonc`                   |
 | `npm run hooks:install`      | Install git hooks                                                         |
 | `npm run build:design`       | Build with the `/design` page into `dist-design/`                         |
@@ -118,7 +121,7 @@ worker/     Cloudflare Worker (Hono): API, sign-in, security headers, market dat
 drizzle/    SQL migrations
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
-scripts/    project tooling (user management, license check, visual test runner)
+scripts/    project tooling (user management, license and docs checks, visual test runner)
 tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 .github/    CI, deployment and Dependabot
 ```
@@ -138,7 +141,8 @@ depth in `docs/` folders next to the code. READMEs: [design system](src/ui/READM
 Every pull request and every push to `main` runs, on GitHub Actions:
 
 - **`npm run check`** — formatting, lint, types, stale Worker types, unit and
-  Worker tests, license check, production build; plus `npm audit` for runtime
+  Worker tests, license check, documentation check, production build; plus
+  `npm audit` for runtime
   dependencies;
 - **end-to-end tests** in three browser engines against the production build,
   and against the `/design` page with every UI component (CSP, keyboard, themes,

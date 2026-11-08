@@ -38,7 +38,7 @@ npm test            # all Vitest projects
 npm run test:watch  # Vitest in watch mode
 npm run test:e2e    # Playwright against fresh production and design builds
 npm run test:visual # screenshots of /design (needs Docker)
-npm run check       # format, lint, types, tests, licenses, build — run before "done"
+npm run check       # format, lint, types, tests, licenses, docs, build — run before "done"
 ```
 
 ## Approach
