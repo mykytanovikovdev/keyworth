@@ -137,16 +137,16 @@ Correlation needs at least three common returns and movement in both assets.
 
 ## Edge cases
 
-| Case                                    | Result                                                         |
-| --------------------------------------- | -------------------------------------------------------------- |
-| A rate is missing                       | `amounts: null`, quantity still right, a `missing-rate` issue  |
-| Sold more than held                     | The held part counts; an `oversold` issue with what is missing |
-| Sold with nothing held                  | No effect, no rate asked for; an `oversold` issue              |
-| A price is missing today                | `value: null`, `total` leaves it out, `complete: false`        |
-| A closed position                       | Value 0, needs no price                                        |
-| A day cannot be priced                  | No return for it or the day after                              |
-| No holdings and nothing bought that day | No return                                                      |
-| A cost that does not divide evenly      | Multiply first, divide last; closing takes the exact rest      |
+| Case                                    | Result                                                                                                                                                                                                        |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| A rate is missing                       | `amounts: null`, quantity still right, a `missing-rate` issue                                                                                                                                                 |
+| Sold more than held                     | The held part counts; an `oversold` issue with what is missing; a new change that causes it is refused by the transaction service ([src/features/transactions](../../../src/features/transactions/README.md)) |
+| Sold with nothing held                  | No effect, no rate asked for; an `oversold` issue                                                                                                                                                             |
+| A price is missing today                | `value: null`, `total` leaves it out, `complete: false`                                                                                                                                                       |
+| A closed position                       | Value 0, needs no price                                                                                                                                                                                       |
+| A day cannot be priced                  | No return for it or the day after                                                                                                                                                                             |
+| No holdings and nothing bought that day | No return                                                                                                                                                                                                     |
+| A cost that does not divide evenly      | Multiply first, divide last; closing takes the exact rest                                                                                                                                                     |
 
 Cash dividends, which pay money without changing the quantity, arrive with stocks
 (phase 11).
@@ -164,4 +164,4 @@ A new transaction type needs a row in the rules table and a decision about wheth
 it moves money for `portfolioHistory`. Never compute money through `number`, and
 never let a missing input become zero.
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-08

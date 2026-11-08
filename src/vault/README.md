@@ -27,16 +27,16 @@ start(userId) ───┤
                                           └── Lock, idle, sign-out (every tab) ┘
 ```
 
-| File             | Role                                                                          |
-| ---------------- | ----------------------------------------------------------------------------- |
-| `index.ts`       | The public surface and this page's `vault`, wired to the browser              |
-| `vault.ts`       | `Vault`: the states and every flow; encrypts and decrypts records             |
-| `tabs.ts`        | The BroadcastChannel protocol: handing the key over, the Lock epoch, presence |
-| `idle.ts`        | The 15-minute idle lock, decided by clock time shared between tabs            |
-| `device-keys.ts` | IndexedDB storage for the "Remember this device" key, and nothing else        |
-| `records.ts`     | Read (damaged records included) and write records with revisions              |
-| `api.ts`         | `fetch` wrappers for `/api/me`, `/api/keys`, `/api/vault`; `ApiError`         |
-| `storage.ts`     | Web Storage that never throws, for the epoch and the activity time            |
+| File             | Role                                                                              |
+| ---------------- | --------------------------------------------------------------------------------- |
+| `index.ts`       | The public surface and this page's `vault`, wired to the browser                  |
+| `vault.ts`       | `Vault`: the states and every flow; encrypts and decrypts records                 |
+| `tabs.ts`        | The BroadcastChannel protocol: handing the key over, the Lock epoch, presence     |
+| `idle.ts`        | The 15-minute idle lock, decided by clock time shared between tabs                |
+| `device-keys.ts` | IndexedDB storage for the "Remember this device" key, and nothing else            |
+| `records.ts`     | Read (damaged records included) and write records with revisions                  |
+| `api.ts`         | `fetch` wrappers for `/api/me`, `/api/keys`, `/api/vault` (all pages); `ApiError` |
+| `storage.ts`     | Web Storage that never throws, for the epoch and the activity time                |
 
 The rules each flow keeps are in [`docs/`](docs/):
 

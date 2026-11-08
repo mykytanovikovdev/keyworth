@@ -4,6 +4,8 @@ import {
   MAX_REVISION,
   type RecordKind,
   VAULT_LIMITS,
+  VAULT_PAGE,
+  type VaultPageJson,
   type VaultRecordJson,
 } from "../../shared/schemas/vault.ts";
 import {
@@ -76,6 +78,54 @@ async function list(user: VaultUser, kind?: string) {
   });
   expect(response.status).toBe(200);
   return (await response.json<{ records: VaultRecordJson[] }>()).records;
+}
+
+/** Every page, following `next` as the browser does. */
+async function pages(
+  user: { cookie: string },
+  { kind, after }: { kind?: string; after?: string } = {},
+) {
+  const all: VaultPageJson[] = [];
+  let cursor = after ?? null;
+  do {
+    const params = new URLSearchParams();
+    if (kind) params.set("kind", kind);
+    if (cursor) params.set("after", cursor);
+    const response = await api(`/api/vault?${params.toString()}`, {
+      cookie: user.cookie,
+    });
+    expect(response.status).toBe(200);
+    const page = await response.json<VaultPageJson>();
+    all.push(page);
+    cursor = page.next;
+  } while (cursor && all.length < 100);
+  return all;
+}
+
+/** Records stored straight in the database: no keys needed to page through them. */
+async function insertRecords(
+  userId: string,
+  count: number,
+  { kind = "transaction", bytes = 272, age = "0 seconds" } = {},
+) {
+  await query(
+    `insert into vault_records
+       (user_id, id, kind, revision, envelope_version, iv, ciphertext, created_at)
+     select $1, gen_random_uuid(), $3, 1, 1, decode(repeat('00', 12), 'hex'),
+            decode(repeat('00', $4::int), 'hex'), now() - $5::interval
+       from generate_series(1, $2::int)`,
+    [userId, count, kind, bytes, age],
+  );
+}
+
+/** The user's record ids in the order the pages must follow. */
+async function idsInOrder(userId: string, kind?: string) {
+  const rows = await query<{ id: string }>(
+    `select id from vault_records where user_id = $1 ${kind ? "and kind = $2" : ""}
+      order by created_at, id`,
+    kind ? [userId, kind] : [userId],
+  );
+  return rows.map(({ id }) => id);
 }
 
 describe("/api/vault", () => {
@@ -329,6 +379,94 @@ describe("/api/vault", () => {
   });
 });
 
+describe("pages", () => {
+  it("returns every record once, oldest first, a page at a time", async () => {
+    const user = await signedIn("pages-count");
+    await insertRecords(user.userId, 2, { age: "1 hour" });
+    await insertRecords(user.userId, VAULT_PAGE.maxRecords + 1);
+    await insertRecords(user.userId, 3, { kind: "settings" });
+
+    const transactions = await pages(user, { kind: "transaction" });
+    const everything = await pages(user);
+
+    expect(transactions.map(({ records }) => records.length)).toEqual([
+      VAULT_PAGE.maxRecords,
+      3,
+    ]);
+    expect(transactions.at(-1)?.next).toBeNull();
+    expect(
+      transactions.flatMap(({ records }) => records.map((r) => r.id)),
+    ).toEqual(await idsInOrder(user.userId, "transaction"));
+    expect(
+      everything.flatMap(({ records }) => records.map((r) => r.id)),
+    ).toEqual(await idsInOrder(user.userId));
+  });
+
+  it("ends a page after the record that crosses 4 MiB of ciphertext", async () => {
+    const user = await signedIn("pages-bytes");
+    await insertRecords(user.userId, 50, { bytes: 100_000 });
+
+    const all = await pages(user);
+
+    // Records 1 to 42 start below 4 MiB; the 42nd ends past it.
+    expect(all.map(({ records }) => records.length)).toEqual([42, 8]);
+    expect(all.flatMap(({ records }) => records.map((r) => r.id))).toEqual(
+      await idsInOrder(user.userId),
+    );
+  });
+
+  it("brings a record created meanwhile on a later page, and does not repeat an edited one", async () => {
+    const user = await vaultUser("pages-moving");
+    await insertRecords(user.userId, VAULT_PAGE.maxRecords + 1, {
+      age: "1 minute",
+    });
+    const [first] = await pages(user);
+    const edited = first?.records[0];
+    if (!edited || !first.next) throw new Error("Expected two pages");
+
+    const created = crypto.randomUUID();
+    await put(user, created, { new: "one" }, { kind: "transaction" });
+    expect(
+      (
+        await put(
+          user,
+          edited.id,
+          { changed: "yes" },
+          {
+            revision: 1,
+            kind: "transaction",
+          },
+        )
+      ).status,
+    ).toBe(200);
+    const rest = await pages(user, { after: first.next });
+
+    const restIds = rest.flatMap(({ records }) => records.map((r) => r.id));
+    expect(restIds).toHaveLength(2);
+    expect(restIds.at(-1)).toBe(created);
+    expect(restIds).not.toContain(edited.id);
+  });
+
+  it.each([
+    ["a made-up cursor", "page-2"],
+    ["a cursor without an id", "1762600000000000"],
+    [
+      "a cursor with an upper-case id",
+      `1_${crypto.randomUUID().toUpperCase()}`,
+    ],
+  ])("refuses %s", async (_, after) => {
+    const user = await signedIn("pages-bad");
+    const response = await api(
+      `/api/vault?after=${encodeURIComponent(after)}`,
+      {
+        cookie: user.cookie,
+      },
+    );
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_cursor" });
+  });
+});
+
 describe("isolation", () => {
   it("keeps every record to its owner, even under the same id", async () => {
     const alice = await vaultUser("alice");
@@ -364,6 +502,23 @@ describe("isolation", () => {
       await decryptRecord(alice.dataKey, ref, aliceRecord?.envelope),
     ).toEqual({ owner: "alice" });
     expect(await list(bob)).toEqual([]);
+  });
+
+  it("a cursor from another user's pages shows only the user's own records", async () => {
+    const alice = await signedIn("pages-alice");
+    const bob = await signedIn("pages-bob");
+    await insertRecords(alice.userId, VAULT_PAGE.maxRecords + 1, {
+      age: "1 hour",
+    });
+    await insertRecords(bob.userId, 2);
+    const [aliceFirst] = await pages(alice);
+    if (!aliceFirst?.next) throw new Error("Expected two pages");
+
+    const bobs = await pages(bob, { after: aliceFirst.next });
+
+    expect(bobs.flatMap(({ records }) => records.map((r) => r.id))).toEqual(
+      await idsInOrder(bob.userId),
+    );
   });
 
   it("an envelope copied into another user's vault does not decrypt there", async () => {

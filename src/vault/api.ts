@@ -9,6 +9,7 @@ import type {
 import type { MeJson } from "../../shared/schemas/me.ts";
 import type {
   RecordKind,
+  VaultPageJson,
   VaultRecordJson,
   VaultWrite,
 } from "../../shared/schemas/vault.ts";
@@ -58,9 +59,12 @@ export interface VaultApi {
   /** The device-wrapped key, or null when this session has none. */
   deviceSlot(): Promise<unknown>;
   forgetDevice(): Promise<void>;
+  /** Every record of a kind: all the server's pages, oldest first. */
   records(kind: RecordKind): Promise<VaultRecordJson[]>;
   /** Returns the record's new revision. */
   putRecord(id: string, write: VaultWrite): Promise<number>;
+  /** Fails with ApiError 404 `not_found` when it is already gone. */
+  deleteRecord(id: string): Promise<void>;
 }
 
 async function request(
@@ -125,11 +129,22 @@ export const httpApi: VaultApi = {
     await request("DELETE", "/api/keys/device");
   },
   async records(kind) {
-    const response = await request(
-      "GET",
-      `/api/vault?kind=${encodeURIComponent(kind)}`,
-    );
-    return (await json<{ records: VaultRecordJson[] }>(response)).records;
+    const records: VaultRecordJson[] = [];
+    let after: string | null = null;
+    do {
+      const params = new URLSearchParams({ kind });
+      if (after) params.set("after", after);
+      const page: VaultPageJson = await json<VaultPageJson>(
+        await request("GET", `/api/vault?${params.toString()}`),
+      );
+      records.push(...page.records);
+      // A server that repeats its cursor would keep this loop going forever.
+      if (page.next !== null && page.next === after) {
+        throw new Error("The server repeated a page cursor.");
+      }
+      after = page.next;
+    } while (after);
+    return records;
   },
   async putRecord(id, write) {
     const response = await request(
@@ -138,5 +153,8 @@ export const httpApi: VaultApi = {
       write,
     );
     return (await json<{ revision: number }>(response)).revision;
+  },
+  async deleteRecord(id) {
+    await request("DELETE", `/api/vault/${encodeURIComponent(id)}`);
   },
 };

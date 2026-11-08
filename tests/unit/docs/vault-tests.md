@@ -90,6 +90,14 @@ WebKit, with IndexedDB and the production CSP, is shown by
 - IndexedDB storage takes only a non-extractable wrap/unwrap key; the tab
   channel only a non-extractable encrypt/decrypt key.
 
+**The HTTP client** (`api.test.ts`, against a stubbed `fetch`)
+
+- Reading records follows the server's `next` cursor to the last page and
+  returns every record in order; a server that repeats a cursor stops the loop
+  with an error instead of asking forever.
+- Deleting sends `DELETE /api/vault/:id`; a record already gone is an
+  `ApiError` 404 `not_found`.
+
 ## Not covered here
 
 IndexedDB itself, the real Web Locks, the browser events of the idle watch and
@@ -112,4 +120,4 @@ it("…", async () => {
 Close every tab (the helpers register `closeAll` for `afterEach`), or open
 BroadcastChannels keep the test process alive.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-08

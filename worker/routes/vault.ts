@@ -1,13 +1,17 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import {
   decodeBase64url,
   encodeBase64url,
 } from "../../shared/schemas/base64url.ts";
 import {
+  type RecordKind,
   recordIdSchema,
   recordKindSchema,
+  VAULT_CURSOR,
   VAULT_LIMITS,
+  VAULT_PAGE,
+  type VaultPageJson,
   type VaultRecordJson,
   vaultWriteSchema,
 } from "../../shared/schemas/vault.ts";
@@ -33,23 +37,61 @@ const bytes = (text: string): Uint8Array => {
   return decoded;
 };
 
-/** Every record of this user, optionally of one kind. */
+interface PageRow extends Record<string, unknown> {
+  id: string;
+  kind: RecordKind;
+  revision: number;
+  iv: Uint8Array;
+  ciphertext: Uint8Array;
+  /** ISO 8601 in UTC: Drizzle has pg leave timestamps as text in raw queries. */
+  updated_at: string;
+  position: string;
+  has_more: boolean;
+}
+
+/**
+ * The user's records, optionally of one kind, oldest first, a page at a time
+ * (VAULT_PAGE). One statement: a window over the user's records counts the
+ * ciphertext before each one and whether any comes after, so the Worker never
+ * holds more than a page. Records keep their creation time, so a page does not
+ * shift when one is edited; one created meanwhile comes on a later page.
+ */
 vault.get("/", async (c) => {
   const kindParam = c.req.query("kind");
   const kind =
     kindParam === undefined ? null : recordKindSchema.safeParse(kindParam);
   if (kind && !kind.success) return c.json({ error: "invalid_kind" }, 400);
+  const afterParam = c.req.query("after");
+  const after = afterParam === undefined ? null : VAULT_CURSOR.exec(afterParam);
+  if (afterParam !== undefined && !after) {
+    return c.json({ error: "invalid_cursor" }, 400);
+  }
   const userId = c.get("user").id;
-  const rows = await c
-    .get("db")
-    .select()
-    .from(vaultRecords)
-    .where(
-      kind
-        ? and(eq(vaultRecords.userId, userId), eq(vaultRecords.kind, kind.data))
-        : eq(vaultRecords.userId, userId),
-    )
-    .orderBy(asc(vaultRecords.createdAt));
+  // created_at to the microsecond, as the cursor holds it.
+  const position = sql`(extract(epoch from created_at) * 1000000)::bigint`;
+  const result = await c.get("db").execute<PageRow>(sql`
+    select id, kind, revision, iv, ciphertext,
+           to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+             as updated_at,
+           position::text, has_more
+    from (
+      select id, kind, revision, iv, ciphertext, updated_at, created_at,
+             ${position} as position,
+             sum(octet_length(ciphertext)) over w - octet_length(ciphertext)
+               as bytes_before,
+             row_number() over w as row_number,
+             lead(id) over w is not null as has_more
+        from vault_records
+       where user_id = ${userId}
+         ${kind ? sql`and kind = ${kind.data}` : sql``}
+         ${after ? sql`and (${position}, id) > (${after[1]}::bigint, ${after[2]}::uuid)` : sql``}
+      window w as (order by created_at, id)
+    ) page
+    where bytes_before < ${VAULT_PAGE.maxBytes}
+      and row_number <= ${VAULT_PAGE.maxRecords}
+    order by created_at, id`);
+  const rows = result.rows;
+  const last = rows.at(-1);
   const records: VaultRecordJson[] = rows.map((row) => ({
     id: row.id,
     kind: row.kind,
@@ -60,9 +102,12 @@ vault.get("/", async (c) => {
       iv: encodeBase64url(row.iv),
       ct: encodeBase64url(row.ciphertext),
     },
-    updatedAt: row.updatedAt.toISOString(),
+    updatedAt: row.updated_at,
   }));
-  return c.json({ records });
+  return c.json<VaultPageJson>({
+    records,
+    next: last?.has_more ? `${last.position}_${last.id}` : null,
+  });
 });
 
 // Namespace for this route's advisory locks (pg_advisory_xact_lock's first key).

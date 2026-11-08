@@ -116,9 +116,14 @@ uninviting, deleting and listing, as described in
   back over a newer one is stored but no longer decrypts (`tampered`).
 - Listing by kind, deleting once, malformed ids, envelopes and extra plaintext
   fields refused, writes from another origin refused.
+- Pages: following `next` returns every record exactly once in creation order,
+  by kind or all kinds; a page ends at 5,000 records or after the record that
+  crosses 4 MiB of ciphertext; a record created while paging comes on a later
+  page and an edited one is not repeated; malformed cursors are refused (400).
 - **Isolation:** Bob's writes under Alice's record id create his own record;
   Bob cannot update or delete Alice's record; an envelope copied into Bob's vault
-  does not decrypt there.
+  does not decrypt there; a cursor from Alice's pages shows Bob only his own
+  records.
 - Quotas (record count, storage) answer 413, and hold when six creates arrive
   at once one record below either limit (exactly one succeeds); the write rate
   limit answers 429 with `Retry-After` (the seconds left in the window), resets
@@ -187,4 +192,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-08

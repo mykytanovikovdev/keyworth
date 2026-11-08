@@ -31,6 +31,14 @@ Covered now:
   conflict, records with revisions. What each file proves:
   [docs/vault-tests.md](docs/vault-tests.md).
 
+- **Transactions:** `src/features/transactions` (`transactions/`) — through a
+  real vault against the fake server: stored encrypted, replaced with the next
+  revision, refused when invalid, dated in the future or leaving a sale short
+  (this one, a later one, or after shrinking or deleting a purchase it needs),
+  a sale already short allowed to stay so but not grow, edits of records
+  changed or deleted on another device refused with the current list, damaged
+  records named and deletable.
+
 - **Calculations:** `shared/money` and `shared/metrics` (positions, average cost,
   P&L, splits, transfers, currencies, time-weighted returns, drawdown, volatility,
   correlation), every expected number worked out by hand. These are the numbers
