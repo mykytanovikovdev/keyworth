@@ -80,6 +80,16 @@ for (const theme of ["light", "dark"] as const) {
         page.getByRole("button", { name: /Base currency/ }),
       ).toContainText("Euro (EUR)");
 
+      // A date typed digit by digit: each change is announced, and React Aria
+      // clears the previous announcement first (src/ui/live-announcer.ts).
+      await page
+        .getByRole("group", { name: "Date" })
+        .getByRole("spinbutton")
+        .first()
+        .click();
+      await page.keyboard.type("03042024");
+      await expect(page.getByText("April 3, 2024")).toBeVisible();
+
       // A checkbox toggles from its label.
       const remember = page.getByRole("checkbox", {
         name: "Remember this device",

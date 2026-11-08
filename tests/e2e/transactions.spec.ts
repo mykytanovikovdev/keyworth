@@ -214,6 +214,28 @@ test("a purchase is encrypted, listed, and still there after unlocking again", a
   expect(await cspViolations(page)).toEqual([]);
 });
 
+test("takes a date typed from the keyboard, under the CSP", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const errors = collectErrors(page);
+  await openApp(page, context, baseURL);
+  await page.getByRole("button", { name: "Add transaction" }).click();
+  const dialog = dialogOf(page, "Add transaction");
+
+  await dialog
+    .getByRole("group", { name: "Date" })
+    .getByRole("spinbutton")
+    .first()
+    .click();
+  await page.keyboard.type("20122025");
+
+  await expect(dialog.getByText("December 20, 2025")).toBeVisible();
+  expect(errors).toEqual([]);
+  expect(await cspViolations(page)).toEqual([]);
+});
+
 test("refuses a sale of more than was held, and stores nothing", async ({
   page,
   context,
