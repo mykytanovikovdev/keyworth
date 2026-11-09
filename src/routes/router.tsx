@@ -11,6 +11,7 @@ import { sessionQuery } from "../features/auth/client.ts";
 import { SignInPage } from "../features/auth/SignInPage.tsx";
 import { PrivacyPage } from "../features/legal/PrivacyPage.tsx";
 import { TermsPage } from "../features/legal/TermsPage.tsx";
+import { PortfolioPage } from "../features/portfolio/PortfolioPage.tsx";
 import { TransactionsPage } from "../features/transactions/TransactionsPage.tsx";
 import {
   type SettingsAction,
@@ -70,6 +71,12 @@ const SETTINGS_ACTIONS: readonly string[] = [
 const homeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
+  component: PortfolioPage,
+});
+
+const transactionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/transactions",
   component: TransactionsPage,
 });
 
@@ -177,7 +184,7 @@ const portfolioMockupsRoute =
 
 const routeTree = rootRoute.addChildren([
   sessionRoute.addChildren([
-    appRoute.addChildren([homeRoute, settingsRoute]),
+    appRoute.addChildren([homeRoute, transactionsRoute, settingsRoute]),
     recoverRoute,
   ]),
   signInRoute,

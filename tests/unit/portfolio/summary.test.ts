@@ -178,6 +178,20 @@ describe("the portfolio's summary", () => {
     expect(summary.period.gain?.toString()).toBe("30");
   });
 
+  it("still counts what a coin without a price has already realized", () => {
+    const summary = run(
+      [
+        buy("2025-01-01", "1", "100", BTC),
+        buy("2025-01-01", "10", "10", ETH),
+        sell("2025-01-03", "5", "12", ETH),
+      ],
+      { unpriced: ["crypto:ethereum"] },
+    );
+
+    // BTC up 30; ETH sold 5 for 2 more each, the rest unknown.
+    expect(summary.allTimeProfit?.toString()).toBe("40");
+  });
+
   it("shows nothing, not zero, when no coin has a price", () => {
     const summary = run([buy("2025-01-01", "1", "100", BTC)], {
       unpriced: ["crypto:bitcoin"],

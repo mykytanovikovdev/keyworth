@@ -198,14 +198,15 @@ export function summarize(
     })
     .sort((a, b) => (b.share ?? -1) - (a.share ?? -1));
 
-  // A coin with no price today is listed, but left out of the total and of
-  // every figure below, as a notice says: one missing price must not blank the
-  // whole page. Rates missing for a transaction still make a figure unknown.
+  // A coin with no price today is listed, but its unknown unrealized profit is
+  // left out of the total and of every figure below, as a notice says: one
+  // missing price must not blank the whole page. What it already realized is
+  // known and counts. Rates missing for a transaction still make a figure
+  // unknown.
   let allTimeProfit: Decimal | null = ZERO;
   let income: Decimal | null = ZERO;
   for (const { position, unrealizedPnl } of valued.rows) {
     const held = position.quantity.gt(ZERO);
-    if (held && unrealizedPnl === null && position.amounts !== null) continue;
     const amounts = position.amounts;
     income = income && amounts && income.plus(amounts.income);
     allTimeProfit =

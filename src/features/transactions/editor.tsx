@@ -88,11 +88,12 @@ export function useTransactionEditor() {
     () => transactions.data?.records ?? [],
     [transactions.data],
   );
-  const unnamed = [
+  // Coins outside the snapshot, by id: their names and today's prices (a
+  // coin just picked in the form is named already, but still needs a price).
+  const outsideIds = [
     ...new Set(records.map(({ value }) => value.assetId)),
-  ].filter((id) => !top.some((coin) => coin.id === id) && !picked.has(id));
-  // Coins outside the snapshot, by id: their names and today's prices.
-  const outside = useQuery(quotesQuery(userId, unnamed));
+  ].filter((id) => !top.some((coin) => coin.id === id));
+  const outside = useQuery(quotesQuery(userId, outsideIds));
   const assets = useMemo(() => {
     const known = new Map<string, AssetChoice>();
     for (const coin of [

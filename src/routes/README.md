@@ -7,18 +7,23 @@ and the pages that belong to no feature (home, not found).
 
 ## How it works
 
-| File                        | Role                                                                                                                              |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
-| `router.tsx`                | Every route, declared in code, and the router factory                                                                             |
-| `AppShell.tsx`              | Behind the key gate: header (mark, theme, settings) and content                                                                   |
-| `/` → `TransactionsPage`    | The signed-in start page: the transactions ([src/features/transactions](../features/transactions/README.md)), until the portfolio |
-| `NotFoundPage.tsx`          | Any unknown path                                                                                                                  |
-| `KdfBenchmarkPage.tsx`      | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                                                |
-| `EncryptionMockupsPage.tsx` | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2                                            |
+| File                          | Role                                                                                              |
+| ----------------------------- | ------------------------------------------------------------------------------------------------- |
+| `router.tsx`                  | Every route, declared in code, and the router factory                                             |
+| `AppShell.tsx`                | Behind the key gate: header (mark, sections, theme, settings) and content                         |
+| `AppNav.tsx`                  | The sections in the header (Portfolio, Transactions): inline, or a second row on phones           |
+| `/` → `PortfolioPage`         | The signed-in start page ([src/features/portfolio](../features/portfolio/README.md))              |
+| `/transactions`               | The transactions and their form ([src/features/transactions](../features/transactions/README.md)) |
+| `NotFoundPage.tsx`            | Any unknown path                                                                                  |
+| `KdfBenchmarkPage.tsx`        | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                |
+| `EncryptionMockupsPage.tsx`   | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2            |
+| `TransactionsMockupsPage.tsx` | `/design/transactions`: the transactions screens in every state                                   |
+| `PortfolioMockupsPage.tsx`    | `/design/portfolio`: the portfolio page in every state, from made-up transactions                 |
 
 ```
              ┌ session layout: no session → redirect to /sign-in
 /            │ ┐ app layout: the key gate (create a passphrase, unlock)
+/transactions│ │
 /settings    │ ┘   ?then=change-passphrase | new-recovery-key | delete-account
 /recover     └   outside the gate: a forgotten passphrase
 /sign-in       a session → redirect to /
@@ -28,6 +33,7 @@ and the pages that belong to no feature (home, not found).
 /design/encryption  the same; the encryption screens in every state, with a
                switcher (`?screen=<id>` opens one, `&bare` hides the switcher,
                Replay starts a "try it" screen over)
+/design/transactions, /design/portfolio  the same; mockups with a switcher
 ```
 
 `src/App.tsx` creates the query client and the router, and passes the router's

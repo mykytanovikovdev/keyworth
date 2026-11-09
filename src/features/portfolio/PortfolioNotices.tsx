@@ -5,6 +5,8 @@ interface PortfolioNoticesProps {
   damaged: number;
   /** Symbols of held coins that have no price right now. */
   unpriced: readonly string[];
+  /** Symbols of held coins whose price history failed to load. */
+  uncharted?: readonly string[];
   /** Today's prices failed altogether. */
   pricesFailed: boolean;
   onRetry?: () => void;
@@ -21,6 +23,7 @@ const list = (items: readonly string[]) =>
 export function PortfolioNotices({
   damaged,
   unpriced,
+  uncharted = [],
   pricesFailed,
   onRetry,
   oversold,
@@ -48,6 +51,13 @@ export function PortfolioNotices({
             the figures leave {unpriced.length === 1 ? "it" : "them"} out.
           </Notice>
         )
+      )}
+      {!pricesFailed && uncharted.length > 0 && (
+        <Notice tone="info">
+          No price history for {list(uncharted)} right now, so the chart and the
+          period&apos;s figures leave {uncharted.length === 1 ? "it" : "them"}{" "}
+          out.
+        </Notice>
       )}
       {damaged > 0 && (
         <Notice tone="warning">
