@@ -164,6 +164,15 @@ export function fakeServer(userId = ALICE) {
         });
         return revision;
       }),
+    createRecords: (batch) =>
+      call("createRecords", () => {
+        if (batch.records.some(({ id }) => records.has(id))) {
+          throw new ApiError(409, { error: "conflict" });
+        }
+        for (const { id, kind, envelope } of batch.records) {
+          records.set(id, { kind, revision: 1, envelope: copy(envelope) });
+        }
+      }),
     deleteRecord: (id) =>
       call("deleteRecord", () => {
         if (!records.delete(id)) {

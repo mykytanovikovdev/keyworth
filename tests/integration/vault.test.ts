@@ -3,6 +3,7 @@ import { KDF_LIMITS } from "../../shared/schemas/keys.ts";
 import {
   MAX_REVISION,
   type RecordKind,
+  VAULT_BATCH,
   VAULT_LIMITS,
   VAULT_PAGE,
   type VaultPageJson,
@@ -71,6 +72,38 @@ async function put(
     body: { kind, revision, envelope },
   });
 }
+
+/** New transaction records, encrypted as the browser stores them (revision 1). */
+async function transactions(user: VaultUser, values: unknown[]) {
+  return Promise.all(
+    values.map(async (value) => {
+      const id = crypto.randomUUID();
+      const envelope = await encryptRecord(
+        user.dataKey,
+        { userId: user.userId, kind: "transaction", recordId: id, revision: 1 },
+        value,
+      );
+      return { id, kind: "transaction", envelope };
+    }),
+  );
+}
+
+function batch(user: { cookie: string }, records: unknown[], origin?: string) {
+  return api("/api/vault/batch", {
+    cookie: user.cookie,
+    method: "POST",
+    body: { records },
+    ...(origin !== undefined && { origin }),
+  });
+}
+
+const storedCount = async (userId: string) => {
+  const [row] = await query<{ count: string }>(
+    "select count(*) from vault_records where user_id = $1",
+    [userId],
+  );
+  return Number(row?.count);
+};
 
 async function list(user: VaultUser, kind?: string) {
   const response = await api(`/api/vault${kind ? `?kind=${kind}` : ""}`, {
@@ -675,5 +708,203 @@ describe("limits", () => {
       9,
     );
     expect(Number(limited.headers.get("retry-after"))).toBeLessThanOrEqual(10);
+  });
+});
+
+describe("batch", () => {
+  it("needs a session", async () => {
+    const response = await fetchWorker("/api/vault/batch", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ records: [] }),
+    });
+    expect(response.status).toBe(401);
+  });
+
+  it("stores every record at revision 1, and each still decrypts", async () => {
+    const user = await vaultUser("batch");
+    const values = [{ n: 1 }, { n: 2 }, { n: 3 }];
+    const records = await transactions(user, values);
+
+    const response = await batch(user, records);
+    const stored = await list(user, "transaction");
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ written: 3 });
+    expect(stored.map(({ id }) => id).sort()).toEqual(
+      records.map(({ id }) => id).sort(),
+    );
+    const decrypted = await Promise.all(
+      stored.map((record) =>
+        decryptRecord(
+          user.dataKey,
+          {
+            userId: user.userId,
+            kind: "transaction",
+            recordId: record.id,
+            revision: record.revision,
+          },
+          record.envelope,
+        ),
+      ),
+    );
+    expect(stored.every(({ revision }) => revision === 1)).toBe(true);
+    expect(decrypted).toEqual(expect.arrayContaining(values));
+  });
+
+  it("writes nothing when one id is taken: all or none", async () => {
+    const user = await vaultUser("batch-taken");
+    const [first, ...rest] = await transactions(user, [{ a: 1 }, { b: 2 }]);
+    if (!first) throw new Error("no record");
+    expect((await batch(user, [first])).status).toBe(201);
+
+    // Sent again after a lost answer: the first one is in already.
+    const again = await batch(user, [...rest, first]);
+
+    expect(again.status).toBe(409);
+    expect(await again.json()).toEqual({ error: "conflict" });
+    expect(await storedCount(user.userId)).toBe(1);
+  });
+
+  it("refuses a malformed batch whole", async () => {
+    const user = await vaultUser("batch-malformed");
+    const [good, other] = await transactions(user, [{ a: 1 }, { b: 2 }]);
+    if (!good || !other) throw new Error("no records");
+    const tooMany = await transactions(
+      user,
+      Array.from({ length: VAULT_BATCH.maxRecords + 1 }, (_, n) => ({ n })),
+    );
+
+    const bodies = [
+      [good, { ...other, envelope: { ...other.envelope, ct: "!" } }],
+      [good, { ...other, id: good.id }],
+      [good, { ...other, kind: "settings" }],
+      [good, { ...other, userId: "someone-else" }],
+      [],
+      tooMany,
+    ];
+    const statuses = [];
+    for (const records of bodies) {
+      statuses.push((await batch(user, records)).status);
+    }
+
+    expect(statuses).toEqual([400, 400, 400, 400, 400, 400]);
+    expect(await storedCount(user.userId)).toBe(0);
+  });
+
+  it("refuses a body over 512 KB before reading it", async () => {
+    const user = await vaultUser("batch-body");
+    const [record] = await transactions(user, [{ a: 1 }]);
+
+    const response = await api("/api/vault/batch", {
+      cookie: user.cookie,
+      method: "POST",
+      body: { records: [record], padding: "x".repeat(520 * 1024) },
+    });
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "body_too_large" });
+  });
+
+  it("refuses writes from another origin", async () => {
+    const user = await vaultUser("batch-origin");
+    const records = await transactions(user, [{ a: 1 }]);
+
+    const response = await batch(user, records, "https://evil.example");
+
+    expect(response.status).toBe(403);
+    expect(await storedCount(user.userId)).toBe(0);
+  });
+
+  it("writes nothing when the records would pass the user's count", async () => {
+    const user = await vaultUser("batch-count");
+    await insertRecords(user.userId, VAULT_LIMITS.maxRecords - 2);
+
+    const response = await batch(
+      user,
+      await transactions(user, [{ a: 1 }, { b: 2 }, { c: 3 }]),
+    );
+
+    expect(response.status).toBe(413);
+    expect(await response.json()).toEqual({ error: "quota_exceeded" });
+    expect(await storedCount(user.userId)).toBe(VAULT_LIMITS.maxRecords - 2);
+  });
+
+  it("writes nothing when the records would pass the user's storage", async () => {
+    const user = await vaultUser("batch-bytes");
+    await insertRecords(user.userId, 1, {
+      kind: "message",
+      bytes: VAULT_LIMITS.maxBytes - 400,
+    });
+
+    const response = await batch(
+      user,
+      await transactions(user, [{ a: 1 }, { b: 2 }]),
+    );
+
+    expect(response.status).toBe(413);
+    expect(await storedCount(user.userId)).toBe(1);
+  });
+
+  it("holds the record limit when batches and single writes arrive at once", async () => {
+    const user = await vaultUser("batch-race");
+    await insertRecords(user.userId, VAULT_LIMITS.maxRecords - 2);
+
+    const responses = await Promise.all([
+      batch(user, await transactions(user, [{ a: 1 }, { b: 2 }])),
+      batch(user, await transactions(user, [{ c: 3 }, { d: 4 }])),
+      put(user, crypto.randomUUID(), { e: 5 }),
+    ]);
+
+    // Room for two: whichever takes the lock first fits, the rest do not.
+    const statuses = responses.map((response) => response.status);
+    expect(statuses.filter((status) => status === 201)).toHaveLength(1);
+    expect(statuses.filter((status) => status === 413)).toHaveLength(2);
+    expect(await storedCount(user.userId)).toBeLessThanOrEqual(
+      VAULT_LIMITS.maxRecords,
+    );
+  });
+
+  it("limits batches to 60 a minute per user, apart from single writes", async () => {
+    const user = await vaultUser("batch-rate");
+    await query(
+      `insert into api_rate_limits (user_id, bucket, window_start, count)
+       values ($1, 'vault-batch', now(), 60)`,
+      [user.userId],
+    );
+
+    const limited = await batch(user, await transactions(user, [{ a: 1 }]));
+    const single = await put(user, crypto.randomUUID(), { b: 2 });
+
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("retry-after")).toBe("60");
+    expect(single.status).toBe(201);
+  });
+
+  it("writes only to the sender's vault: another user sees none of it", async () => {
+    const owner = await vaultUser("batch-owner");
+    const other = await vaultUser("batch-other");
+    const records = await transactions(owner, [{ a: 1 }]);
+
+    expect((await batch(owner, records)).status).toBe(201);
+    // The same ids are free in another vault: ids are per user.
+    expect((await batch(other, records)).status).toBe(201);
+
+    expect(await list(other, "transaction")).toHaveLength(1);
+    const [copied] = await list(other, "transaction");
+    // Encrypted for the owner, it does not decrypt as the other user's.
+    await expect(
+      decryptRecord(
+        other.dataKey,
+        {
+          userId: other.userId,
+          kind: "transaction",
+          recordId: copied?.id ?? "",
+          revision: 1,
+        },
+        copied?.envelope,
+      ),
+    ).rejects.toThrow();
+    expect(await storedCount(owner.userId)).toBe(1);
   });
 });

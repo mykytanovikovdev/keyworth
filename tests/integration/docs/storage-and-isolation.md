@@ -129,6 +129,16 @@ uninviting, deleting and listing, as described in
   at once one record below either limit (exactly one succeeds); the write rate
   limit answers 429 with `Retry-After` (the seconds left in the window), resets
   after its window, and covers Lock (`DELETE /api/keys/device`).
+- **Batches** (`POST /api/vault/batch`): every record stored at revision 1 and
+  each still decrypts; one taken id (a batch sent again after a lost answer)
+  writes nothing (409); a bad envelope, an id twice, another kind, an extra
+  `userId`, an empty batch or 101 records are refused whole (400), a body over
+  512 KB before it is read (413); another origin is refused; a batch that would
+  pass the record count or the storage writes nothing (413), and batches and
+  single writes arriving at once with room for two leave exactly one through;
+  batches have their own limit of 60 a minute, which leaves single writes
+  working; a batch lands only in the sender's vault, and the same ids sent by
+  another user make that user's own records, which do not decrypt as theirs.
 
 **Each guard's exact condition** (`isolation.test.ts`) — with well-formed but
 meaningless bytes, aimed at what a broken guard would let through:
@@ -193,4 +203,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-09

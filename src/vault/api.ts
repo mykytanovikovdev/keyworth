@@ -9,6 +9,7 @@ import type {
 import type { MeJson } from "../../shared/schemas/me.ts";
 import type {
   RecordKind,
+  VaultBatch,
   VaultPageJson,
   VaultRecordJson,
   VaultWrite,
@@ -63,6 +64,12 @@ export interface VaultApi {
   records(kind: RecordKind): Promise<VaultRecordJson[]>;
   /** Returns the record's new revision. */
   putRecord(id: string, write: VaultWrite): Promise<number>;
+  /**
+   * New records, written together: all of them or none. Fails with ApiError
+   * 409 `conflict` when an id is taken, 413 `quota_exceeded`, 429 with
+   * `retryAfter`.
+   */
+  createRecords(batch: VaultBatch): Promise<void>;
   /** Fails with ApiError 404 `not_found` when it is already gone. */
   deleteRecord(id: string): Promise<void>;
 }
@@ -153,6 +160,9 @@ export const httpApi: VaultApi = {
       write,
     );
     return (await json<{ revision: number }>(response)).revision;
+  },
+  async createRecords(batch) {
+    await request("POST", "/api/vault/batch", batch);
   },
   async deleteRecord(id) {
     await request("DELETE", `/api/vault/${encodeURIComponent(id)}`);

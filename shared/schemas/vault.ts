@@ -72,6 +72,40 @@ export const vaultWriteSchema = z.strictObject({
 
 export type VaultWrite = z.infer<typeof vaultWriteSchema>;
 
+/**
+ * `POST /api/vault/batch`: new records written together, all or none, for an
+ * import. Writes one at a time are limited to 120 a minute; a file of a
+ * thousand transactions would take nine. A hundred per request keeps the
+ * checks and the insert well inside a Worker's CPU time.
+ */
+export const VAULT_BATCH = Object.freeze({
+  maxRecords: 100,
+  /** Body bytes: a hundred transactions with long notes take about 200 KB. */
+  maxBytes: 512 * 1024,
+});
+
+/** Only kinds that come in numbers; settings stay one record, written alone. */
+export const BATCH_KINDS = ["transaction"] as const satisfies RecordKind[];
+
+export const vaultBatchSchema = z.strictObject({
+  records: z
+    .array(
+      z.strictObject({
+        id: recordIdSchema,
+        kind: z.enum(BATCH_KINDS),
+        envelope: envelopeSchema,
+      }),
+    )
+    .min(1)
+    .max(VAULT_BATCH.maxRecords)
+    .refine(
+      (records) => new Set(records.map(({ id }) => id)).size === records.length,
+      { message: "Each id once." },
+    ),
+});
+
+export type VaultBatch = z.infer<typeof vaultBatchSchema>;
+
 /** One record as `GET /api/vault` returns it. */
 export interface VaultRecordJson {
   id: string;
