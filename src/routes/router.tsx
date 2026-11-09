@@ -8,16 +8,8 @@ import {
   redirect,
 } from "@tanstack/react-router";
 import { sessionQuery } from "../features/auth/client.ts";
-import { SignInPage } from "../features/auth/SignInPage.tsx";
-import { PrivacyPage } from "../features/legal/PrivacyPage.tsx";
-import { TermsPage } from "../features/legal/TermsPage.tsx";
-import { PortfolioPage } from "../features/portfolio/PortfolioPage.tsx";
-import { TransactionsPage } from "../features/transactions/TransactionsPage.tsx";
-import {
-  type SettingsAction,
-  SettingsPage,
-} from "../features/settings/SettingsPage.tsx";
-import { RecoverPage } from "../features/unlock/RecoverPage.tsx";
+import type { SettingsAction } from "../features/settings/SettingsPage.tsx";
+import { SettingsPage, SignInPage } from "./lazy-pages.ts";
 import { AppShell } from "./AppShell.tsx";
 import { NotFoundPage } from "./NotFoundPage.tsx";
 
@@ -59,7 +51,10 @@ const appRoute = createRoute({
 const recoverRoute = createRoute({
   getParentRoute: () => sessionRoute,
   path: "/recover",
-  component: RecoverPage,
+  component: lazyRouteComponent(
+    () => import("../features/unlock/RecoverPage.tsx"),
+    "RecoverPage",
+  ),
 });
 
 const SETTINGS_ACTIONS: readonly string[] = [
@@ -71,13 +66,19 @@ const SETTINGS_ACTIONS: readonly string[] = [
 const homeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  component: PortfolioPage,
+  component: lazyRouteComponent(
+    () => import("../features/portfolio/PortfolioPage.tsx"),
+    "PortfolioPage",
+  ),
 });
 
 const transactionsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/transactions",
-  component: TransactionsPage,
+  component: lazyRouteComponent(
+    () => import("../features/transactions/TransactionsPage.tsx"),
+    "TransactionsPage",
+  ),
 });
 
 const settingsRoute = createRoute({
@@ -113,13 +114,19 @@ const signInRoute = createRoute({
 const privacyRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/privacy",
-  component: PrivacyPage,
+  component: lazyRouteComponent(
+    () => import("../features/legal/PrivacyPage.tsx"),
+    "PrivacyPage",
+  ),
 });
 
 const termsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/terms",
-  component: TermsPage,
+  component: lazyRouteComponent(
+    () => import("../features/legal/TermsPage.tsx"),
+    "TermsPage",
+  ),
 });
 
 // The design system page exists only in dev and in `vite build --mode design`.

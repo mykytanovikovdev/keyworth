@@ -10,6 +10,7 @@ and the pages that belong to no feature (home, not found).
 | File                          | Role                                                                                              |
 | ----------------------------- | ------------------------------------------------------------------------------------------------- |
 | `router.tsx`                  | Every route, declared in code, and the router factory                                             |
+| `lazy-pages.ts`               | Settings and sign-in loaded on first use: they take the search as props                           |
 | `AppShell.tsx`                | Behind the key gate: header (mark, sections, theme, settings) and content                         |
 | `AppNav.tsx`                  | The sections in the header (Portfolio, Transactions): inline, or a second row on phones           |
 | `/` → `PortfolioPage`         | The signed-in start page ([src/features/portfolio](../features/portfolio/README.md))              |
@@ -44,6 +45,14 @@ and the pages that belong to no feature (home, not found).
 - **Routes in code, not file-based.** A handful of routes, fully typed, with no
   generator and no generated file to keep in sync. Switching to file-based
   routing later is mechanical.
+- **Pages load on first use.** Every page is its own chunk
+  (`lazyRouteComponent`, or `React.lazy` in `lazy-pages.ts` for the two that
+  take search params), and `package.json` lists the only files with import-time
+  effects in `"sideEffects"`, so the build can leave unused components of the
+  `src/ui` barrel out of the first chunk. The first load went from 298 to 224
+  kB (gzip): the sign-in and unlock screens no longer carry the portfolio,
+  the transaction form and its fields, which load while the passphrase is
+  typed.
 - **Guards decide pages, not access.** `beforeLoad` redirects based on the
   cached session, but the Worker checks the session on every API request; a
   page that slipped through would get no data.
@@ -56,6 +65,11 @@ and the pages that belong to no feature (home, not found).
 
 ## Pitfalls & gotchas
 
+- **A module that must run on import goes into `"sideEffects"`** in
+  `package.json` (today: the CSS, `src/main.tsx`, `src/vault/index.ts`'s page
+  listeners, `shared/schemas/zod.ts`'s jitless switch). Otherwise the build may
+  drop it whenever nothing uses its exports. Measure with `npm run
+bundle:size`.
 - Redirects are thrown (`throw redirect(...)`); ESLint allows exactly that type.
 - Search params are validated per route (`validateSearch`); read them with
   `route.useSearch()`, never from `window.location`.

@@ -5,6 +5,12 @@
   "description": "Private AI portfolio assistant with end-to-end encryption",
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "sideEffects": [
+    "*.css",
+    "./src/main.tsx",
+    "./src/vault/index.ts",
+    "./shared/schemas/zod.ts"
+  ],
   "engines": {
     "node": ">=24"
   },
