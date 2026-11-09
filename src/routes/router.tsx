@@ -9,9 +9,15 @@ import {
 } from "@tanstack/react-router";
 import { sessionQuery } from "../features/auth/client.ts";
 import type { SettingsAction } from "../features/settings/SettingsPage.tsx";
-import { SettingsPage, SignInPage } from "./lazy-pages.ts";
 import { AppShell } from "./AppShell.tsx";
 import { NotFoundPage } from "./NotFoundPage.tsx";
+import {
+  PortfolioPage,
+  SettingsPage,
+  SignInPage,
+  TransactionsPage,
+  waitingFor,
+} from "./pages.ts";
 
 /*
  * Routes are declared in code: a handful of them, fully typed, with no code
@@ -66,19 +72,13 @@ const SETTINGS_ACTIONS: readonly string[] = [
 const homeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
-  component: lazyRouteComponent(
-    () => import("../features/portfolio/PortfolioPage.tsx"),
-    "PortfolioPage",
-  ),
+  component: PortfolioPage,
 });
 
 const transactionsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/transactions",
-  component: lazyRouteComponent(
-    () => import("../features/transactions/TransactionsPage.tsx"),
-    "TransactionsPage",
-  ),
+  component: TransactionsPage,
 });
 
 const settingsRoute = createRoute({
@@ -90,10 +90,10 @@ const settingsRoute = createRoute({
     typeof search.then === "string" && SETTINGS_ACTIONS.includes(search.then)
       ? { then: search.then as SettingsAction }
       : {},
-  component: function Settings() {
+  component: waitingFor(SettingsPage, function Settings() {
     const { then } = settingsRoute.useSearch();
     return <SettingsPage then={then} />;
-  },
+  }),
 });
 
 const signInRoute = createRoute({
@@ -105,10 +105,10 @@ const signInRoute = createRoute({
     const session = await context.queryClient.query(sessionQuery);
     if (session) throw redirect({ to: "/" });
   },
-  component: function SignIn() {
+  component: waitingFor(SignInPage, function SignIn() {
     const { error } = signInRoute.useSearch();
     return <SignInPage error={error} />;
-  },
+  }),
 });
 
 const privacyRoute = createRoute({

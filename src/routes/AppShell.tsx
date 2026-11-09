@@ -1,13 +1,18 @@
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
+import { useEffect } from "react";
 import { Link } from "react-aria-components";
 import { VaultGate } from "../features/unlock/VaultGate.tsx";
 import { ButtonLink, KeyworthMark, ThemeToggle } from "../ui/index.ts";
 import { AppNav } from "./AppNav.tsx";
+import { preloadSections } from "./pages.ts";
 
 /** The frame around every signed-in page, once the data key is open. */
 export function AppShell() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // While the passphrase is typed, or the first page draws: the sections'
+  // code holds no data, and the first switch to one is then instant.
+  useEffect(preloadSections, []);
   return (
     <VaultGate>
       <div className="flex min-h-dvh flex-col">
