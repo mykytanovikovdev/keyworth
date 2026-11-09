@@ -16,6 +16,22 @@ import {
   heldCoins,
 } from "../features/transactions/coin-search.ts";
 import {
+  exportFileName,
+  transactionsCsv,
+} from "../features/transactions/csv-export.ts";
+import {
+  type FileProblem,
+  type ImportPlan,
+  planImport,
+  readTable,
+  readText,
+} from "../features/transactions/csv-import.ts";
+import { downloadText } from "../features/transactions/download.ts";
+import {
+  ImportDialog,
+  type ImportStep,
+} from "../features/transactions/ImportDialog.tsx";
+import {
   type AssetChoice,
   emptyValues,
   type FieldErrors,
@@ -234,9 +250,59 @@ const listed = (entries: readonly { id: string; value: Transaction }[]) =>
       };
     });
 
+interface Entry {
+  id: string;
+  value: Transaction;
+}
+
+const assetOf = (id: string): AssetChoice =>
+  ALL_COINS.find((c) => c.id === id) ?? { id, symbol: "?", name: id };
+
+/** A file's text checked against these transactions, as the app checks one. */
+function checkText(
+  text: string,
+  entries: readonly Entry[],
+  stored: number,
+): { plan: ImportPlan } | { problem: FileProblem } {
+  const read = readTable(text);
+  if ("problem" in read) return read;
+  return planImport(read.table, {
+    existing: entries,
+    stored,
+    coinById: (id) => ALL_COINS.find((c) => c.id === id),
+    coinBySymbol: (symbol) =>
+      TOP.find((c) => c.symbol === symbol.toUpperCase()),
+    now: Date.now(),
+  });
+}
+
+/**
+ * A file as a user might bring one: two transactions recorded already (an
+ * earlier export), three new ones, and three that can't be imported.
+ */
+const SAMPLE_FILE = [
+  "Date,Type,Coin,Symbol,Quantity,Price,Currency,Fee,Fee currency,Note",
+  "2025-03-14T12:00:00Z,Buy,crypto:bitcoin,BTC,0.25,81240.5,USD,12.4,USD,",
+  "2025-06-02T12:00:00Z,Buy,crypto:ethereum,ETH,4.1,2310.75,EUR,,,",
+  "2025-07-07,Buy,,SOL,10,152.3,USD,,,",
+  "2025-09-15,Buy,,BTX,1,40,USD,,,",
+  "2025-12-01,Sell,,SOL,50,180,USD,,,",
+  "2026-01-05,Income,,ETH,0.031,3350,EUR,,,Staking",
+  "05/02/2026,Buy,,ETH,0.5,3100,EUR,,,",
+  "2026-02-11,Send,,LTC,2,,,,,To a friend",
+].join("\n");
+
+const planOf = (text: string, entries: readonly Entry[] = SAMPLE) => {
+  const checked = checkText(text, entries, entries.length);
+  if ("problem" in checked) throw new Error(checked.problem.kind);
+  return checked.plan;
+};
+
 interface DemoProps {
   start?: { id: string; value: Transaction }[];
   damaged?: number;
+  /** Opens "Import transactions" at once, at this step. */
+  importing?: ImportStep;
   /** Opens the form at once, with these fields. */
   open?: {
     mode: "add" | "edit";
@@ -247,8 +313,9 @@ interface DemoProps {
 }
 
 /** The list and the form working together on sample data, as the app will. */
-function Demo({ start = SAMPLE, damaged = 0, open }: DemoProps) {
+function Demo({ start = SAMPLE, damaged = 0, open, importing }: DemoProps) {
   const [entries, setEntries] = useState(start);
+  const [importOpen, setImportOpen] = useState(importing !== undefined);
   const [broken, setBroken] = useState(damaged);
   const [form, setForm] = useState<{
     mode: "add" | "edit";
@@ -351,7 +418,65 @@ function Demo({ start = SAMPLE, damaged = 0, open }: DemoProps) {
           setBroken(0);
           showToast("Unreadable transactions deleted");
         }}
+        onImport={() => {
+          setImportOpen(true);
+        }}
+        onExport={() => {
+          const { text, rows } = transactionsCsv(
+            entries.map((entry) => entry.value),
+            assetOf,
+          );
+          downloadText(text, exportFileName(day(0)));
+          showToast(
+            rows === 1
+              ? "1 transaction exported"
+              : `${String(rows)} transactions exported`,
+            { tone: "success" },
+          );
+        }}
       />
+      {importOpen && (
+        <ImportDialog
+          isOpen
+          onOpenChange={setImportOpen}
+          {...(importing && { initial: importing })}
+          check={async (file) => {
+            const read = await readText(file);
+            if ("problem" in read) return read;
+            return checkText(read.text, entries, entries.length + broken);
+          }}
+          onImport={(plan, progress) => {
+            // Writes in batches of 500 here too, slowly, to show the progress.
+            const total = plan.added.length;
+            let done = 0;
+            const next = () => {
+              done = Math.min(total, done + 500);
+              progress(done);
+              if (done < total) {
+                window.setTimeout(next, 700);
+                return;
+              }
+              window.setTimeout(() => {
+                setEntries((now) => [
+                  ...now,
+                  ...plan.added.map(({ value }) => ({
+                    id: crypto.randomUUID(),
+                    value,
+                  })),
+                ]);
+                setImportOpen(false);
+                showToast(
+                  total === 1
+                    ? "1 transaction imported"
+                    : `${String(total)} transactions imported`,
+                  { tone: "success" },
+                );
+              }, 500);
+            };
+            window.setTimeout(next, 700);
+          }}
+        />
+      )}
       {form && (
         <TransactionForm
           isOpen
@@ -667,6 +792,71 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
     id: "settings-currency",
     label: "14. Settings: base currency search",
     render: () => <SettingsCurrency />,
+  },
+  {
+    id: "import",
+    label: "15. Import: choose a file",
+    render: () => <Demo importing={{ kind: "choose" }} />,
+  },
+  {
+    id: "import-refused",
+    label: "16. Import: a file that can't be read",
+    render: () => (
+      <Demo
+        importing={{
+          kind: "choose",
+          problem: { kind: "missing-columns", columns: ["Price", "Currency"] },
+        }}
+      />
+    ),
+  },
+  {
+    id: "import-preview",
+    label: "17. Import: new, recorded, refused",
+    render: () => (
+      <Demo
+        importing={{
+          kind: "preview",
+          name: "my-trades-2026.csv",
+          plan: planOf(SAMPLE_FILE),
+        }}
+      />
+    ),
+  },
+  {
+    id: "import-nothing",
+    label: "18. Import: everything recorded already",
+    render: () => (
+      <Demo
+        importing={{
+          kind: "preview",
+          name: "keyworth-transactions-2026-11-09.csv",
+          plan: planOf(
+            transactionsCsv(
+              SAMPLE.map((entry) => entry.value),
+              assetOf,
+            ).text.slice(1),
+          ),
+        }}
+      />
+    ),
+  },
+  {
+    id: "importing",
+    label: "19. Import: importing",
+    render: () => {
+      const plan = planOf(SAMPLE_FILE);
+      return (
+        <Demo
+          importing={{
+            kind: "importing",
+            name: "my-trades-2026.csv",
+            plan,
+            done: 0,
+          }}
+        />
+      );
+    },
   },
 ];
 

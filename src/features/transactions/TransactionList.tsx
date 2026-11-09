@@ -1,4 +1,11 @@
-import { ArrowLeftRight, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeftRight,
+  Download,
+  FileUp,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { Button as AriaButton } from "react-aria-components";
 import type { Transaction } from "../../../shared/schemas/transaction.ts";
 import { ActionMenu, Button, Notice } from "../../ui/index.ts";
@@ -26,6 +33,10 @@ interface TransactionListProps {
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
   onDeleteDamaged?: () => void;
+  /** Opens "Import transactions". */
+  onImport?: () => void;
+  /** Saves every transaction as a CSV file. */
+  onExport?: () => void;
 }
 
 const KIND_LABEL: Record<Transaction["type"], string> = {
@@ -70,19 +81,42 @@ export function TransactionList({
   onEdit,
   onDelete,
   onDeleteDamaged,
+  onImport,
+  onExport,
 }: TransactionListProps) {
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">Transactions</h1>
         {transactions.length > 0 && (
-          <Button
-            variant="primary"
-            icon={<Plus aria-hidden="true" />}
-            {...(onAdd && { onPress: onAdd })}
-          >
-            Add transaction
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="primary"
+              icon={<Plus aria-hidden="true" />}
+              {...(onAdd && { onPress: onAdd })}
+            >
+              Add transaction
+            </Button>
+            <ActionMenu
+              label="Import or export"
+              actions={[
+                {
+                  id: "import",
+                  label: "Import from CSV…",
+                  icon: <FileUp aria-hidden="true" />,
+                },
+                {
+                  id: "export",
+                  label: "Export to CSV",
+                  icon: <Download aria-hidden="true" />,
+                },
+              ]}
+              onAction={(id) => {
+                if (id === "import") onImport?.();
+                else onExport?.();
+              }}
+            />
+          </div>
         )}
       </div>
       {damaged > 0 && (
@@ -103,7 +137,7 @@ export function TransactionList({
         </Notice>
       )}
       {transactions.length === 0 ? (
-        <EmptyState {...(onAdd && { onAdd })} />
+        <EmptyState {...(onAdd && { onAdd })} {...(onImport && { onImport })} />
       ) : (
         <ul className="flex flex-col">
           <li
@@ -206,7 +240,13 @@ export function TransactionList({
   );
 }
 
-function EmptyState({ onAdd }: { onAdd?: () => void }) {
+function EmptyState({
+  onAdd,
+  onImport,
+}: {
+  onAdd?: () => void;
+  onImport?: () => void;
+}) {
   return (
     <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-line px-6 py-14 text-center">
       <span className="flex size-10 items-center justify-center rounded-full bg-surface text-fg-muted">
@@ -217,14 +257,22 @@ function EmptyState({ onAdd }: { onAdd?: () => void }) {
         Add your purchases, sales and transfers. Each one is encrypted on this
         device before it&apos;s saved.
       </p>
-      <Button
-        variant="primary"
-        icon={<Plus aria-hidden="true" />}
-        className="mt-2"
-        {...(onAdd && { onPress: onAdd })}
-      >
-        Add transaction
-      </Button>
+      <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+        <Button
+          variant="primary"
+          icon={<Plus aria-hidden="true" />}
+          {...(onAdd && { onPress: onAdd })}
+        >
+          Add transaction
+        </Button>
+        <Button
+          variant="ghost"
+          icon={<FileUp aria-hidden="true" />}
+          {...(onImport && { onPress: onImport })}
+        >
+          Import from a file
+        </Button>
+      </div>
     </div>
   );
 }

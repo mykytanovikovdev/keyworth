@@ -12,7 +12,11 @@ import { VAULT_LIMITS } from "../../../shared/schemas/vault.ts";
 import { ledgerProblems, parseTransaction } from "./check.ts";
 import { parseCsv, plainCell } from "./csv.ts";
 import { type AssetChoice, executedAt, parseAmount } from "./form-values.ts";
-import { dateInWords, quantity as quantityText } from "./format.ts";
+import {
+  dateInWords,
+  groupDigits,
+  quantity as quantityText,
+} from "./format.ts";
 
 /*
  * A CSV file of transactions, read in the browser and checked row by row
@@ -69,6 +73,32 @@ export type FileProblem =
   | { kind: "missing-columns"; columns: Column[] }
   /** More new transactions than the account has room for. */
   | { kind: "over-quota"; rows: number; room: number };
+
+const count = (n: number) => groupDigits(String(n));
+
+/** Why a file can't be imported, in words. */
+export function fileProblemText(problem: FileProblem): string {
+  switch (problem.kind) {
+    case "too-large":
+      return "This file is larger than 5 MB. Is it the right file?";
+    case "not-text":
+      return "This isn't a CSV file: it isn't plain text (UTF-8).";
+    case "unclosed-quote":
+      return "This file isn't valid CSV: a quote opens and never closes.";
+    case "no-rows":
+      return "This file has no transactions in it.";
+    case "missing-columns": {
+      const last = problem.columns.at(-1) ?? "";
+      const names =
+        problem.columns.length > 1
+          ? `${problem.columns.slice(0, -1).join(", ")} and ${last}`
+          : last;
+      return `This file has no ${names} ${problem.columns.length === 1 ? "column" : "columns"}. Start from the template.`;
+    }
+    case "over-quota":
+      return `This file has ${count(problem.rows)} new ${problem.rows === 1 ? "transaction" : "transactions"}, and your account has room for ${count(problem.room)} more.`;
+  }
+}
 
 /** A file's text, if it is one: the size first, then strict UTF-8, no NUL. */
 export async function readText(
@@ -245,7 +275,7 @@ function rowValue(
   const moment = momentOf(date, context.now);
   if (!moment) {
     return {
-      message: `${quoted(date)} isn't a date: write it as 2025-12-31, or 2025-12-31T09:15:00Z.`,
+      message: `${quoted(date)} isn't a date: write it as 2025-12-31.`,
     };
   }
   const type = TYPE_OF.get(cell("Type").toLowerCase());
@@ -267,7 +297,7 @@ function rowValue(
       message: id
         ? `${quoted(id)} isn't a coin Keyworth knows.`
         : symbol
-          ? `${quoted(symbol)} isn't among the 250 largest coins: put its id in Coin, as an export does.`
+          ? `${quoted(symbol)} isn't among the 250 largest coins: put its id from an export in Coin.`
           : "No coin: fill in Coin or Symbol.",
     };
   }
