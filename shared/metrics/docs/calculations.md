@@ -93,6 +93,7 @@ purchase would show as a gain, and selling half as a 50% drawdown.
 | Figure      | Function                     | Definition                                              |
 | ----------- | ---------------------------- | ------------------------------------------------------- |
 | Change      | `periodReturn`               | The returns compounded                                  |
+| Gain        | `periodGain`                 | The same days and arithmetic in money; unknown on a gap |
 | Drawdown    | `maxDrawdown(growthIndex())` | Deepest fall from a peak, as a negative ratio           |
 | Volatility  | `volatility`                 | Sample standard deviation × √365 (stocks will pass 252) |
 | Correlation | `correlation`                | Pearson, on returns over the dates both assets have     |
@@ -164,4 +165,4 @@ A new transaction type needs a row in the rules table and a decision about wheth
 it moves money for `portfolioHistory`. Never compute money through `number`, and
 never let a missing input become zero.
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-09

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   eachDay,
   type HistoryPoint,
+  periodGain,
   type PriceSeries,
   portfolioHistory,
 } from "../../../shared/metrics/history.ts";
@@ -192,5 +193,70 @@ describe("portfolioHistory", () => {
     );
     expect(day?.inflow).toBeNull();
     expect(day?.value?.toString()).toBe("100");
+  });
+});
+
+describe("periodGain", () => {
+  const PRICES = series({
+    "2025-01-01": "100",
+    "2025-01-02": "110",
+    "2025-01-03": "120",
+    "2025-01-04": "130",
+  });
+  const history = (transactions: Parameters<typeof entries>, money = USD) =>
+    portfolioHistory(entries(...transactions), {
+      money,
+      prices: () => PRICES,
+      from: "2025-01-01",
+      to: "2025-01-04",
+    });
+
+  it("is what was made, with purchases and sales not counted as gains", () => {
+    // Paid 2 × 105 + 1 = 211; got 125 − 2 = 123 back; 1 left, worth 130.
+    // 123 + 130 − 211 = 42, day by day: 9, 23, 10.
+    expect(
+      periodGain(
+        history([
+          buy("2025-01-02", "2", "105", { fee: "1" }),
+          sell("2025-01-03", "1", "125", { fee: "2" }),
+        ]),
+      )?.toString(),
+    ).toBe("42");
+  });
+
+  it("counts a transfer in at its day's worth as money moved, not a gain", () => {
+    // In on the 2nd at 110, whatever it cost; worth 130 on the 4th.
+    expect(
+      periodGain(history([transferIn("2025-01-02", "1", "1")]))?.toString(),
+    ).toBe("20");
+  });
+
+  it("counts income as earned", () => {
+    // Held 1 from before; 1 more arrives as income on the 3rd.
+    // 100 → 110 → 240 → 260: everything is a gain.
+    expect(
+      periodGain(
+        history([
+          buy("2024-12-31", "1", "90"),
+          income("2025-01-03", "1", "120"),
+        ]),
+      )?.toString(),
+    ).toBe("160");
+  });
+
+  it("is zero for a single day, which has nothing to compare", () => {
+    expect(
+      periodGain(
+        history([buy("2025-01-01", "1", "100")]).slice(0, 1),
+      )?.toString(),
+    ).toBe("0");
+  });
+
+  it("is unknown when a day cannot be priced", () => {
+    const priced = history([buy("2025-01-01", "1", "100")]);
+    const gap = priced.map((point, index) =>
+      index === 2 ? { ...point, value: null } : point,
+    );
+    expect(periodGain(gap)).toBeNull();
   });
 });

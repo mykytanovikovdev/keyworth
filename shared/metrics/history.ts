@@ -147,3 +147,29 @@ export function portfolioHistory(
     return { date, value, inflow, outflow, movedIn };
   });
 }
+
+/**
+ * Money gained or lost over the points, with what came in and went out left
+ * out: the same days and arithmetic as `timeWeightedReturns`, in money rather
+ * than ratios. Null when any day cannot be priced: a gap is not a zero.
+ */
+export function periodGain(points: readonly HistoryPoint[]): Decimal | null {
+  let gain = ZERO;
+  for (let index = 1; index < points.length; index++) {
+    const before = points[index - 1];
+    const today = points[index];
+    if (
+      !before?.value ||
+      !today?.value ||
+      !today.inflow ||
+      !today.outflow ||
+      !today.movedIn
+    ) {
+      return null;
+    }
+    const start = before.value.plus(today.inflow);
+    const end = today.value.plus(today.outflow).minus(today.movedIn);
+    gain = gain.plus(end.minus(start));
+  }
+  return gain;
+}

@@ -48,7 +48,9 @@ an unknown cost.
 holdings bought before the range are not money in; transfers at the day's price,
 whatever cost they state; income and splits move no money; an oversold sale counts
 its held part; a gap keeps the last price; no value before the first price or
-without a rate.
+without a rate. `periodGain`: money made with purchases, sales and transfers left
+out (worked out by hand: 123 + 130 − 211 = 42), income counted as earned, zero for
+one day, unknown when a day cannot be priced.
 
 **`metrics/risk.test.ts`:** a purchase is not a gain and a sale is not a loss, even
 selling everything; a fee lowers the return; a transfer is neutral; selling half on
@@ -92,4 +94,4 @@ it("realizes the move in the rate too", () => {
 });
 ```
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-09

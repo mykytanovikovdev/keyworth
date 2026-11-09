@@ -17,7 +17,7 @@ Not here: fetching prices and rates (`worker/market`), reading records
 | `ledger.ts`    | Order of transactions, their effect on a holding, conversion to the base currency |
 | `positions.ts` | Positions by the average cost method, and data issues                             |
 | `valuation.ts` | Value, unrealized P&L and shares today                                            |
-| `history.ts`   | Value per day and the money moved that day                                        |
+| `history.ts`   | Value per day, the money moved that day, and the money made over a period         |
 | `risk.ts`      | Time-weighted returns, change, drawdown, volatility, correlation                  |
 
 ```
@@ -25,6 +25,7 @@ transactions ─ computePositions ─ valuePositions ─ screens, assistant
      │              ▲                   ▲
      │         rates (parameter)   prices (parameter)
      └── portfolioHistory ─ timeWeightedReturns ─ drawdown, volatility
+                       └── periodGain (money made)
 ```
 
 The rules, a worked example and every decision:
