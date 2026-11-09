@@ -3,8 +3,9 @@
 > Your net worth. Your key.
 
 **Status: early development.** Google sign-in, security headers, tests, the deployment pipeline,
-end-to-end encryption of user data, and the privacy policy and terms are in place; the portfolio
-features are being built in phases. Nothing here is ready for real data yet.
+end-to-end encryption of user data, the privacy policy and terms, transactions and the portfolio
+page (value, gains and risk figures for crypto) are in place; the assistant is next. Nothing here is
+ready for real data yet.
 
 Keyworth is an investment portfolio tracker (crypto first; stocks, ETFs and metals
 next) with an AI assistant you can ask questions in plain language, in any
@@ -132,6 +133,7 @@ depth in `docs/` folders next to the code. READMEs: [design system](src/ui/READM
 [encryption](src/crypto/README.md), [privacy policy and terms](src/features/legal/README.md),
 [shared schemas](shared/schemas/README.md), [money](shared/money/README.md),
 [calculations](shared/metrics/README.md), [transactions](src/features/transactions/README.md),
+[portfolio](src/features/portfolio/README.md),
 [worker](worker/README.md), [database](worker/db/README.md), [market data](worker/market/README.md),
 [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).

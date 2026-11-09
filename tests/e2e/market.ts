@@ -60,22 +60,48 @@ export async function stubMarket(page: Page) {
       } else if (url.pathname === "/api/assets/search") {
         await route.fulfill({ json: { assets: [] } });
       } else if (url.pathname === "/api/market/history") {
+        // Every day from `from` to yesterday, rising to 80% of today's price:
+        // the same shape as the server's answer, cheap to reason about.
+        const from = url.searchParams.get("from") ?? "";
+        const asset = url.searchParams.get("asset");
+        const today = Number(
+          COINS.find((coin) => coin.id === asset)?.price ?? "1",
+        );
+        const days = Math.max(
+          0,
+          Math.min(
+            400,
+            Math.round(
+              (Date.parse(new Date().toISOString().slice(0, 10)) -
+                Date.parse(from)) /
+                86_400_000,
+            ),
+          ),
+        );
         await route.fulfill({
           json: {
-            asset: url.searchParams.get("asset"),
+            asset,
             currency: "USD",
             source: "coinmetrics",
-            prices: { from: url.searchParams.get("from"), values: ["60000.5"] },
+            prices: {
+              from,
+              values: Array.from({ length: days }, (_, day) =>
+                (today * (0.7 + (0.1 * (day + 1)) / days)).toFixed(2),
+              ),
+            },
           },
         });
       } else if (url.pathname === "/api/market/rates") {
-        const quote = url.searchParams.get("quotes") ?? "";
+        const codes = (url.searchParams.get("quotes") ?? "").split(",");
         await route.fulfill({
           json: {
             base: "USD",
-            rates: {
-              [quote]: { from: url.searchParams.get("from"), values: ["0.9"] },
-            },
+            rates: Object.fromEntries(
+              codes.map((code) => [
+                code,
+                { from: url.searchParams.get("from"), values: ["0.9"] },
+              ]),
+            ),
           },
         });
       } else {

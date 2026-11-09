@@ -56,9 +56,15 @@ Covered now:
   unlocking again; a sale of more than was held is refused with how much was,
   and nothing is stored; editing, deleting and Undo; a note with markup shown
   as text that runs nothing; the list and the form at 320 px with no axe
-  violations. Market data is answered in the browser (`page.route`), so no test
+  violations. Market data is answered in the browser (`market.ts`), so no test
   reaches CoinGecko. What it proves:
   [docs/transaction-flows.md](docs/transaction-flows.md).
+- **`portfolio.spec.ts`** (Chromium, Firefox, WebKit; local builds only): the
+  start page values a purchase added on it (today's price, all-time profit, the
+  chart, the table), a longer period, hidden amounts kept after a reload, the
+  Transactions link without a reload, failing prices shown as a notice and not
+  as zeros, 320 px with no axe violations. What it proves:
+  [docs/portfolio-flows.md](docs/portfolio-flows.md).
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:
   - every component used for real (dialog, confirmation, toast, tooltip) with
@@ -161,6 +167,13 @@ label-based locators: they double as a basic accessibility check.
   intentional friction.
 - **The test database must be running** (`npm run db:up`); the global setup
   fails with that hint otherwise.
+- **Each test is its own visitor** (`ownAddress` in `signed-in.ts`, called by
+  every sign-in helper and by `auth.spec.ts`). Better Auth limits requests per
+  client address; locally every test shares one, so a long run would end in
+  429s on `/api/auth/get-session` and a "Something went wrong" page. The
+  address is a random IPv6 documentation-range network (Better Auth counts
+  IPv6 by /64, so the random part comes first), sent as `cf-connecting-ip`,
+  which only Cloudflare's edge sets in production.
 - `reuseExistingServer` is on locally: a stale server on port 4173 or 4174 will
   be reused with an old build. Stop it, or let the command rebuild.
 - Axe scans run with reduced motion: text caught mid-fade fails the contrast

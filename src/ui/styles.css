@@ -178,6 +178,17 @@
   mask-image: linear-gradient(to bottom, black calc(100% - 28px), transparent);
 }
 
+/* The soft fill under a ValueChart line: the accent, fading to nothing. */
+.kw-area-stop-top {
+  stop-color: var(--kw-accent);
+  stop-opacity: 0.16;
+}
+
+.kw-area-stop-bottom {
+  stop-color: var(--kw-accent);
+  stop-opacity: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .collapsible {
     transition: none;

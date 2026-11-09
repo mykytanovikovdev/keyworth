@@ -11,6 +11,7 @@ import { sessionQuery } from "../features/auth/client.ts";
 import { SignInPage } from "../features/auth/SignInPage.tsx";
 import { PrivacyPage } from "../features/legal/PrivacyPage.tsx";
 import { TermsPage } from "../features/legal/TermsPage.tsx";
+import { PortfolioPage } from "../features/portfolio/PortfolioPage.tsx";
 import { TransactionsPage } from "../features/transactions/TransactionsPage.tsx";
 import {
   type SettingsAction,
@@ -70,6 +71,12 @@ const SETTINGS_ACTIONS: readonly string[] = [
 const homeRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/",
+  component: PortfolioPage,
+});
+
+const transactionsRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/transactions",
   component: TransactionsPage,
 });
 
@@ -163,9 +170,21 @@ const transactionsMockupsRoute =
       })
     : null;
 
+// Same condition: mockups of the 4.4 portfolio page, for review.
+const portfolioMockupsRoute =
+  import.meta.env.DEV || import.meta.env.MODE === "design"
+    ? createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/design/portfolio",
+        component: lazyRouteComponent(
+          () => import("./PortfolioMockupsPage.tsx"),
+        ),
+      })
+    : null;
+
 const routeTree = rootRoute.addChildren([
   sessionRoute.addChildren([
-    appRoute.addChildren([homeRoute, settingsRoute]),
+    appRoute.addChildren([homeRoute, transactionsRoute, settingsRoute]),
     recoverRoute,
   ]),
   signInRoute,
@@ -175,6 +194,7 @@ const routeTree = rootRoute.addChildren([
   ...(kdfBenchmarkRoute ? [kdfBenchmarkRoute] : []),
   ...(encryptionMockupsRoute ? [encryptionMockupsRoute] : []),
   ...(transactionsMockupsRoute ? [transactionsMockupsRoute] : []),
+  ...(portfolioMockupsRoute ? [portfolioMockupsRoute] : []),
 ]);
 
 export function createAppRouter(queryClient: QueryClient) {

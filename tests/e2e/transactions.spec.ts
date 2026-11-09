@@ -2,7 +2,6 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import {
   AFTER_ARGON2,
-  appHome,
   returningUser,
   sql,
   unlock,
@@ -30,9 +29,11 @@ async function openApp(
   baseURL: string | undefined,
 ) {
   const user = await returningUser(context, baseURL);
-  await page.goto("/");
+  await page.goto("/transactions");
   await unlock(page, user.passphrase);
-  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Transactions" }),
+  ).toBeVisible(AFTER_ARGON2);
   return user;
 }
 

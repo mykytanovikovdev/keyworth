@@ -24,7 +24,8 @@ calculations.
 | `AssetLogo.tsx`        | A coin's logo through the server, or its symbol in a circle                                   |
 | `TransactionForm.tsx`  | The "Add transaction" / "Edit transaction" dialog                                             |
 | `TransactionList.tsx`  | Columns on a wide screen, two lines a row on a phone; the empty state; unreadable records     |
-| `TransactionsPage.tsx` | The app's start page until the portfolio: the list, the form and Undo wired to the service    |
+| `editor.tsx`           | Adding, editing, deleting with Undo, for any page: the form, refusals in words, coin names    |
+| `TransactionsPage.tsx` | `/transactions`: the list, and the editor for each row                                        |
 | `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
 | `market.ts`            | The snapshot, coins outside it, the server's search, "Price that day" from history and rates  |
 
@@ -37,7 +38,9 @@ UTC−11 to UTC+11, or as now when noon is still ahead. Amounts take digits and 
 separator only, a point or a comma. Deleting is at once, with Undo in the toast.
 Every screen and state is on `/design/transactions` (dev and design builds).
 
-**Wiring.** The page reads the list once and keeps it as a query; every change
+**Wiring.** `useTransactionEditor()` (`editor.tsx`) is the one way a page changes a
+transaction: the transactions page and the portfolio page both render its
+`dialog` and call `openAdd`. It reads the list once and keeps it as a query; every change
 goes through the service, which returns the new list, and the query takes it as
 it is (no reload). A refusal comes back next to its field; `changed-elsewhere`
 shows the other device's version in the form (a new `key`) or, when it was

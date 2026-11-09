@@ -35,6 +35,14 @@ Covered now:
   conflict, records with revisions. What each file proves:
   [docs/vault-tests.md](docs/vault-tests.md).
 
+- **Portfolio:** `src/features/portfolio` (`portfolio/`) — `summarize()`
+  with numbers worked out by hand: profit sold and still held with income
+  apart, the period's chart and gain, a coin without a price listed but left
+  out of every figure, a dash rather than zero without any price, no period
+  figure from part of the histories, a period moved to the first fully priced
+  day; allocation colors by first purchase, five and "Other"; the server's
+  histories and rates as series and a rate lookup through the dollar (a
+  weekend keeps Friday's rate); formats.
 - **Transactions:** `src/features/transactions` (`transactions/`) — through a
   real vault against the fake server: stored encrypted, replaced with the next
   revision, refused when invalid, dated in the future or leaving a sale short

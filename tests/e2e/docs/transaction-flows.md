@@ -41,8 +41,8 @@ the database together, with Argon2 at its production settings.
 ## Adding a case
 
 Sign in with `openApp(page, context, baseURL)` (a user with keys, unlocked on
-`/`), fill the form with `fillForm` or add with `add`, and check both the screen
+`/transactions`), fill the form with `fillForm` or add with `add`, and check both the screen
 and the database (`storedTransactions(userId)`). Rows exist twice in the page,
 for a phone and a wide screen: find text with `visible(page, text)`.
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-09

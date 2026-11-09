@@ -37,6 +37,9 @@ Not covered here:
   reference.
 - **Hover and animation frames.** Screenshots use reduced motion, so every
   element is in its final state. Motion was reviewed by eye in phase 1.
+- **The portfolio page.** Its dates and figures are relative to today, so a
+  baseline would change every day; `/design/portfolio` shows each state for
+  review, and `tests/e2e/portfolio.spec.ts` checks it in three engines.
 - **Other app screens.** They join this suite as they are built.
 
 ## How to run

@@ -21,7 +21,8 @@ import type { PriceOnDay } from "./TransactionForm.tsx";
  * the app clears when the vault locks.
  */
 
-async function getJson<T>(path: string): Promise<T> {
+/** A JSON answer from Keyworth's server; anything but 2xx is an `ApiError`. */
+export async function getJson<T>(path: string): Promise<T> {
   const response = await fetch(path, {
     headers: { accept: "application/json" },
   });
@@ -88,7 +89,7 @@ const dayBefore = (day: string, days: number) =>
     .slice(0, 10);
 
 /** The last value of a series on or before a day: a holiday keeps the rate before it. */
-function valueOn(
+export function valueOn(
   series: { from: string; values: (string | null)[] } | undefined,
   day: string,
 ): string | null {

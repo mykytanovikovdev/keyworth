@@ -1,5 +1,9 @@
 // The design system's public surface. Import from "src/ui", not from files inside it.
 export { ActionMenu, type MenuAction } from "./components/ActionMenu.tsx";
+export {
+  AllocationBar,
+  type AllocationSegment,
+} from "./components/AllocationBar.tsx";
 export { Badge, type BadgeTone } from "./components/Badge.tsx";
 export { Button, IconButton } from "./components/Button.tsx";
 export type { ButtonSize, ButtonVariant } from "./components/button-styles.ts";
@@ -24,6 +28,7 @@ export { TextField } from "./components/TextField.tsx";
 export { ThemeToggle } from "./components/ThemeToggle.tsx";
 export { Toaster } from "./components/Toaster.tsx";
 export { Tooltip } from "./components/Tooltip.tsx";
+export { ValueChart } from "./components/ValueChart.tsx";
 export {
   baseDuration,
   chartDuration,
