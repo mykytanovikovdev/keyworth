@@ -26,12 +26,25 @@ export const DEV_ONLY_LICENSES = ["LGPL-3.0-or-later", "CC-BY-4.0"] as const;
 
 /**
  * Per-package exceptions. An exception only applies while the package keeps
- * exactly this license string, so a license change triggers a new review.
+ * exactly this license string, so a license change triggers a new review. A
+ * package with no license field at all is `license: "none"` and must name its
+ * `version`: what was read by hand holds for that version only.
  */
-export const LICENSE_EXCEPTIONS: Record<
-  string,
-  { license: string; reason: string }
-> = {};
+export interface LicenseException {
+  license: string;
+  /** Required with `license: "none"`. */
+  version?: string;
+  reason: string;
+}
+
+export const LICENSE_EXCEPTIONS: Record<string, LicenseException> = {
+  "@react-aria/optimize-locales-plugin": {
+    license: "none",
+    version: "2.1.0",
+    reason:
+      "Adobe's build plugin that drops React Aria's strings for other languages. Its package.json has no license field, but the package ships an Apache-2.0 LICENSE and every source file carries the Apache-2.0 header (read 2026-11-09). Build only: never shipped.",
+  },
+};
 
 export interface LockPackage {
   version?: string;
@@ -143,10 +156,7 @@ export function isSatisfiedBy(
 /** Returns every installed package whose license breaks the policy. */
 export function findLicenseViolations(
   packages: Record<string, LockPackage>,
-  exceptions: Record<
-    string,
-    { license: string; reason: string }
-  > = LICENSE_EXCEPTIONS,
+  exceptions: Record<string, LicenseException> = LICENSE_EXCEPTIONS,
 ): Violation[] {
   const violations: Violation[] = [];
 
@@ -161,6 +171,10 @@ export function findLicenseViolations(
     const isDevOnly = pkg.dev === true || pkg.devOptional === true;
 
     if (typeof pkg.license !== "string" || pkg.license.trim() === "") {
+      const exception = exceptions[name];
+      if (exception?.license === "none" && exception.version === version) {
+        continue;
+      }
       violations.push({
         name,
         version,

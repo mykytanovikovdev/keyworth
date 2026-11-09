@@ -299,7 +299,11 @@ the constant `false`, so the page's code is not even in the bundle
   on every device.
 - **English locale for React Aria.** Its built-in labels ("Close", "Dismiss")
   would otherwise follow the browser's language, while the rest of the
-  interface is English only.
+  interface is English only. The build keeps only its `en-US` and `en-GB`
+  strings (`@react-aria/optimize-locales-plugin` in `vite.config.ts`; `en-GB`
+  orders the date field): the other languages were about 50 kB of the bundle.
+  A new locale in an `I18nProvider` must be added there too, or its labels
+  are missing.
 
 ## Pitfalls & gotchas
 
