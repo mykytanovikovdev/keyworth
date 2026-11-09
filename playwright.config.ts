@@ -48,6 +48,7 @@ export default defineConfig({
             "auth.spec.ts",
             "encryption.spec.ts",
             "transactions.spec.ts",
+            "portfolio.spec.ts",
           ],
       // Text and routing, which no engine renders differently enough to matter:
       // see tests/e2e/docs/csp-and-engines.md.

@@ -56,9 +56,15 @@ Covered now:
   unlocking again; a sale of more than was held is refused with how much was,
   and nothing is stored; editing, deleting and Undo; a note with markup shown
   as text that runs nothing; the list and the form at 320 px with no axe
-  violations. Market data is answered in the browser (`page.route`), so no test
+  violations. Market data is answered in the browser (`market.ts`), so no test
   reaches CoinGecko. What it proves:
   [docs/transaction-flows.md](docs/transaction-flows.md).
+- **`portfolio.spec.ts`** (Chromium, Firefox, WebKit; local builds only): the
+  start page values a purchase added on it (today's price, all-time profit, the
+  chart, the table), a longer period, hidden amounts kept after a reload, the
+  Transactions link without a reload, failing prices shown as a notice and not
+  as zeros, 320 px with no axe violations. What it proves:
+  [docs/portfolio-flows.md](docs/portfolio-flows.md).
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:
   - every component used for real (dialog, confirmation, toast, tooltip) with

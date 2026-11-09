@@ -66,9 +66,9 @@ export async function returningUser(
   };
 }
 
-/** The signed-in start page: the transactions, until the portfolio arrives. */
+/** The signed-in start page: the portfolio. */
 export const appHome = (page: Page) =>
-  page.getByRole("heading", { level: 1, name: "Transactions" });
+  page.getByRole("heading", { level: 1, name: "Portfolio" });
 
 export async function unlock(page: Page, passphrase: string, remember = false) {
   await page.getByLabel("Passphrase", { exact: true }).fill(passphrase);
