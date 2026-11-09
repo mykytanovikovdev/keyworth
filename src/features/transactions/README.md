@@ -19,7 +19,7 @@ calculations.
 | `check.ts`             | The rules, pure: the schema, no date in the future, no sale beyond what was held              |
 | `service.ts`           | Load, save (add or replace) and delete through the vault; `TransactionError`                  |
 | `form-values.ts`       | The form's fields: four tabs to five kinds, amounts as typed (`typedAmount`), errors in words |
-| `coin-search.ts`       | Finding a coin: the shared snapshot's 250 first, the server's search only after them          |
+| `coin-search.ts`       | Finding a coin: the snapshot's 250, then the server's search; on a sale, the coins held       |
 | `format.ts`            | Dates in words, amounts with every digit they have                                            |
 | `AssetLogo.tsx`        | A coin's logo through the server, or its symbol in a circle                                   |
 | `TransactionForm.tsx`  | The "Add transaction" / "Edit transaction" dialog                                             |
@@ -39,8 +39,15 @@ separator only, a point or a comma. Deleting is at once, with Undo in the toast.
 On Sell and Send (owner's decision, 2026-11-09), "Held on <day>: <quantity>"
 under the quantity says what was held at that moment, and **All** fills it in to
 the last digit: `heldAt` in `check.ts`, the same count the ledger's rule uses,
-leaving out the transaction being edited. Every screen and state is on
-`/design/transactions` (dev and design builds).
+leaving out the transaction being edited. The coin list on Sell and Send offers
+only the coins held today (`heldNow` in `check.ts`, again leaving out the one
+being edited), each with its quantity, the largest value first as on the
+portfolio; typing filters them in the browser, with no server search. Nothing
+is lost: with none of a coin left today, taking some out on any earlier day
+leaves a later sale short, which the ledger refuses anyway. A coin picked on Buy
+stays picked when the kind changes, and "Held on …: 0" says there is nothing to
+sell. Every screen and state is on `/design/transactions` (dev and design
+builds).
 
 **Wiring.** `useTransactionEditor()` (`editor.tsx`) is the one way a page changes a
 transaction: the transactions page and the portfolio page both render its

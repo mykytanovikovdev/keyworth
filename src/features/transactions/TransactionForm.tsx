@@ -5,7 +5,7 @@ import {
   today,
 } from "@internationalized/date";
 import { Plus } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import { decimal } from "../../../shared/money/decimal.ts";
 import { MARKET_LIMITS } from "../../../shared/schemas/market.ts";
@@ -24,7 +24,11 @@ import {
   TextField,
 } from "../../ui/index.ts";
 import { AssetLogo } from "./AssetLogo.tsx";
-import { type CoinSource, useCoinSearch } from "./coin-search.ts";
+import {
+  type CoinSource,
+  type HeldCoin,
+  useCoinSearch,
+} from "./coin-search.ts";
 import {
   type FieldErrors,
   fieldErrors,
@@ -81,6 +85,11 @@ interface TransactionFormProps {
    * transaction being edited: what "All" fills in on a sale or a send.
    */
   heldAt?: (assetId: string, executedAt: string) => string;
+  /**
+   * The coins held now, leaving out the transaction being edited: on a sale or
+   * a send the list offers only these, each with its quantity.
+   */
+  heldCoins?: readonly HeldCoin[];
   /** The service's refusals, in words. */
   errors?: FieldErrors;
   pending?: boolean;
@@ -101,6 +110,7 @@ export function TransactionForm({
   currencies,
   priceOn,
   heldAt,
+  heldCoins,
   errors = {},
   pending = false,
   useLogos = true,
@@ -115,7 +125,16 @@ export function TransactionForm({
   const [checked, setChecked] = useState(false);
   const [feeOpen, setFeeOpen] = useState(initial.fee !== "");
   const [noteOpen, setNoteOpen] = useState(initial.note !== "");
-  const search = useCoinSearch(coins, coinText, values.asset);
+  // A sale or a send takes from what is held: only those coins are offered,
+  // and "All" fills in everything held that day, to the last digit.
+  const takesOut = values.kind === "sell" || values.kind === "send";
+  const fromHeld = takesOut && heldCoins !== undefined;
+  const heldSource = useMemo(() => ({ top: heldCoins ?? [] }), [heldCoins]);
+  const search = useCoinSearch(
+    fromHeld ? heldSource : coins,
+    coinText,
+    values.asset,
+  );
   const hint = usePriceOnDay(values, priceOn);
 
   const update = (change: Partial<FormValues>) => {
@@ -134,7 +153,12 @@ export function TransactionForm({
   ].map((coin) => ({
     id: coin.id,
     label: coin.name,
-    detail: coin.symbol,
+    detail: fromHeld
+      ? quantityText(
+          heldCoins.find((held) => held.id === coin.id)?.quantity ?? "0",
+          coin.symbol,
+        )
+      : coin.symbol,
     icon: (
       <AssetLogo
         assetId={coin.id}
@@ -145,8 +169,6 @@ export function TransactionForm({
     ),
   }));
   const trade = values.kind === "buy" || values.kind === "sell";
-  // A sale or a send can take everything held that day, to the last digit.
-  const takesOut = values.kind === "sell" || values.kind === "send";
   const held =
     takesOut && values.asset && values.day && heldAt
       ? heldAt(values.asset.id, executedAt(values.day, openedAt))
@@ -198,7 +220,7 @@ export function TransactionForm({
           />
           <ComboBox
             label="Coin"
-            placeholder="Search coins"
+            placeholder={fromHeld ? "Search your coins" : "Search coins"}
             options={coinOptions}
             value={values.asset?.id ?? null}
             inputValue={coinText}
@@ -212,7 +234,11 @@ export function TransactionForm({
               if (coin) setCoinText(coin.name);
             }}
             isLoading={search.isLoading}
-            emptyMessage={search.emptyMessage}
+            emptyMessage={
+              fromHeld && heldCoins.length === 0
+                ? `Nothing to ${values.kind} yet. Add a Buy or Receive first.`
+                : search.emptyMessage
+            }
             isInvalid={shown.asset !== undefined}
             {...(shown.asset && { errorMessage: shown.asset })}
           />

@@ -16,8 +16,11 @@ the database together, with Argon2 at its production settings.
   under Trusted Types, [src/ui/README.md](../../../src/ui/README.md)).
 - **The ledger's rule at the form:** selling more than was held shows "You held
   0.5 BTC on …" at the quantity, and the database keeps only the purchase.
-- **All:** on a sale, "Held on …: 0.53124 BTC" is shown and **All** fills in
-  exactly that, which is then sold.
+- **A sale picks among the coins held; All:** on Sell the coin list offers only
+  the coin held, with its quantity (none of the snapshot's other coins); "Held
+  on …: 0.53124 BTC" is shown and **All** fills in exactly that, which is then
+  sold. The list's order and the edited transaction left out are unit-tested in
+  `tests/unit/transactions/held.test.ts`.
 - **Editing, deleting, Undo:** an edit is saved and listed; deleting removes the
   record from the database at once; Undo writes it back.
 - **Hostile text:** a note `<img src=x onerror="…">` is listed as that text; no

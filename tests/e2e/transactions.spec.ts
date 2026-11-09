@@ -160,7 +160,7 @@ test("takes a date typed from the keyboard, under the CSP", async ({
   expect(await cspViolations(page)).toEqual([]);
 });
 
-test("All sells what was held that day, to the last digit", async ({
+test("a sale offers the coins held, and All sells what was held that day", async ({
   page,
   context,
   baseURL,
@@ -170,6 +170,12 @@ test("All sells what was held that day, to the last digit", async ({
   await expect(visible(page, "+0.53124 BTC")).toBeVisible();
 
   await page.getByRole("button", { name: "Add transaction" }).first().click();
+  // A sale offers only the coins held, each with how much is left.
+  const form = dialogOf(page, "Add transaction");
+  await form.getByRole("radio", { name: "Sell" }).click();
+  await form.getByRole("button", { name: "Show coin options" }).click();
+  await expect(page.getByRole("option")).toHaveText([/Bitcoin.*0\.53124 BTC/]);
+  await page.keyboard.press("Escape");
   const dialog = await fillForm(page, {
     kind: "Sell",
     quantity: "",

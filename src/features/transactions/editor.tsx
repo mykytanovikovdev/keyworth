@@ -11,7 +11,7 @@ import { type ComboBoxOption, showToast } from "../../ui/index.ts";
 import { sessionQuery } from "../auth/client.ts";
 import { settingsQuery } from "../settings/settings-record.ts";
 import { failureMessage } from "../unlock/messages.ts";
-import type { CoinSource } from "./coin-search.ts";
+import { type CoinSource, heldCoins } from "./coin-search.ts";
 import {
   type AssetChoice,
   emptyValues,
@@ -28,7 +28,7 @@ import {
   searchCoins,
   snapshotQuery,
 } from "./market.ts";
-import { heldAt } from "./check.ts";
+import { heldAt, heldNow } from "./check.ts";
 import { access, transactionsQuery } from "./queries.ts";
 import {
   deleteTransaction,
@@ -61,6 +61,16 @@ const localToday = () => today(getLocalTimeZone()).toString();
 /** "crypto:bitcoin" → "BITCOIN", until the coin's real symbol is known. */
 const fallbackSymbol = (assetId: string) =>
   (assetId.split(":")[1] ?? assetId).toUpperCase();
+
+const choiceIn = (
+  known: ReadonlyMap<string, AssetChoice>,
+  assetId: string,
+): AssetChoice =>
+  known.get(assetId) ?? {
+    id: assetId,
+    symbol: fallbackSymbol(assetId),
+    name: fallbackSymbol(assetId),
+  };
 
 interface OpenForm {
   mode: "add" | "edit";
@@ -106,12 +116,17 @@ export function useTransactionEditor() {
     }
     return known;
   }, [top, outside.data, picked]);
-  const assetOf = (id: string): AssetChoice =>
-    assets.get(id) ?? {
-      id,
-      symbol: fallbackSymbol(id),
-      name: fallbackSymbol(id),
-    };
+  const assetOf = (id: string): AssetChoice => choiceIn(assets, id);
+  // Today's prices in dollars: they order the coins held by value.
+  const prices = useMemo(
+    () =>
+      new Map(
+        [...(snapshot.data?.quotes ?? []), ...(outside.data?.quotes ?? [])].map(
+          (quote) => [quote.id, quote.price],
+        ),
+      ),
+    [snapshot.data, outside.data],
+  );
 
   const coins: CoinSource = useMemo(
     () => ({ top, search: searchCoins }),
@@ -124,6 +139,20 @@ export function useTransactionEditor() {
   );
 
   const [form, setForm] = useState<OpenForm | null>(null);
+  const formOpen = form !== null;
+  const editing = form?.id;
+  // What a sale or a send in the form can take from.
+  const held = useMemo(
+    () =>
+      formOpen
+        ? heldCoins(
+            heldNow(records, editing),
+            (id) => choiceIn(assets, id),
+            (id) => prices.get(id),
+          )
+        : [],
+    [formOpen, records, editing, assets, prices],
+  );
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, setPending] = useState(false);
   const key = transactionsQuery(userId).queryKey;
@@ -262,6 +291,7 @@ export function useTransactionEditor() {
       currencies={PRICE_CURRENCIES}
       priceOn={priceOn}
       heldAt={(assetId, at) => heldAt(records, assetId, at, form.id).toString()}
+      heldCoins={held}
       errors={errors}
       pending={pending}
       onSubmit={(values) => void submit(values)}

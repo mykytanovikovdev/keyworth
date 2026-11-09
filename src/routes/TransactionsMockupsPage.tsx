@@ -7,10 +7,14 @@ import {
 import type { Transaction } from "../../shared/schemas/transaction.ts";
 import {
   heldAt,
+  heldNow,
   ledgerProblems,
   parseTransaction,
 } from "../features/transactions/check.ts";
-import type { CoinSource } from "../features/transactions/coin-search.ts";
+import {
+  type CoinSource,
+  heldCoins,
+} from "../features/transactions/coin-search.ts";
 import {
   type AssetChoice,
   emptyValues,
@@ -362,6 +366,19 @@ function Demo({ start = SAMPLE, damaged = 0, open }: DemoProps) {
           heldAt={(assetId, at) =>
             heldAt(entries, assetId, at, form.id).toString()
           }
+          heldCoins={heldCoins(
+            heldNow(entries, form.id),
+            (id) =>
+              ALL_COINS.find((c) => c.id === id) ?? {
+                id,
+                symbol: "?",
+                name: id,
+              },
+            (id) => {
+              const price = PRICES[symbolOf(id)];
+              return price === undefined ? undefined : String(price);
+            },
+          )}
           errors={errors}
           pending={pending}
           useLogos={false}
