@@ -197,6 +197,8 @@ and form controls match.
 | `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`                  |
 | `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                     |
 | `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative; `keyholeClassName`²          |
+| `ValueChart`              | `svg`                      | One series as a line with a fill; draws itself; the value under the pointer        |
+| `AllocationBar`           | `div`                      | Shares as one stacked bar; a written legend; five data colors and a grey "Other"   |
 
 ¹ A spinner replaces the icon while pending; `spinner={false}` when something
 else on the screen shows the progress (the key screens' ring).
@@ -211,7 +213,17 @@ encryption screens; `ComboBox`, `DateField`, `SegmentedControl` and `ActionMenu`
 a `TextField` unit and a toast's action (Undo) on 2026-11-08 for the
 transactions screens, where `/design/transactions` shows them in every state.
 `ComboBox` and `DateField` share the box style of text fields, drawn on their
-group (`data-focus-within`) rather than on the input.
+group (`data-focus-within`) rather than on the input. `ValueChart` and
+`AllocationBar` come from the phase 1 prototype, and were approved on
+2026-11-09 for the portfolio page (`/design/portfolio`).
+
+**Charts are our own SVG**, not a charting library (lightweight-charts and
+Recharts were in the first plan). Two charts need little: a line with a fill
+and a crosshair, and a stacked bar. Our own keeps the bundle small, uses the
+motion that was tuned by hand in the prototype, and writes only SVG attributes
+and CSSOM styles, so nothing touches the CSP or Trusted Types. The price: axes,
+ticks and hover are ours to test. `ValueChart` takes formatters, so hidden
+amounts (an empty tick) also hide the current-value pill.
 
 Links are React Aria `Link`s, so they share the buttons' hover, press and
 focus states. `UIProvider` receives the app router's `navigate`, which keeps

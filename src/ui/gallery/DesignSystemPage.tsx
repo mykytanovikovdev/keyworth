@@ -16,6 +16,7 @@ import { parseDate } from "@internationalized/date";
 import { useState, type ReactNode } from "react";
 import {
   ActionMenu,
+  AllocationBar,
   Badge,
   Button,
   ButtonLink,
@@ -38,6 +39,7 @@ import {
   TextLink,
   ThemeToggle,
   useTheme,
+  ValueChart,
 } from "../index.ts";
 
 /*
@@ -602,6 +604,63 @@ function Icons() {
   );
 }
 
+// A month of made-up values: fixed, so screenshots never change.
+const CHART_VALUES = [
+  46100, 46320, 46050, 46480, 46900, 46720, 47150, 47400, 47210, 47680, 47950,
+  47620, 47830, 48240, 48010, 48460, 48120, 47870, 48190, 48530, 48390, 48760,
+  48610, 48200, 48420, 48850, 48700, 48980, 48640, 48210,
+];
+const CHART_DAYS = CHART_VALUES.map((_, index) => `Oct ${String(index + 1)}`);
+const USD = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+const USD_COMPACT = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+  notation: "compact",
+  maximumFractionDigits: 1,
+});
+
+function Charts() {
+  const [replay, setReplay] = useState(0);
+  return (
+    <div className="flex flex-col gap-6">
+      <Row label="Replay">
+        <Button
+          size="sm"
+          icon={<RotateCcw aria-hidden="true" />}
+          onPress={() => {
+            setReplay((value) => value + 1);
+          }}
+        >
+          Draw again
+        </Button>
+      </Row>
+      <ValueChart
+        key={replay}
+        values={CHART_VALUES}
+        labels={CHART_DAYS}
+        hoverLabels={CHART_DAYS.map((day) => `${day}, 2025`)}
+        format={(value) => USD.format(value)}
+        formatTick={(value) => USD_COMPACT.format(value)}
+        label="Portfolio value in October 2025: from $46,100 to $48,210."
+      />
+      <AllocationBar
+        key={`bar-${String(replay)}`}
+        segments={[
+          { id: "btc", label: "BTC", share: 0.46, slot: 1 },
+          { id: "eth", label: "ETH", share: 0.26, slot: 2 },
+          { id: "sol", label: "SOL", share: 0.12, slot: 3 },
+          { id: "ltc", label: "LTC", share: 0.07, slot: 4 },
+          { id: "usdc", label: "USDC", share: 0.05, slot: 5 },
+          { id: "other", label: "Other", share: 0.04, slot: null },
+        ]}
+      />
+    </div>
+  );
+}
+
 function Motion() {
   const [replay, setReplay] = useState(0);
   const words =
@@ -756,6 +815,13 @@ export default function DesignSystemPage() {
           description="The Keyworth mark, then Lucide icons at a 1.75 stroke. Decorative icons are hidden from screen readers."
         >
           <Icons />
+        </Section>
+        <Section
+          id="charts"
+          title="Charts"
+          description="One series as a line that draws itself, with the value under the pointer; shares as a bar with a written legend. Colors follow the item, never its rank."
+        >
+          <Charts />
         </Section>
         <Section
           id="motion"
