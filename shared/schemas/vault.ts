@@ -75,13 +75,17 @@ export type VaultWrite = z.infer<typeof vaultWriteSchema>;
 /**
  * `POST /api/vault/batch`: new records written together, all or none, for an
  * import. Writes one at a time are limited to 120 a minute; a file of a
- * thousand transactions would take nine. A hundred per request keeps the
- * checks and the insert well inside a Worker's CPU time.
+ * thousand transactions would take nine.
  */
 export const VAULT_BATCH = Object.freeze({
   maxRecords: 100,
-  /** Body bytes: a hundred transactions with long notes take about 200 KB. */
-  maxBytes: 512 * 1024,
+  /**
+   * Body bytes. Checking and decoding envelopes costs CPU by the byte (about
+   * 27 µs a KB measured on a laptop), so the body, not the count, keeps a batch
+   * well inside a Worker's 10 ms: a hundred short transactions take 40 KB,
+   * long notes split into more batches.
+   */
+  maxBytes: 128 * 1024,
 });
 
 /** Only kinds that come in numbers; settings stay one record, written alone. */

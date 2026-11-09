@@ -133,7 +133,7 @@ uninviting, deleting and listing, as described in
   each still decrypts; one taken id (a batch sent again after a lost answer)
   writes nothing (409); a bad envelope, an id twice, another kind, an extra
   `userId`, an empty batch or 101 records are refused whole (400), a body over
-  512 KB before it is read (413); another origin is refused; a batch that would
+  128 KB before it is read (413); another origin is refused; a batch that would
   pass the record count or the storage writes nothing (413), and batches and
   single writes arriving at once with room for two leave exactly one through;
   batches have their own limit of 60 a minute, which leaves single writes

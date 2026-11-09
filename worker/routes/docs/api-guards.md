@@ -26,7 +26,7 @@ request ─► security headers (every response)
 | Rate limit (vault)  | writes to `/api/vault`; `POST /api/vault/batch` apart                    | 120 per user per minute; 60 batches per user per minute                                                               | 429 `rate_limited` + `Retry-After`                               |
 | Rate limit (market) | `GET /api/market/prices`, `/history`; `/rates`; `GET /api/assets/search` | 120 each; 60; 60 per user per minute (they can spend calls to the sources)                                            |
 | Fresh session       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery`                     | Session created in the last 10 minutes (`GET /api/me` says how long is left)                                          | 403 `session_not_fresh`                                          |
-| Body size           | `/api/keys` writes; `PUT /api/vault/:id`; `POST /api/vault/batch`        | 4 KB; 96 KB; 512 KB                                                                                                   | 413 `body_too_large`                                             |
+| Body size           | `/api/keys` writes; `PUT /api/vault/:id`; `POST /api/vault/batch`        | 4 KB; 96 KB; 128 KB                                                                                                   | 413 `body_too_large`                                             |
 | Schema              | every body and id                                                        | Exact shapes from `shared/schemas` (lengths, buckets, Argon2 limits, no extra fields)                                 | 400 `invalid_body` / `invalid_id` / `invalid_kind`               |
 | Free text           | `GET /api/assets/search?q=`                                              | At most 50 characters, no hidden characters ([input-validation.md](../../../shared/schemas/docs/input-validation.md)) | 400 `invalid_query`                                              |
 | Revision            | `PUT /api/vault/:id`                                                     | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change                             | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
@@ -58,9 +58,10 @@ more query tells which rule refused it.
 **Batches** (`POST /api/vault/batch`, for a CSV import) take the same lock, then
 count the user's records and bytes and insert them all in one statement; an id
 already taken makes the transaction roll back, so a batch is never half
-written. A hundred records per request keeps validation and the insert well
-inside a Worker's CPU time; their own rate limit (60 a minute, so 6,000
-records) leaves single writes untouched during an import.
+written. Validation costs CPU by the byte, so a batch is held to 128 KB (and
+100 records): about 3.5 ms of checking at worst, well inside a Worker's 10 ms.
+Their own rate limit (60 a minute) leaves single writes untouched during an
+import.
 
 ## Invariants
 

@@ -792,14 +792,14 @@ describe("batch", () => {
     expect(await storedCount(user.userId)).toBe(0);
   });
 
-  it("refuses a body over 512 KB before reading it", async () => {
+  it("refuses a body over 128 KB before reading it", async () => {
     const user = await vaultUser("batch-body");
     const [record] = await transactions(user, [{ a: 1 }]);
 
     const response = await api("/api/vault/batch", {
       cookie: user.cookie,
       method: "POST",
-      body: { records: [record], padding: "x".repeat(520 * 1024) },
+      body: { records: [record], padding: "x".repeat(130 * 1024) },
     });
 
     expect(response.status).toBe(413);
