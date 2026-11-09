@@ -38,10 +38,26 @@ export async function sql<T extends Record<string, unknown>>(
   }
 }
 
+/**
+ * Each test as its own visitor. Better Auth limits requests per client
+ * address, which in production is Cloudflare's `cf-connecting-ip` (set at the
+ * edge, never by the client). Locally every test comes from the same address,
+ * so the whole suite would share one bucket and later tests would get 429s; a
+ * documentation-range IPv6 address per browser context keeps them apart.
+ */
+export async function ownAddress(context: BrowserContext) {
+  const group = () => Math.floor(Math.random() * 0x10000).toString(16);
+  await context.setExtraHTTPHeaders({
+    // Better Auth counts IPv6 by /64 network: the random part goes first.
+    "cf-connecting-ip": `2001:db8:${group()}:${group()}::1`,
+  });
+}
+
 export async function signIn(
   context: BrowserContext,
   baseURL: string | undefined,
 ) {
+  await ownAddress(context);
   const email = `e2e-keys-${crypto.randomUUID().slice(0, 8)}@example.com`;
   await context.addCookies(
     await createSignedInUser({

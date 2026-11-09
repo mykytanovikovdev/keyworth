@@ -167,6 +167,13 @@ label-based locators: they double as a basic accessibility check.
   intentional friction.
 - **The test database must be running** (`npm run db:up`); the global setup
   fails with that hint otherwise.
+- **Each test is its own visitor** (`ownAddress` in `signed-in.ts`, called by
+  every sign-in helper and by `auth.spec.ts`). Better Auth limits requests per
+  client address; locally every test shares one, so a long run would end in
+  429s on `/api/auth/get-session` and a "Something went wrong" page. The
+  address is a random IPv6 documentation-range network (Better Auth counts
+  IPv6 by /64, so the random part comes first), sent as `cf-connecting-ip`,
+  which only Cloudflare's edge sets in production.
 - `reuseExistingServer` is on locally: a stale server on port 4173 or 4174 will
   be reused with an old build. Stop it, or let the command rebuild.
 - Axe scans run with reduced motion: text caught mid-fade fails the contrast

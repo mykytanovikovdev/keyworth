@@ -3,13 +3,15 @@ import { Pool } from "pg";
 import { TEST_DATABASE_URL } from "../support/database.ts";
 import { setUpKeys } from "../support/keys.ts";
 import { createSignedInUser } from "../support/session.ts";
+import { ownAddress } from "./signed-in.ts";
 import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
 
 // Sign-in pages and signed-in flows in the production build, served against
 // the local test database. Google is never contacted: the redirect to it is
 // intercepted, and signed-in sessions are created directly in the database.
 
-test.beforeEach(async ({ page }) => {
+test.beforeEach(async ({ page, context }) => {
+  await ownAddress(context);
   await watchCspViolations(page);
 });
 
