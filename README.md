@@ -3,8 +3,8 @@
 > Your net worth. Your key.
 
 **Status: early development.** Google sign-in, security headers, tests, the deployment pipeline,
-end-to-end encryption of user data, the privacy policy and terms, transactions and the portfolio
-page (value, gains and risk figures for crypto) are in place; the assistant is next. Nothing here is
+end-to-end encryption of user data, the privacy policy and terms, transactions (with CSV import and
+export) and the portfolio page (value, gains and risk figures for crypto) are in place; the assistant is next. Nothing here is
 ready for real data yet.
 
 Keyworth is an investment portfolio tracker (crypto first; stocks, ETFs and metals

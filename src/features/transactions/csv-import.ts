@@ -72,7 +72,9 @@ export type FileProblem =
   | { kind: "no-rows" }
   | { kind: "missing-columns"; columns: Column[] }
   /** More new transactions than the account has room for. */
-  | { kind: "over-quota"; rows: number; room: number };
+  | { kind: "over-quota"; rows: number; room: number }
+  /** The coins couldn't be looked up: not the file's fault. */
+  | { kind: "market-unavailable" };
 
 const count = (n: number) => groupDigits(String(n));
 
@@ -95,6 +97,8 @@ export function fileProblemText(problem: FileProblem): string {
           : last;
       return `This file has no ${names} ${problem.columns.length === 1 ? "column" : "columns"}. Start from the template.`;
     }
+    case "market-unavailable":
+      return "Coin names couldn't load, so the file can't be checked. Try again in a minute.";
     case "over-quota":
       return `This file has ${count(problem.rows)} new ${problem.rows === 1 ? "transaction" : "transactions"}, and your account has room for ${count(problem.room)} more.`;
   }

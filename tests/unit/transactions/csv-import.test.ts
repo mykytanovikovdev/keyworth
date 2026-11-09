@@ -341,7 +341,7 @@ describe("an export imported back", () => {
       assetOf,
     );
     expect({ rows, left }).toEqual({ rows: 3, left: 0 });
-    expect(text.startsWith("﻿")).toBe(true);
+    expect(text.startsWith("\uFEFF")).toBe(true);
     expect(text.slice(1).split("\r\n")).toEqual([
       HEADER,
       `2025-01-01T12:00:00Z,Buy,crypto:bitcoin,BTC,0.5,60000,USD,1.5,EUR,"'=1+1, said the note"`,

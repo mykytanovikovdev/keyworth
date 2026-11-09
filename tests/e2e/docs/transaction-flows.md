@@ -23,6 +23,16 @@ the database together, with Argon2 at its production settings.
   `tests/unit/transactions/held.test.ts`.
 - **Editing, deleting, Undo:** an edit is saved and listed; deleting removes the
   record from the database at once; Undo writes it back.
+- **Importing a CSV file:** chosen through the file picker, it is checked on
+  the device first: the dialog says what it would add and which row it refuses
+  and why (a coin outside the 250), with no axe violation, and nothing is
+  written until the button; then the two new transactions are listed and
+  stored encrypted (no coin, note or `csv` in the ciphertext). The same file
+  again adds nothing: every row is recorded already.
+- **Exporting:** "Export to CSV" downloads `keyworth-transactions-<day>.csv`
+  under the CSP, with a byte-order mark, the header, and a note `=1+1` written
+  as `'=1+1` so a spreadsheet keeps it as text; imported back, that file adds
+  nothing.
 - **Hostile text:** a note `<img src=x onerror="…">` is listed as that text; no
   image element appears, nothing runs, no CSP violation
   ([input-validation.md](../../../shared/schemas/docs/input-validation.md)).

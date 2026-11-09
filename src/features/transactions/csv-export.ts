@@ -11,7 +11,7 @@ import type { AssetChoice } from "./form-values.ts";
  */
 
 /** Opens as UTF-8 in Excel, which otherwise guesses the system's code page. */
-const BYTE_ORDER_MARK = "﻿";
+const BYTE_ORDER_MARK = "\uFEFF";
 
 /** One row per transaction, oldest first; a kind the format lacks is counted. */
 export function transactionsCsv(

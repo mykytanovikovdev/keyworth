@@ -1,12 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { VAULT_BATCH } from "../../../shared/schemas/vault.ts";
 import {
   deleteTransaction,
+  ImportStopped,
+  importTransactions,
+  inBatches,
   loadTransactions,
   saveTransaction,
   TransactionError,
   type TransactionList,
   type VaultAccess,
 } from "../../../src/features/transactions/service.ts";
+import { ApiError } from "../../../src/vault/api.ts";
 import { writeRecord } from "../../../src/vault/records.ts";
 import { ALICE } from "../crypto/fixtures.ts";
 import { fakeBrowser, PASSPHRASE } from "../vault/fake-browser.ts";
@@ -381,5 +386,156 @@ describe("damaged records", () => {
     expect(list.damaged).toEqual([bad]);
     expect(after.damaged).toEqual([]);
     expect(await loadTransactions(access)).toEqual(after);
+  });
+});
+
+describe("importing", () => {
+  const purchases = (count: number) =>
+    Array.from({ length: count }, (_, n) =>
+      trade("buy", "2026-01-01", `0.${String(n + 1).padStart(4, "0")}`, {
+        source: "csv",
+      }),
+    );
+
+  it("writes many in batches, encrypted, and says how many are in", async () => {
+    const { b, access } = await unlocked();
+    const before = await saved(access, trade("buy", "2025-12-01", "1"));
+    const heard: number[] = [];
+
+    const after = await importTransactions(access, before, purchases(250), {
+      now: NOW,
+      progress: (written) => heard.push(written),
+    });
+
+    expect(heard).toEqual([100, 200, 250]);
+    expect(
+      b.server.state.calls.filter((call) => call === "createRecords"),
+    ).toHaveLength(3);
+    expect(after.records).toHaveLength(251);
+    const loaded = await loadTransactions(access);
+    expect(loaded.records).toHaveLength(251);
+    expect(loaded.records.every(({ revision }) => revision === 1)).toBe(true);
+    expect(JSON.stringify([...b.server.records.values()])).not.toContain(
+      "bitcoin",
+    );
+  });
+
+  it("refuses the lot, writing nothing, when the ledger's rule fails", async () => {
+    const { b, access } = await unlocked();
+    const empty: TransactionList = { records: [], damaged: [] };
+
+    const error = await refused(
+      importTransactions(
+        access,
+        empty,
+        [trade("buy", "2026-01-01", "1"), trade("sell", "2026-01-02", "2")],
+        { now: NOW },
+      ),
+    );
+
+    expect(error.problems).toEqual([
+      expect.objectContaining({ kind: "oversold", held: "1", asked: "2" }),
+    ]);
+    expect(b.server.records.size).toBe(0);
+  });
+
+  it("refuses a value that is not a transaction", async () => {
+    const { b, access } = await unlocked();
+
+    const error = await refused(
+      importTransactions(
+        access,
+        { records: [], damaged: [] },
+        [{ type: "gift" }],
+        { now: NOW },
+      ),
+    );
+
+    expect(error.problems[0]?.kind).toBe("invalid");
+    expect(b.server.records.size).toBe(0);
+  });
+
+  it("waits as told when the server says too many, then goes on", async () => {
+    const { access } = await unlocked();
+    const createRecords = access.api.createRecords.bind(access.api);
+    let calls = 0;
+    access.api.createRecords = async (batch) => {
+      calls += 1;
+      if (calls === 2) {
+        throw new ApiError(429, { error: "rate_limited" }, 42);
+      }
+      await createRecords(batch);
+    };
+    const waited: number[] = [];
+
+    const after = await importTransactions(
+      access,
+      { records: [], damaged: [] },
+      purchases(150),
+      {
+        now: NOW,
+        wait: (ms) => {
+          waited.push(ms);
+          return Promise.resolve();
+        },
+      },
+    );
+
+    expect(waited).toEqual([42_000]);
+    expect(after.records).toHaveLength(150);
+    expect((await loadTransactions(access)).records).toHaveLength(150);
+  });
+
+  it("stops part of the way with what is in, and nothing half written", async () => {
+    const { access } = await unlocked();
+    const createRecords = access.api.createRecords.bind(access.api);
+    let calls = 0;
+    access.api.createRecords = async (batch) => {
+      calls += 1;
+      if (calls === 2) throw new TypeError("Failed to fetch");
+      await createRecords(batch);
+    };
+
+    const error = await importTransactions(
+      access,
+      { records: [], damaged: [] },
+      purchases(250),
+      { now: NOW },
+    ).then(
+      () => null,
+      (caught: unknown) => caught,
+    );
+
+    expect(error).toBeInstanceOf(ImportStopped);
+    const stopped = error as ImportStopped;
+    expect(stopped.written).toBe(100);
+    expect(stopped.list.records).toHaveLength(100);
+    expect(stopped.cause).toBeInstanceOf(TypeError);
+    expect(await loadTransactions(access)).toEqual(stopped.list);
+  });
+
+  it("splits by the body's size as well as by count", () => {
+    const record = (ct: string) => ({
+      id: crypto.randomUUID(),
+      kind: "transaction" as const,
+      envelope: {
+        v: 1 as const,
+        alg: "A256GCM" as const,
+        iv: "A".repeat(16),
+        ct,
+      },
+    });
+    const big = Array.from({ length: 3 }, () =>
+      record("A".repeat(VAULT_BATCH.maxBytes / 2 - 200)),
+    );
+    const small = Array.from({ length: VAULT_BATCH.maxRecords + 1 }, () =>
+      record("AAAA"),
+    );
+
+    expect(inBatches(big).map((batch) => batch.length)).toEqual([1, 1, 1]);
+    expect(inBatches(small).map((batch) => batch.length)).toEqual([
+      VAULT_BATCH.maxRecords,
+      1,
+    ]);
   });
 });
