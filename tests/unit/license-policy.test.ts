@@ -180,6 +180,25 @@ describe("findLicenseViolations", () => {
     ).toHaveLength(1);
   });
 
+  it("honours a missing license field only for the version read by hand", () => {
+    const exceptions = {
+      x: { license: "none", version: "1.0.0", reason: "LICENSE file read" },
+    };
+
+    expect(
+      findLicenseViolations(
+        lock({ "node_modules/x": { version: "1.0.0" } }),
+        exceptions,
+      ),
+    ).toEqual([]);
+    expect(
+      findLicenseViolations(
+        lock({ "node_modules/x": { version: "1.0.1" } }),
+        exceptions,
+      ),
+    ).toMatchObject([{ reason: "no license field" }]);
+  });
+
   it("ignores linked local packages", () => {
     const packages = lock({ "node_modules/local": { link: true } });
 

@@ -5,6 +5,12 @@
   "description": "Private AI portfolio assistant with end-to-end encryption",
   "license": "AGPL-3.0-or-later",
   "type": "module",
+  "sideEffects": [
+    "*.css",
+    "./src/main.tsx",
+    "./src/vault/index.ts",
+    "./shared/schemas/zod.ts"
+  ],
   "engines": {
     "node": ">=24"
   },
@@ -67,6 +73,7 @@
     "@cloudflare/vitest-plugin": "1.6.0",
     "@eslint/js": "10.0.1",
     "@playwright/test": "1.64.1",
+    "@react-aria/optimize-locales-plugin": "2.1.0",
     "@types/big.js": "7.0.0",
     "@types/node": "24.19.2",
     "@types/pg": "8.23.1",

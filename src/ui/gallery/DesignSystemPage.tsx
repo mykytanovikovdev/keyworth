@@ -319,6 +319,12 @@ function Fields() {
       <TextField label="Exchange" defaultValue="Binance" isDisabled />
       <Select label="Base currency" options={CURRENCIES} defaultValue="USD" />
       <TextField label="Holding" defaultValue="0.5" suffix="BTC" />
+      <TextField
+        label="Sell"
+        suffix="BTC"
+        description="Held on Nov 9, 2026: 0.53124 BTC"
+        action={<Button variant="ghost">All</Button>}
+      />
       <SearchField />
       <Day />
       <Checkbox

@@ -31,10 +31,11 @@ import {
   type FormKind,
   type FormValues,
   AMOUNT_MAX_LENGTH,
+  executedAt,
   parseAmount,
   typedAmount,
 } from "./form-values.ts";
-import { money } from "./format.ts";
+import { money, quantity as quantityText, shortDate } from "./format.ts";
 
 /*
  * Adding or editing one transaction. The dialog keeps the fields; what they
@@ -75,6 +76,11 @@ interface TransactionFormProps {
     day: string,
     currency: string,
   ) => Promise<PriceOnDay | null>;
+  /**
+   * Units of a coin held at a moment (plain digits), leaving out the
+   * transaction being edited: what "All" fills in on a sale or a send.
+   */
+  heldAt?: (assetId: string, executedAt: string) => string;
   /** The service's refusals, in words. */
   errors?: FieldErrors;
   pending?: boolean;
@@ -94,6 +100,7 @@ export function TransactionForm({
   coins,
   currencies,
   priceOn,
+  heldAt,
   errors = {},
   pending = false,
   useLogos = true,
@@ -102,6 +109,8 @@ export function TransactionForm({
   onDelete,
 }: TransactionFormProps) {
   const [values, setValues] = useState(initial);
+  // "Now" for a sale dated today: when the form opened is close enough.
+  const [openedAt] = useState(() => Date.now());
   const [coinText, setCoinText] = useState(initial.asset?.name ?? "");
   const [checked, setChecked] = useState(false);
   const [feeOpen, setFeeOpen] = useState(initial.fee !== "");
@@ -136,6 +145,16 @@ export function TransactionForm({
     ),
   }));
   const trade = values.kind === "buy" || values.kind === "sell";
+  // A sale or a send can take everything held that day, to the last digit.
+  const takesOut = values.kind === "sell" || values.kind === "send";
+  const held =
+    takesOut && values.asset && values.day && heldAt
+      ? heldAt(values.asset.id, executedAt(values.day, openedAt))
+      : null;
+  const heldLine =
+    held !== null && values.day && values.asset
+      ? `Held on ${shortDate(values.day)}: ${quantityText(held, values.asset.symbol)}`
+      : null;
   const total = totalOf(values);
   const symbol = values.asset?.symbol ?? "";
 
@@ -227,9 +246,30 @@ export function TransactionForm({
               update({ quantity: typedAmount(quantity, values.quantity) });
             }}
             {...(symbol && { suffix: symbol })}
-            {...(values.kind === "send" && {
-              description:
-                "Include the network fee, if it was paid in this coin.",
+            {...(takesOut && {
+              action: (
+                <Button
+                  variant="ghost"
+                  isDisabled={held === null || !/[1-9]/.test(held)}
+                  onPress={() => {
+                    if (held !== null) update({ quantity: held });
+                  }}
+                >
+                  All
+                </Button>
+              ),
+            })}
+            {...((heldLine !== null || values.kind === "send") && {
+              description: (
+                <>
+                  {heldLine && <span className="block">{heldLine}</span>}
+                  {values.kind === "send" && (
+                    <span className="block">
+                      Include the network fee, if it was paid in this coin.
+                    </span>
+                  )}
+                </>
+              ),
             })}
             isInvalid={shown.quantity !== undefined}
             {...(shown.quantity && { errorMessage: shown.quantity })}

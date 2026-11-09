@@ -28,6 +28,7 @@ import {
   searchCoins,
   snapshotQuery,
 } from "./market.ts";
+import { heldAt } from "./check.ts";
 import { access, transactionsQuery } from "./queries.ts";
 import {
   deleteTransaction,
@@ -260,6 +261,7 @@ export function useTransactionEditor() {
       coins={coins}
       currencies={PRICE_CURRENCIES}
       priceOn={priceOn}
+      heldAt={(assetId, at) => heldAt(records, assetId, at, form.id).toString()}
       errors={errors}
       pending={pending}
       onSubmit={(values) => void submit(values)}

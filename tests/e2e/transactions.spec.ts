@@ -160,6 +160,32 @@ test("takes a date typed from the keyboard, under the CSP", async ({
   expect(await cspViolations(page)).toEqual([]);
 });
 
+test("All sells what was held that day, to the last digit", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { userId } = await openApp(page, context, baseURL);
+  await add(page, { quantity: "0.53124" });
+  await expect(visible(page, "+0.53124 BTC")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add transaction" }).first().click();
+  const dialog = await fillForm(page, {
+    kind: "Sell",
+    quantity: "",
+    price: "61000",
+  });
+  await expect(dialog.getByText(/^Held on .+: 0\.53124 BTC$/)).toBeVisible();
+  await dialog.getByRole("button", { name: "All" }).click();
+  await expect(dialog.getByRole("textbox", { name: "Quantity" })).toHaveValue(
+    "0.53124",
+  );
+  await dialog.getByRole("button", { name: "Add transaction" }).click();
+
+  await expect(visible(page, "−0.53124 BTC")).toBeVisible();
+  expect(await storedTransactions(userId)).toHaveLength(2);
+});
+
 test("refuses a sale of more than was held, and stores nothing", async ({
   page,
   context,

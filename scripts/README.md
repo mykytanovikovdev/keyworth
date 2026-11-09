@@ -110,7 +110,10 @@ Rejected alternatives:
 - The check trusts each package's declared `license` field; it does not read
   `LICENSE` files. A package that misdeclares its license will not be caught.
 - An exception in `LICENSE_EXCEPTIONS` is tied to the exact license string, so a
-  license change in a new version fails again and needs a fresh review.
+  license change in a new version fails again and needs a fresh review. A
+  package with no license field at all (`license: "none"`) is excepted for one
+  `version` only, after its `LICENSE` file was read by hand: so far
+  `@react-aria/optimize-locales-plugin`, whose files are Apache-2.0.
 - Lockfile v3 is required (npm 7+); older lockfiles do not record licenses.
 - **Every `vite build` rewrites `.wrangler/deploy/config.json`** to point
   `wrangler deploy` at its output. `bundle-size.ts` restores it; a new script

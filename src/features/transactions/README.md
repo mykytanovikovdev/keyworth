@@ -36,7 +36,11 @@ currencies, USDT and USDC; "Price that day" from `/api/market/history` and
 `/api/market/rates`. A picked day is kept as noon UTC, which stays that day from
 UTC−11 to UTC+11, or as now when noon is still ahead. Amounts take digits and one
 separator only, a point or a comma. Deleting is at once, with Undo in the toast.
-Every screen and state is on `/design/transactions` (dev and design builds).
+On Sell and Send (owner's decision, 2026-11-09), "Held on <day>: <quantity>"
+under the quantity says what was held at that moment, and **All** fills it in to
+the last digit: `heldAt` in `check.ts`, the same count the ledger's rule uses,
+leaving out the transaction being edited. Every screen and state is on
+`/design/transactions` (dev and design builds).
 
 **Wiring.** `useTransactionEditor()` (`editor.tsx`) is the one way a page changes a
 transaction: the transactions page and the portfolio page both render its
