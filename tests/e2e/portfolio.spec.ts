@@ -123,13 +123,12 @@ test("keeps amounts hidden after a reload, and opens the transactions without on
   await expect(page).toHaveURL(/\/transactions$/);
 });
 
-test("keeps the page until the next one's code arrives, fetched ahead", async ({
+// The waiting is the router's, the same in every engine.
+test("keeps the page until the next one's code arrives, fetched ahead @chromium-only", async ({
   page,
   context,
   baseURL,
-  browserName,
 }) => {
-  test.skip(browserName !== "chromium", "The router's doing, not the engine's");
   // Settings' code is held back until the test lets it through.
   let asked = false;
   const { promise: released, resolve: release } =
