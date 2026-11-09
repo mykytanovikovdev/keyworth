@@ -28,6 +28,9 @@ calculations.
 | `TransactionsPage.tsx` | `/transactions`: the list, and the editor for each row                                        |
 | `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
 | `market.ts`            | The snapshot, coins outside it, the server's search, "Price that day" from history and rates  |
+| `csv.ts`               | CSV as RFC 4180 has it: reading, writing, and cells kept from turning into formulas           |
+| `csv-import.ts`        | A file checked before anything is written: size, UTF-8, columns, each row, duplicates, ledger |
+| `csv-export.ts`        | The transactions as a file in the same format, oldest first; the template                     |
 
 **The form** (owner's decisions, 2026-11-08): tabs Buy, Sell, Receive and Send
 (Receive with an Income box for staking and interest); the date typed as day /
