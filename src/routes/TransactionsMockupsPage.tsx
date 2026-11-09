@@ -6,6 +6,7 @@ import {
 } from "../../shared/schemas/currencies.ts";
 import type { Transaction } from "../../shared/schemas/transaction.ts";
 import {
+  heldAt,
   ledgerProblems,
   parseTransaction,
 } from "../features/transactions/check.ts";
@@ -358,6 +359,9 @@ function Demo({ start = SAMPLE, damaged = 0, open }: DemoProps) {
           coins={COINS}
           currencies={CURRENCIES}
           priceOn={priceOn}
+          heldAt={(assetId, at) =>
+            heldAt(entries, assetId, at, form.id).toString()
+          }
           errors={errors}
           pending={pending}
           useLogos={false}
@@ -526,6 +530,24 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
             kind: "send",
             asset: TOP[1] ?? null,
             quantity: "1.2",
+          },
+        }}
+      />
+    ),
+  },
+  {
+    id: "add-sell-all",
+    label: "8b. Add: sell, what was held that day",
+    render: () => (
+      <Demo
+        open={{
+          mode: "add",
+          values: {
+            ...filled,
+            kind: "sell",
+            quantity: "",
+            price: "91000",
+            day: "2025-12-01",
           },
         }}
       />

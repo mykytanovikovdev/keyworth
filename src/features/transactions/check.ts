@@ -105,3 +105,29 @@ export function ledgerProblems(
   }
   return problems;
 }
+
+/**
+ * Units of a coin held at a moment, as a sale or a transfer out then would
+ * find them: every transaction up to that moment counts, except `leaving`,
+ * the one being edited (its own quantity is what the user is choosing).
+ * Oversold earlier sales count only what was held, as everywhere else.
+ */
+export function heldAt(
+  entries: readonly TransactionEntry[],
+  assetId: string,
+  executedAt: string,
+  leaving?: string,
+): Decimal {
+  const moment = Date.parse(executedAt);
+  const before = entries.filter(
+    ({ id, value }) =>
+      id !== leaving &&
+      value.assetId === assetId &&
+      Date.parse(value.executedAt) <= moment,
+  );
+  return (
+    computePositions(before, NO_RATES).positions.find(
+      (position) => position.assetId === assetId,
+    )?.quantity ?? decimal("0")
+  );
+}

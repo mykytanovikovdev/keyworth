@@ -43,7 +43,9 @@ Covered now:
   day; allocation colors by first purchase, five and "Other"; the server's
   histories and rates as series and a rate lookup through the dollar (a
   weekend keeps Friday's rate); formats.
-- **Transactions:** `src/features/transactions` (`transactions/`) — through a
+- **Transactions:** `src/features/transactions` (`transactions/`) — what is
+  held at a moment for **All** (`held.test.ts`): that day and not today, the
+  transaction being edited left out, moments compared as times. Through a
   real vault against the fake server: stored encrypted, replaced with the next
   revision, refused when invalid, dated in the future or leaving a sale short
   (this one, a later one, or after shrinking or deleting a purchase it needs),

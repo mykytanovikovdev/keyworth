@@ -178,7 +178,7 @@ and form controls match.
 | ------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
 | `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending`¹  |
 | `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                  |
-| `TextField`               | React Aria `TextField`     | Visible label, hint, error; ARIA validation, no native bubbles; `suffix` (a unit)  |
+| `TextField`               | React Aria `TextField`     | Label, hint, error; ARIA validation; `suffix` (a unit), `action` (an "All" button) |
 | `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill |
 | `Select`                  | React Aria `Menu`          | A list that applies at once, such as a currency; type-ahead; not React Aria's one  |
 | `Checkbox`                | React Aria `CheckboxField` | With `CheckboxButton`; label and an optional description line                      |
@@ -211,7 +211,8 @@ background and hover, focus, invalid and disabled states. `PasswordField`,
 `Select`, `Checkbox` and `Notice` were approved on 2026-10-31 for the
 encryption screens; `ComboBox`, `DateField`, `SegmentedControl` and `ActionMenu`,
 a `TextField` unit and a toast's action (Undo) on 2026-11-08 for the
-transactions screens, where `/design/transactions` shows them in every state.
+transactions screens (a `TextField` action, "All" beside a sale's quantity, on
+2026-11-09), where `/design/transactions` shows them in every state.
 `ComboBox` and `DateField` share the box style of text fields, drawn on their
 group (`data-focus-within`) rather than on the input. `ValueChart` and
 `AllocationBar` come from the phase 1 prototype, and were approved on
