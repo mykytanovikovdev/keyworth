@@ -25,7 +25,7 @@ replace would then refuse.
 | `POST /api/keys/device`                | "Remember this device": store the device-wrapped key for this session, set the device cookie | 20 writes/min, 4 KB body                    |
 | `GET /api/keys/device`                 | The device-wrapped key, only for this session with the device cookie, for 14 days            |                                             |
 | `DELETE /api/keys/device`              | Lock / forget this device                                                                    | 20 writes/min                               |
-| `GET /api/vault[?kind=][&after=]`      | The user's records, oldest first, in pages of 5,000 or 4 MiB of ciphertext; `next` continues |                                             |
+| `GET /api/vault[?kind=][&after=]`      | The user's records, oldest first, in pages of 1,000 or 1 MiB of ciphertext; `next` continues |                                             |
 | `PUT /api/vault/:id`                   | Create (`revision: 0`) or replace (the current revision) a record                            | 120 writes/min, 96 KB body, per-user quotas |
 | `POST /api/vault/batch`                | Create up to 100 new transaction records at once, all or none (a CSV import)                 | 60 batches/min, 128 KB body, quotas         |
 | `DELETE /api/vault/:id`                | Delete a record                                                                              | 120 writes/min                              |

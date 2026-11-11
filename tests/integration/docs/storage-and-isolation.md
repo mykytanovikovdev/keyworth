@@ -118,8 +118,10 @@ uninviting, deleting and listing, as described in
 - Listing by kind, deleting once, malformed ids, envelopes and extra plaintext
   fields refused, writes from another origin refused.
 - Pages: following `next` returns every record exactly once in creation order,
-  by kind or all kinds; a page ends at 5,000 records or after the record that
-  crosses 4 MiB of ciphertext; a record created while paging comes on a later
+  by kind or all kinds; a page ends at 1,000 records or after the record that
+  crosses 1 MiB of ciphertext; the bytes come back exactly as the browser's own
+  base64url encoder writes them, at every length around padding and line
+  breaks (Postgres encodes them); a record created while paging comes on a later
   page and an edited one is not repeated; malformed cursors are refused (400).
 - **Isolation:** Bob's writes under Alice's record id create his own record;
   Bob cannot update or delete Alice's record; an envelope copied into Bob's vault
@@ -203,4 +205,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-11

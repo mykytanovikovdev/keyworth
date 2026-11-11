@@ -35,14 +35,16 @@ export const VAULT_LIMITS = Object.freeze({
 });
 
 /**
- * One page of `GET /api/vault`. A Worker has 128 MB of memory and a user up
- * to 50 MiB of ciphertext, so the records come in pages; the record that
- * crosses `maxBytes` is still included, so a page always moves forward.
+ * One page of `GET /api/vault`. A user has up to 50 MiB of ciphertext, and a
+ * Worker on the free plan 10 ms of CPU per request: building the JSON of 5,000
+ * small records already took longer, so pages stay small and the browser reads
+ * them one after another. The record that crosses `maxBytes` is still
+ * included, so a page always moves forward.
  */
 export const VAULT_PAGE = Object.freeze({
-  maxRecords: 5000,
+  maxRecords: 1000,
   /** Ciphertext bytes. */
-  maxBytes: 4 * 1024 * 1024,
+  maxBytes: 1024 * 1024,
 });
 
 /**

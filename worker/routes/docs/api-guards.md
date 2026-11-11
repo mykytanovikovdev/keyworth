@@ -32,7 +32,7 @@ request ─► security headers (every response)
 | Revision            | `PUT /api/vault/:id`                                                     | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change                             | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
 | Quotas              | `PUT /api/vault/:id`; `POST /api/vault/batch`                            | At most 20,000 records and 50 MiB of ciphertext per user, checked under the per-user lock before writing              | 413 `quota_exceeded`                                             |
 | Batch               | `POST /api/vault/batch`                                                  | 1–100 new `transaction` records, each id once; all written or none: a taken id rolls the batch back                   | 400 `invalid_body`; 409 `conflict`                               |
-| Pages               | `GET /api/vault`                                                         | At most 5,000 records or 4 MiB of ciphertext (plus the record crossing it) per answer                                 | `next` cursor; 400 `invalid_cursor`                              |
+| Pages               | `GET /api/vault`                                                         | At most 1,000 records or 1 MiB of ciphertext (plus the record crossing it) per answer                                 | `next` cursor; 400 `invalid_cursor`                              |
 | One-time setup      | `POST /api/keys`                                                         | The check value and both slots once, in one transaction: all three or none                                            | 409 `already_set_up`                                             |
 | Expected slot       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery`                     | `expectedIv` must equal the stored slot's IV                                                                          | 409 `conflict` + stored `iv`, or 404                             |
 | Device unlock       | `GET /api/keys/device`                                                   | Same session **and** the device cookie's token hash, remembered less than 14 days ago                                 | `{ slot: null }` (200: "not remembered" is no error)             |
@@ -60,6 +60,13 @@ count the user's records and bytes and insert them all in one statement; an id
 already taken makes the transaction roll back, so a batch is never half
 written. Validation costs CPU by the byte, so a batch is held to 128 KB (and
 100 records): about 3.5 ms of checking at worst, well inside a Worker's 10 ms.
+
+**Pages** (`GET /api/vault`) are sized for the same 10 ms. Postgres encodes the
+bytes as base64url in its own (C) code, so the Worker only passes strings on;
+encoding them in JavaScript a byte at a time, plus the JSON, took about 10 ms
+for 2,000 small records and 24 ms for 5,000 (measured in Node). A page holds at
+most 1,000 records or 1 MiB of ciphertext; the browser reads them one after
+another.
 Their own rate limit (60 a minute) leaves single writes untouched during an
 import.
 

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { encodeBase64url } from "../../shared/schemas/base64url.ts";
 import { KDF_LIMITS } from "../../shared/schemas/keys.ts";
 import {
   MAX_REVISION,
@@ -413,6 +414,45 @@ describe("/api/vault", () => {
 });
 
 describe("pages", () => {
+  it("returns the stored bytes as the browser encodes them, whatever their length", async () => {
+    const user = await signedIn("pages-encoding");
+    // Lengths around base64's padding and Postgres's line breaks (every 57 bytes).
+    const stored = [1, 2, 3, 56, 57, 58, 272, 70_000].map((length) => {
+      const bytes = new Uint8Array(length);
+      for (let start = 0; start < length; start += 65_536) {
+        crypto.getRandomValues(bytes.subarray(start, start + 65_536));
+      }
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      return { id: crypto.randomUUID(), iv, bytes };
+    });
+    const hex = (bytes: Uint8Array) =>
+      Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    await query(
+      `insert into vault_records
+         (user_id, id, kind, revision, envelope_version, iv, ciphertext)
+       select $1, id, 'transaction', 1, 1, decode(iv, 'hex'), decode(bytes, 'hex')
+         from unnest($2::uuid[], $3::text[], $4::text[]) as stored(id, iv, bytes)`,
+      [
+        user.userId,
+        stored.map(({ id }) => id),
+        stored.map(({ iv }) => hex(iv)),
+        stored.map(({ bytes }) => hex(bytes)),
+      ],
+    );
+
+    const [page] = await pages(user);
+
+    for (const { id, iv, bytes } of stored) {
+      const record = page?.records.find((r) => r.id === id);
+      expect(record?.envelope).toEqual({
+        v: 1,
+        alg: "A256GCM",
+        iv: encodeBase64url(iv),
+        ct: encodeBase64url(bytes),
+      });
+    }
+  });
+
   it("returns every record once, oldest first, a page at a time", async () => {
     const user = await signedIn("pages-count");
     await insertRecords(user.userId, 2, { age: "1 hour" });
@@ -435,14 +475,16 @@ describe("pages", () => {
     ).toEqual(await idsInOrder(user.userId));
   });
 
-  it("ends a page after the record that crosses 4 MiB of ciphertext", async () => {
+  it("ends a page after the record that crosses 1 MiB of ciphertext", async () => {
     const user = await signedIn("pages-bytes");
     await insertRecords(user.userId, 50, { bytes: 100_000 });
 
     const all = await pages(user);
 
-    // Records 1 to 42 start below 4 MiB; the 42nd ends past it.
-    expect(all.map(({ records }) => records.length)).toEqual([42, 8]);
+    // Records 1 to 11 start below 1 MiB; the 11th ends past it.
+    expect(all.map(({ records }) => records.length)).toEqual([
+      11, 11, 11, 11, 6,
+    ]);
     expect(all.flatMap(({ records }) => records.map((r) => r.id))).toEqual(
       await idsInOrder(user.userId),
     );

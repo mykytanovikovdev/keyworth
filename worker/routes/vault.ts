@@ -1,9 +1,6 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
-import {
-  decodeBase64url,
-  encodeBase64url,
-} from "../../shared/schemas/base64url.ts";
+import { decodeBase64url } from "../../shared/schemas/base64url.ts";
 import {
   type RecordKind,
   recordIdSchema,
@@ -43,8 +40,9 @@ interface PageRow extends Record<string, unknown> {
   id: string;
   kind: RecordKind;
   revision: number;
-  iv: Uint8Array;
-  ciphertext: Uint8Array;
+  /** Unpadded base64url, encoded by Postgres (base64url() below). */
+  iv: string;
+  ciphertext: string;
   /** ISO 8601 in UTC: Drizzle has pg leave timestamps as text in raw queries. */
   updated_at: string;
   position: string;
@@ -57,7 +55,13 @@ interface PageRow extends Record<string, unknown> {
  * ciphertext before each one and whether any comes after, so the Worker never
  * holds more than a page. Records keep their creation time, so a page does not
  * shift when one is edited; one created meanwhile comes on a later page.
+ *
+ * Postgres encodes the bytes, in C: encoding them here, a byte at a time, cost
+ * more CPU than a Worker on the free plan has for a page of small records.
  */
+const base64url = (column: string) =>
+  sql.raw(`rtrim(translate(encode(${column}, 'base64'), E'+/\\n', '-_'), '=')`);
+
 vault.get("/", async (c) => {
   const kindParam = c.req.query("kind");
   const kind =
@@ -72,7 +76,8 @@ vault.get("/", async (c) => {
   // created_at to the microsecond, as the cursor holds it.
   const position = sql`(extract(epoch from created_at) * 1000000)::bigint`;
   const result = await c.get("db").execute<PageRow>(sql`
-    select id, kind, revision, iv, ciphertext,
+    select id, kind, revision,
+           ${base64url("iv")} as iv, ${base64url("ciphertext")} as ciphertext,
            to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
              as updated_at,
            position::text, has_more
@@ -101,8 +106,8 @@ vault.get("/", async (c) => {
     envelope: {
       v: 1,
       alg: "A256GCM",
-      iv: encodeBase64url(row.iv),
-      ct: encodeBase64url(row.ciphertext),
+      iv: row.iv,
+      ct: row.ciphertext,
     },
     updatedAt: row.updated_at,
   }));
