@@ -169,6 +169,12 @@ export function useTransactionEditor() {
         : [],
     [formOpen, records, editing, assets, prices],
   );
+  // Stable while the list and the form stay: the form keeps its answer.
+  const heldFor = useMemo(
+    () => (assetId: string, at: string) =>
+      heldAt(records, assetId, at, editing).toString(),
+    [records, editing],
+  );
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, setPending] = useState(false);
   const key = transactionsQuery(userId).queryKey;
@@ -307,7 +313,7 @@ export function useTransactionEditor() {
       coins={coins}
       currencies={PRICE_CURRENCIES}
       priceOn={priceOn}
-      heldAt={(assetId, at) => heldAt(records, assetId, at, form.id).toString()}
+      heldAt={heldFor}
       heldCoins={held}
       errors={errors}
       pending={pending}

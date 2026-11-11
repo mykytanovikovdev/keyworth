@@ -169,10 +169,16 @@ export function TransactionForm({
     ),
   }));
   const trade = values.kind === "buy" || values.kind === "sell";
-  const held =
-    takesOut && values.asset && values.day && heldAt
-      ? heldAt(values.asset.id, executedAt(values.day, openedAt))
-      : null;
+  // A whole pass over the ledger: only when the coin or the day changes, not
+  // at every keystroke in the amounts.
+  const assetId = values.asset?.id;
+  const held = useMemo(
+    () =>
+      takesOut && assetId && values.day && heldAt
+        ? heldAt(assetId, executedAt(values.day, openedAt))
+        : null,
+    [takesOut, assetId, values.day, heldAt, openedAt],
+  );
   const heldLine =
     held !== null && values.day && values.asset
       ? `Held on ${shortDate(values.day)}: ${quantityText(held, values.asset.symbol)}`
