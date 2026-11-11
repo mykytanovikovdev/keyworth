@@ -11,7 +11,12 @@ import {
   WCAG_TAGS,
 } from "./signed-in.ts";
 import { stubMarket } from "./market.ts";
-import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
+import {
+  collectErrors,
+  cspViolations,
+  LIKE_A_PERSON,
+  watchCspViolations,
+} from "./support.ts";
 
 /*
  * End-to-end encryption in the production build, in Chromium, Firefox and
@@ -542,7 +547,7 @@ test("the base currency is the first encrypted record", async ({
   await expect(currency).toHaveValue("United States Dollar", AFTER_ARGON2);
   await page
     .getByRole("button", { name: "Show base currency options" })
-    .click();
+    .click(LIKE_A_PERSON);
   // Its longest names wrap: on a phone the open list stays within the screen.
   await expect(page.getByRole("listbox")).toBeVisible();
   expect(

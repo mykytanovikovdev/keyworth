@@ -8,7 +8,12 @@ import {
   WCAG_TAGS,
 } from "./signed-in.ts";
 import { stubMarket } from "./market.ts";
-import { collectErrors, cspViolations, watchCspViolations } from "./support.ts";
+import {
+  collectErrors,
+  cspViolations,
+  LIKE_A_PERSON,
+  watchCspViolations,
+} from "./support.ts";
 
 /*
  * Transactions in the production build, in Chromium, Firefox and WebKit:
@@ -173,7 +178,9 @@ test("a sale offers the coins held, and All sells what was held that day", async
   // A sale offers only the coins held, each with how much is left.
   const form = dialogOf(page, "Add transaction");
   await form.getByRole("radio", { name: "Sell" }).click();
-  await form.getByRole("button", { name: "Show coin options" }).click();
+  await form
+    .getByRole("button", { name: "Show coin options" })
+    .click(LIKE_A_PERSON);
   await expect(page.getByRole("option")).toHaveText([/Bitcoin.*0\.53124 BTC/]);
   await page.keyboard.press("Escape");
   const dialog = await fillForm(page, {

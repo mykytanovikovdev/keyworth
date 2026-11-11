@@ -85,6 +85,10 @@ export default defineConfig([
       parserOptions: {
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
+        // typescript-eslint 8.72.1 builds one TypeScript program per tsconfig
+        // when it infers a single run (CI): with our nine, about 600 MB more,
+        // past Node's default heap. Opting out measured as fast (13 s).
+        disallowAutomaticSingleRunInference: true,
       },
     },
     rules: {
