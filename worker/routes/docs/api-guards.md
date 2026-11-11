@@ -32,6 +32,7 @@ request ─► security headers (every response)
 | Free text           | `GET /api/assets/search?q=`                                              | At most 50 characters, no hidden characters ([input-validation.md](../../../shared/schemas/docs/input-validation.md)) | 400 `invalid_query`                                              |
 | Revision            | `PUT /api/vault/:id`                                                     | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change                             | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
 | Quotas              | `PUT /api/vault/:id`; `POST /api/vault/batch`                            | At most 20,000 records and 50 MiB of ciphertext per user, checked under the per-user lock before writing              | 413 `quota_exceeded`                                             |
+| Lock wait           | `PUT /api/vault/:id`; `POST /api/vault/batch`                            | The user's write lock within 2 s, each statement within 5 s                                                           | 429 `busy` + `Retry-After: 2`                                    |
 | Batch               | `POST /api/vault/batch`                                                  | 1–100 new `transaction` records, each id once; all written or none: a taken id rolls the batch back                   | 400 `invalid_body`; 409 `conflict`                               |
 | Pages               | `GET /api/vault`                                                         | At most 1,000 records or 1 MiB of ciphertext (plus the record crossing it) per answer                                 | `next` cursor; 400 `invalid_cursor`                              |
 | One-time setup      | `POST /api/keys`                                                         | The check value and both slots once, in one transaction: all three or none                                            | 409 `already_set_up`                                             |
@@ -62,7 +63,11 @@ isolation two inserts running at once do not see each other's rows and could
 both pass the count. So each vault write runs in a transaction that first takes
 a per-user advisory lock (`pg_advisory_xact_lock`): one write per user at a time
 counts and writes; other users are never blocked. When nothing was written, one
-more query tells which rule refused it.
+more query tells which rule refused it. The lock is waited for at most 2
+seconds and each statement of the transaction runs at most 5 (set in the
+lock's own statement, so no extra round trip): a burst of one session's writes
+would otherwise queue while holding connections that every user shares; past
+the wait, the write is refused as `busy` and the client tries again.
 
 **Batches** (`POST /api/vault/batch`, for a CSV import) take the same lock, then
 count the user's records and bytes and insert them all in one statement; an id

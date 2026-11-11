@@ -131,6 +131,9 @@ uninviting, deleting and listing, as described in
   at once one record below either limit (exactly one succeeds); the write rate
   limit answers 429 with `Retry-After` (the seconds left in the window), resets
   after its window, and covers Lock (`DELETE /api/keys/device`).
+- **A held lock:** while another transaction keeps a user's write lock, that
+  user's write is refused as `busy` (429, `Retry-After: 2`) after the 2-second
+  wait, and another user's write goes through at once.
 - **Batches** (`POST /api/vault/batch`): every record stored at revision 1 and
   each still decrypts; one taken id (a batch sent again after a lost answer)
   writes nothing (409); a bad envelope, an id twice, another kind, an extra

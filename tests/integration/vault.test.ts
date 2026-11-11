@@ -1,3 +1,5 @@
+import { env } from "cloudflare:workers";
+import { Pool } from "pg";
 import { describe, expect, it } from "vitest";
 import { encodeBase64url } from "../../shared/schemas/base64url.ts";
 import { KDF_LIMITS } from "../../shared/schemas/keys.ts";
@@ -730,6 +732,36 @@ describe("limits", () => {
     expect(limited.status).toBe(429);
     expect(limited.headers.get("retry-after")).toBe("60");
     expect(afterWindow.status).toBe(404);
+  });
+
+  it("refuses a write as busy while the user's lock is held too long, and holds up no one else", async () => {
+    const alice = await vaultUser("busy-alice");
+    const bob = await vaultUser("busy-bob");
+    // Another transaction keeps Alice's write lock, as a burst of her writes would.
+    const pool = new Pool({
+      connectionString: env.HYPERDRIVE.connectionString,
+      idleTimeoutMillis: 0,
+    });
+    const holder = await pool.connect();
+    try {
+      await holder.query("begin");
+      await holder.query("select pg_advisory_xact_lock(1, hashtext($1))", [
+        alice.userId,
+      ]);
+
+      const [blocked, other] = await Promise.all([
+        put(alice, crypto.randomUUID(), { waits: true }),
+        put(bob, crypto.randomUUID(), { waits: false }),
+      ]);
+
+      expect(blocked.status).toBe(429);
+      expect(blocked.headers.get("retry-after")).toBe("2");
+      expect(await blocked.json()).toEqual({ error: "busy" });
+      expect(other.status).toBe(201);
+    } finally {
+      await holder.query("rollback");
+      holder.release();
+    }
   });
 
   it("tells a limited client how long is left in the window", async () => {

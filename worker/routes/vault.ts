@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { type Context, Hono } from "hono";
 import { decodeBase64url } from "../../shared/schemas/base64url.ts";
 import {
   type RecordKind,
@@ -14,6 +14,7 @@ import {
   vaultBatchSchema,
   vaultWriteSchema,
 } from "../../shared/schemas/vault.ts";
+import type { Database } from "../db/client.ts";
 import { vaultRecords } from "../db/schema.ts";
 import type { AppEnv } from "../env.ts";
 import { maxBody, rateLimit, readJson } from "../limits.ts";
@@ -123,6 +124,37 @@ vault.get("/", async (c) => {
 const QUOTA_LOCK = 1;
 
 /**
+ * Takes the user's write lock, waiting at most 2 seconds for it, and bounds
+ * every statement of the transaction to 5 seconds. A burst of writes from one
+ * session (a stolen one, say) queues for the lock while holding database
+ * connections every user shares; past the wait, a write is refused as busy
+ * instead. The limits are set in the lock's own statement (its FROM runs
+ * first), so they cost no extra round trip.
+ */
+const lockUser = (tx: Pick<Database, "execute">, userId: string) =>
+  tx.execute(sql`
+    select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))
+      from (select set_config('lock_timeout', '2s', true),
+                   set_config('statement_timeout', '5s', true)) as limits`);
+
+/** Postgres gave up waiting for the user's lock: lock_not_available. */
+function waitedTooLong(error: unknown): boolean {
+  const code = (value: unknown) =>
+    value && typeof value === "object" && "code" in value
+      ? value.code
+      : undefined;
+  return (
+    code(error) === "55P03" ||
+    (error instanceof Error && code(error.cause) === "55P03")
+  );
+}
+
+const busy = (c: Context<AppEnv>) => {
+  c.header("Retry-After", "2");
+  return c.json({ error: "busy" }, 429);
+};
+
+/**
  * Creates (revision 0) or replaces (the current revision) a record. Each
  * change is one statement whose WHERE clause also enforces the user's limits.
  * Under Postgres's default isolation, two such statements running at once
@@ -143,11 +175,9 @@ vault.put("/:id", limitWrites, envelopeBody, async (c) => {
   const used = sql`(select coalesce(sum(octet_length(ciphertext)), 0)
                       from vault_records where user_id = ${userId})`;
 
-  const written = await db.transaction(async (tx) => {
+  const write = db.transaction(async (tx) => {
     // Held until the transaction ends; other users are never blocked.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))`,
-    );
+    await lockUser(tx, userId);
     return revision === 0
       ? tx.execute<{ revision: number }>(sql`
             insert into vault_records
@@ -171,6 +201,13 @@ vault.put("/:id", limitWrites, envelopeBody, async (c) => {
                     <= ${VAULT_LIMITS.maxBytes}
             returning revision`);
   });
+  let written: Awaited<typeof write>;
+  try {
+    written = await write;
+  } catch (error) {
+    if (waitedTooLong(error)) return busy(c);
+    throw error;
+  }
 
   const saved = written.rows[0];
   if (saved)
@@ -223,9 +260,7 @@ vault.post("/batch", limitBatches, batchBody, async (c) => {
   let written: boolean;
   try {
     written = await c.get("db").transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))`,
-      );
+      await lockUser(tx, userId);
       const usage = await tx.execute<{ count: string; bytes: string }>(sql`
         select count(*) as count,
                coalesce(sum(octet_length(ciphertext)), 0) as bytes
@@ -247,6 +282,7 @@ vault.post("/batch", limitBatches, batchBody, async (c) => {
     });
   } catch (error) {
     if (error instanceof IdTaken) return c.json({ error: "conflict" }, 409);
+    if (waitedTooLong(error)) return busy(c);
     throw error;
   }
   if (!written) return c.json({ error: "quota_exceeded" }, 413);
