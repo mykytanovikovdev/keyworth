@@ -23,7 +23,7 @@ local, tests Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Postgres 18 
 | File                      | Role                                                                     |
 | ------------------------- | ------------------------------------------------------------------------ |
 | `client.ts`               | `connect()`: a Drizzle handle over a pg pool, one per request            |
-| `schema.ts`               | All tables: re-exports Better Auth's, defines the invite and block lists |
+| `schema.ts`               | All tables: re-exports Better Auth's and defines the app's own           |
 | `auth-schema.ts`          | Better Auth's tables, generated from `worker/auth.ts`; never hand-edited |
 | `auth-cli.config.ts`      | What Better Auth's CLI loads to generate `auth-schema.ts`                |
 | `local/init.sql`          | Creates the `keyworth_app` role and `keyworth_test` database locally     |
@@ -36,8 +36,9 @@ local, tests Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Postgres 18 
   `keyworth_app`, the Worker's role, may only read and write rows. Migrations
   run in CI before each deploy and must stay backward compatible.
 - **Tables:** the Google profile and sessions (Better Auth), the invite and
-  block lists, rate-limit counters, and the encryption tables: wrapped data
-  keys, the data key's check value, encrypted records and remembered devices. Every table with user data is
+  block lists, rate-limit counters, the encryption tables (wrapped data keys,
+  the data key's check value, encrypted records and remembered devices) and the
+  market data cache, which holds no user data. Every table with user data is
   deleted with the account. Every timestamp is `timestamp with time zone`.
 
 The details live in [`docs/`](docs/):

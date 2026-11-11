@@ -45,9 +45,10 @@ Covered now:
   `sessions` never returns the token; `delete` removes the account with its
   sessions and Google link; `list` reports each email's state.
 - **`keys.test.ts`** and **`vault.test.ts`**: wrapped keys, remembered devices
-  and encrypted records through `/api/keys` and `/api/vault`, with slots and
-  envelopes made by the real `src/crypto`: every guard (origin, size, rate,
-  freshness, revisions, quotas), **no plaintext anywhere in the database**, and
+  and encrypted records through `/api/keys` and `/api/vault` (one record or a
+  batch from a CSV import, all or none), with slots and envelopes made by the
+  real `src/crypto`: every guard (origin, size, rate, freshness, revisions,
+  quotas), **no plaintext anywhere in the database**, and
   **isolation** between users.
 - **`isolation.test.ts`**: the same guards with well-formed but meaningless
   bytes (the server cannot tell them from ciphertext), aimed at each guard's

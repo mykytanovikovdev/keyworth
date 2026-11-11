@@ -4,8 +4,9 @@
 
 The account page: who is signed in, signing out (here or everywhere), the
 encryption settings (passphrase, recovery key, Lock), the base currency, the
-theme, and deleting the account. Later phases add usage and export. Settings
-sit behind the key gate: the page opens only once the data key is.
+theme, and deleting the account. Usage comes later; the CSV export of
+transactions is on the Transactions page. Settings sit behind the key gate:
+the page opens only once the data key is.
 
 ## How it works
 

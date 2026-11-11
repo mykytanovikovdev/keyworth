@@ -18,7 +18,7 @@ lengths, so a malformed value is rejected before anything decodes it.
 | `base64url.ts`   | Unpadded base64url: the codec (one canonical spelling per byte string) and an exact-length schema helper     |
 | `envelope.ts`    | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                     |
 | `keys.ts`        | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys` |
-| `vault.ts`       | Record kinds and ids, per-user limits, the body of `PUT /api/vault/:id`                                      |
+| `vault.ts`       | Record kinds and ids, per-user limits, the bodies of `PUT /api/vault/:id` and `POST /api/vault/batch`        |
 | `me.ts`          | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)  |
 | `market.ts`      | Asset ids (`crypto:` and CoinGecko's id), limits, the shapes `/api/market` and `/api/assets` return          |
 | `text.ts`        | Free text: `typedText` (a field's filter), `cleanText` (what is kept), `plainTextSchema`, hidden characters  |
