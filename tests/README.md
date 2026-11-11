@@ -12,12 +12,13 @@ details.
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes                      |
 |                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe; Argon2id under the CSP |
 |                                         |                   | the same, with the local test database                 | Sign-in pages, sign-out, account deletion                                   |
+|                                         |                   | the same                                               | Encryption flows, transactions, the portfolio page                          |
 | [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design`, sign-in, settings, deletion                       |
 
 Planned, each arriving with the code it tests:
 
-- `e2e/` grows with the portfolio page (phase 4) and recording a trade through
-  chat (phase 7); transactions are already covered.
+- `e2e/` grows with importing and exporting CSV (phase 4) and recording a trade
+  through chat (phase 7); transactions and the portfolio are already covered.
 - `visual/` grows with the app's screens as they are built.
 - `agent/` — the chat agent with a scripted mock model from `ai/test`:
   deterministic, runs in CI (phases 5–7).

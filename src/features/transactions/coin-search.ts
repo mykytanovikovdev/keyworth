@@ -1,17 +1,53 @@
 import { useEffect, useState } from "react";
+import { type Decimal, decimal } from "../../../shared/money/decimal.ts";
 import type { AssetChoice } from "./form-values.ts";
 
 /*
  * Finding a coin by typing. The 250 largest come with the price snapshot that
  * every user loads alike, so matching among them happens here and tells the
- * server nothing; only a coin outside them is searched for on the server.
+ * server nothing; only a coin outside them is searched for on the server. A
+ * sale or a transfer out picks among the coins held instead, here alone.
  */
 
 export interface CoinSource {
-  /** The shared snapshot's coins, largest first. */
+  /** The coins offered before anything is typed: the snapshot's, largest first. */
   top: readonly AssetChoice[];
-  /** Any coin, by name or symbol: the server's search. */
-  search: (text: string) => Promise<AssetChoice[]>;
+  /**
+   * Any coin, by name or symbol: the server's search. Without it only `top`
+   * can be picked: the coins held, on a sale.
+   */
+  search?: (text: string) => Promise<AssetChoice[]>;
+}
+
+export interface HeldCoin extends AssetChoice {
+  /** Units held now, plain digits. */
+  quantity: string;
+}
+
+/**
+ * The coins held, for a sale's list: the largest value first, as on the
+ * portfolio (US dollar prices order them as well as any currency would), then
+ * the ones without a price, by name.
+ */
+export function heldCoins(
+  held: ReadonlyMap<string, Decimal>,
+  assetOf: (assetId: string) => AssetChoice,
+  priceOf: (assetId: string) => string | undefined,
+): HeldCoin[] {
+  const rows = [...held].map(([assetId, quantity]) => {
+    const price = priceOf(assetId);
+    return {
+      coin: { ...assetOf(assetId), quantity: quantity.toString() },
+      value: price === undefined ? null : quantity.times(decimal(price)),
+    };
+  });
+  return rows
+    .sort((a, b) => {
+      if (a.value && b.value) return b.value.cmp(a.value);
+      if (a.value || b.value) return a.value ? -1 : 1;
+      return a.coin.name.localeCompare(b.coin.name, "en");
+    })
+    .map(({ coin }) => coin);
 }
 
 export interface CoinSearchState {
@@ -43,7 +79,12 @@ export function useCoinSearch(
   const local = browsing
     ? source.top
     : source.top.filter((coin) => matchesLocally(coin, query));
-  const remoteNeeded = !browsing && local.length === 0 && query.length >= 2;
+  const { search } = source;
+  const remoteNeeded =
+    search !== undefined &&
+    !browsing &&
+    local.length === 0 &&
+    query.length >= 2;
   const [remote, setRemote] = useState<{
     query: string;
     coins: AssetChoice[] | null;
@@ -53,7 +94,7 @@ export function useCoinSearch(
     if (!remoteNeeded) return;
     let current = true;
     const timer = window.setTimeout(() => {
-      source.search(query).then(
+      search(query).then(
         (coins) => {
           if (current) setRemote({ query, coins });
         },
@@ -66,13 +107,15 @@ export function useCoinSearch(
       current = false;
       window.clearTimeout(timer);
     };
-  }, [remoteNeeded, query, source]);
+  }, [remoteNeeded, query, search]);
 
   if (!remoteNeeded) {
     return {
       coins: local,
       isLoading: false,
-      emptyMessage: "Type at least two letters to search all coins.",
+      emptyMessage: search
+        ? "Type at least two letters to search all coins."
+        : `None of your coins match "${query}".`,
     };
   }
   const answered = remote.query === query;

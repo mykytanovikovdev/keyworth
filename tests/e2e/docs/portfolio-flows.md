@@ -16,6 +16,10 @@ production settings.
 - **Hidden amounts stay hidden** after a reload and a new unlock.
 - **The sections link through the router:** the Transactions link opens the
   list without a reload, so without unlocking again.
+- **No empty frame between pages:** the Settings page's code is fetched in the
+  background before any click; held back by the test, the portfolio stays on
+  screen after the click until it arrives, then Settings replaces it. Chromium
+  only: the waiting is the router's, the same in every engine.
 - **Failing prices show a notice, not zeros:** with `/api/market/prices`
   answering 502, the page says prices couldn't load and shows no "$0.00".
 - **Narrow screens and accessibility:** at 320 px the page does not scroll

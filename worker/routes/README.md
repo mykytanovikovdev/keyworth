@@ -27,6 +27,7 @@ replace would then refuse.
 | `DELETE /api/keys/device`              | Lock / forget this device                                                                    | 20 writes/min                               |
 | `GET /api/vault[?kind=][&after=]`      | The user's records, oldest first, in pages of 5,000 or 4 MiB of ciphertext; `next` continues |                                             |
 | `PUT /api/vault/:id`                   | Create (`revision: 0`) or replace (the current revision) a record                            | 120 writes/min, 96 KB body, per-user quotas |
+| `POST /api/vault/batch`                | Create up to 100 new transaction records at once, all or none (a CSV import)                 | 60 batches/min, 128 KB body, quotas         |
 | `DELETE /api/vault/:id`                | Delete a record                                                                              | 120 writes/min                              |
 | `GET /api/market/prices[?ids=]`        | Prices in US dollars: the snapshot of the 250 largest coins, or the coins asked for          |
 | `GET /api/market/history?asset=&from=` | A coin's daily closing prices in US dollars from a day: Coin Metrics or CoinGecko            |

@@ -8,11 +8,13 @@ import {
   type RecordKind,
   recordIdSchema,
   recordKindSchema,
+  VAULT_BATCH,
   VAULT_CURSOR,
   VAULT_LIMITS,
   VAULT_PAGE,
   type VaultPageJson,
   type VaultRecordJson,
+  vaultBatchSchema,
   vaultWriteSchema,
 } from "../../shared/schemas/vault.ts";
 import { vaultRecords } from "../db/schema.ts";
@@ -182,6 +184,66 @@ vault.put("/:id", limitWrites, envelopeBody, async (c) => {
     return c.json({ error: "conflict", revision: current.revision }, 409);
   }
   return c.json({ error: "quota_exceeded" }, 413);
+});
+
+const limitBatches = rateLimit("vault-batch", 60);
+const batchBody = maxBody(VAULT_BATCH.maxBytes);
+
+/** An id in a batch is taken already: the whole batch is rolled back. */
+class IdTaken extends Error {}
+
+/**
+ * Creates several records at once, all or none: an import. The same limits as
+ * one write, under the same per-user lock: count and bytes first, then one
+ * insert. An id that is taken (a batch sent twice after a lost answer) refuses
+ * the whole batch, so nothing is half written.
+ */
+vault.post("/batch", limitBatches, batchBody, async (c) => {
+  const body = vaultBatchSchema.safeParse(await readJson(c));
+  if (!body.success) return c.json({ error: "invalid_body" }, 400);
+  const userId = c.get("user").id;
+  const rows = body.data.records.map(({ id, kind, envelope }) => ({
+    userId,
+    id,
+    kind,
+    revision: 1,
+    envelopeVersion: envelope.v,
+    iv: bytes(envelope.iv),
+    ciphertext: bytes(envelope.ct),
+  }));
+  const adding = rows.reduce((sum, row) => sum + row.ciphertext.length, 0);
+
+  let written: boolean;
+  try {
+    written = await c.get("db").transaction(async (tx) => {
+      await tx.execute(
+        sql`select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))`,
+      );
+      const usage = await tx.execute<{ count: string; bytes: string }>(sql`
+        select count(*) as count,
+               coalesce(sum(octet_length(ciphertext)), 0) as bytes
+          from vault_records where user_id = ${userId}`);
+      const used = usage.rows[0];
+      if (
+        Number(used?.count) + rows.length > VAULT_LIMITS.maxRecords ||
+        Number(used?.bytes) + adding > VAULT_LIMITS.maxBytes
+      ) {
+        return false;
+      }
+      const inserted = await tx
+        .insert(vaultRecords)
+        .values(rows)
+        .onConflictDoNothing()
+        .returning({ id: vaultRecords.id });
+      if (inserted.length < rows.length) throw new IdTaken();
+      return true;
+    });
+  } catch (error) {
+    if (error instanceof IdTaken) return c.json({ error: "conflict" }, 409);
+    throw error;
+  }
+  if (!written) return c.json({ error: "quota_exceeded" }, 413);
+  return c.json({ written: rows.length }, 201);
 });
 
 vault.delete("/:id", limitWrites, async (c) => {

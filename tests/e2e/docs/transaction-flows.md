@@ -16,10 +16,23 @@ the database together, with Argon2 at its production settings.
   under Trusted Types, [src/ui/README.md](../../../src/ui/README.md)).
 - **The ledger's rule at the form:** selling more than was held shows "You held
   0.5 BTC on …" at the quantity, and the database keeps only the purchase.
-- **All:** on a sale, "Held on …: 0.53124 BTC" is shown and **All** fills in
-  exactly that, which is then sold.
+- **A sale picks among the coins held; All:** on Sell the coin list offers only
+  the coin held, with its quantity (none of the snapshot's other coins); "Held
+  on …: 0.53124 BTC" is shown and **All** fills in exactly that, which is then
+  sold. The list's order and the edited transaction left out are unit-tested in
+  `tests/unit/transactions/held.test.ts`.
 - **Editing, deleting, Undo:** an edit is saved and listed; deleting removes the
   record from the database at once; Undo writes it back.
+- **Importing a CSV file:** chosen through the file picker, it is checked on
+  the device first: the dialog says what it would add and which row it refuses
+  and why (a coin outside the 250), with no axe violation, and nothing is
+  written until the button; then the two new transactions are listed and
+  stored encrypted (no coin, note or `csv` in the ciphertext). The same file
+  again adds nothing: every row is recorded already.
+- **Exporting:** "Export to CSV" downloads `keyworth-transactions-<day>.csv`
+  under the CSP, with a byte-order mark, the header, and a note `=1+1` written
+  as `'=1+1` so a spreadsheet keeps it as text; imported back, that file adds
+  nothing.
 - **Hostile text:** a note `<img src=x onerror="…">` is listed as that text; no
   image element appears, nothing runs, no CSP violation
   ([input-validation.md](../../../shared/schemas/docs/input-validation.md)).

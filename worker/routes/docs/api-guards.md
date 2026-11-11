@@ -23,14 +23,15 @@ request ─► security headers (every response)
 | Session             | every route                                                              | A session row from the cookie; the user id comes only from it                                                         | 401 `unauthorized`                                               |
 | Same origin         | every POST, PUT, DELETE                                                  | `Origin` must equal the origin of `BETTER_AUTH_URL`                                                                   | 403 `forbidden_origin`                                           |
 | Rate limit (keys)   | writes to `/api/keys`                                                    | 20 per user per minute                                                                                                | 429 `rate_limited` + `Retry-After`                               |
-| Rate limit (vault)  | writes to `/api/vault`                                                   | 120 per user per minute                                                                                               | 429 `rate_limited` + `Retry-After`                               |
+| Rate limit (vault)  | writes to `/api/vault`; `POST /api/vault/batch` apart                    | 120 per user per minute; 60 batches per user per minute                                                               | 429 `rate_limited` + `Retry-After`                               |
 | Rate limit (market) | `GET /api/market/prices`, `/history`; `/rates`; `GET /api/assets/search` | 120 each; 60; 60 per user per minute (they can spend calls to the sources)                                            |
 | Fresh session       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery`                     | Session created in the last 10 minutes (`GET /api/me` says how long is left)                                          | 403 `session_not_fresh`                                          |
-| Body size           | `/api/keys` writes; `PUT /api/vault/:id`                                 | 4 KB; 96 KB                                                                                                           | 413 `body_too_large`                                             |
+| Body size           | `/api/keys` writes; `PUT /api/vault/:id`; `POST /api/vault/batch`        | 4 KB; 96 KB; 128 KB                                                                                                   | 413 `body_too_large`                                             |
 | Schema              | every body and id                                                        | Exact shapes from `shared/schemas` (lengths, buckets, Argon2 limits, no extra fields)                                 | 400 `invalid_body` / `invalid_id` / `invalid_kind`               |
 | Free text           | `GET /api/assets/search?q=`                                              | At most 50 characters, no hidden characters ([input-validation.md](../../../shared/schemas/docs/input-validation.md)) | 400 `invalid_query`                                              |
 | Revision            | `PUT /api/vault/:id`                                                     | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change                             | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
-| Quotas              | `PUT /api/vault/:id`                                                     | At most 20,000 records and 50 MiB of ciphertext per user, checked in the writing statement                            | 413 `quota_exceeded`                                             |
+| Quotas              | `PUT /api/vault/:id`; `POST /api/vault/batch`                            | At most 20,000 records and 50 MiB of ciphertext per user, checked under the per-user lock before writing              | 413 `quota_exceeded`                                             |
+| Batch               | `POST /api/vault/batch`                                                  | 1–100 new `transaction` records, each id once; all written or none: a taken id rolls the batch back                   | 400 `invalid_body`; 409 `conflict`                               |
 | Pages               | `GET /api/vault`                                                         | At most 5,000 records or 4 MiB of ciphertext (plus the record crossing it) per answer                                 | `next` cursor; 400 `invalid_cursor`                              |
 | One-time setup      | `POST /api/keys`                                                         | The check value and both slots once, in one transaction: all three or none                                            | 409 `already_set_up`                                             |
 | Expected slot       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery`                     | `expectedIv` must equal the stored slot's IV                                                                          | 409 `conflict` + stored `iv`, or 404                             |
@@ -53,6 +54,14 @@ both pass the count. So each vault write runs in a transaction that first takes
 a per-user advisory lock (`pg_advisory_xact_lock`): one write per user at a time
 counts and writes; other users are never blocked. When nothing was written, one
 more query tells which rule refused it.
+
+**Batches** (`POST /api/vault/batch`, for a CSV import) take the same lock, then
+count the user's records and bytes and insert them all in one statement; an id
+already taken makes the transaction roll back, so a batch is never half
+written. Validation costs CPU by the byte, so a batch is held to 128 KB (and
+100 records): about 3.5 ms of checking at worst, well inside a Worker's 10 ms.
+Their own rate limit (60 a minute) leaves single writes untouched during an
+import.
 
 ## Invariants
 
@@ -102,7 +111,8 @@ more query tells which rule refused it.
 `tests/integration/keys.test.ts` and `tests/integration/vault.test.ts`: every
 answer in the table above, including another origin, no origin, oversized
 bodies, seeded rate limits and their reset, freshness, conflicts, kind changes,
-both quotas, and other users' attempts. See
+both quotas (for single writes and batches, also arriving at once), a batch
+with a taken id writing nothing, and other users' attempts. See
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).
 
 ## How to change it safely
@@ -111,4 +121,4 @@ A new route gets `rateLimit()` and `maxBody()` on writes, a schema from
 `shared/schemas`, queries scoped by `c.get("user").id`, and tests for each
 refusal and for another user's attempt — in the same commit.
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-09

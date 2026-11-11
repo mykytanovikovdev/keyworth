@@ -3,7 +3,7 @@ import type {
   TransactionEntry,
 } from "../../../shared/metrics/ledger.ts";
 import { computePositions } from "../../../shared/metrics/positions.ts";
-import { type Decimal, decimal } from "../../../shared/money/decimal.ts";
+import { type Decimal, decimal, ZERO } from "../../../shared/money/decimal.ts";
 import {
   type Transaction,
   transactionSchema,
@@ -130,4 +130,23 @@ export function heldAt(
       (position) => position.assetId === assetId,
     )?.quantity ?? decimal("0")
   );
+}
+
+/**
+ * The coins held now, more than zero of each, leaving out `leaving` (the
+ * transaction being edited): the only coins a sale or a transfer out can take
+ * from, on any day. With none of a coin left today, taking some out earlier
+ * leaves a later sale or transfer short, and `ledgerProblems` refuses that.
+ */
+export function heldNow(
+  entries: readonly TransactionEntry[],
+  leaving?: string,
+): Map<string, Decimal> {
+  const held = new Map<string, Decimal>();
+  const counted = entries.filter(({ id }) => id !== leaving);
+  for (const position of computePositions(counted, NO_RATES).positions) {
+    if (position.quantity.gt(ZERO))
+      held.set(position.assetId, position.quantity);
+  }
+  return held;
 }

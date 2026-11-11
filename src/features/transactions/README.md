@@ -19,7 +19,7 @@ calculations.
 | `check.ts`             | The rules, pure: the schema, no date in the future, no sale beyond what was held              |
 | `service.ts`           | Load, save (add or replace) and delete through the vault; `TransactionError`                  |
 | `form-values.ts`       | The form's fields: four tabs to five kinds, amounts as typed (`typedAmount`), errors in words |
-| `coin-search.ts`       | Finding a coin: the shared snapshot's 250 first, the server's search only after them          |
+| `coin-search.ts`       | Finding a coin: the snapshot's 250, then the server's search; on a sale, the coins held       |
 | `format.ts`            | Dates in words, amounts with every digit they have                                            |
 | `AssetLogo.tsx`        | A coin's logo through the server, or its symbol in a circle                                   |
 | `TransactionForm.tsx`  | The "Add transaction" / "Edit transaction" dialog                                             |
@@ -28,6 +28,12 @@ calculations.
 | `TransactionsPage.tsx` | `/transactions`: the list, and the editor for each row                                        |
 | `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
 | `market.ts`            | The snapshot, coins outside it, the server's search, "Price that day" from history and rates  |
+| `csv.ts`               | CSV as RFC 4180 has it: reading, writing, and cells kept from turning into formulas           |
+| `csv-import.ts`        | A file checked before anything is written: size, UTF-8, columns, each row, duplicates, ledger |
+| `csv-export.ts`        | The transactions as a file in the same format, oldest first; the template                     |
+| `ImportDialog.tsx`     | "Import transactions": choose a file, see what it adds, skips and refuses, then import        |
+| `import-export.tsx`    | The page's import and export: coins looked up, the service called, the file downloaded        |
+| `download.ts`          | Text saved as a file: a Blob behind a temporary link, nothing over the network                |
 
 **The form** (owner's decisions, 2026-11-08): tabs Buy, Sell, Receive and Send
 (Receive with an Income box for staking and interest); the date typed as day /
@@ -39,8 +45,15 @@ separator only, a point or a comma. Deleting is at once, with Undo in the toast.
 On Sell and Send (owner's decision, 2026-11-09), "Held on <day>: <quantity>"
 under the quantity says what was held at that moment, and **All** fills it in to
 the last digit: `heldAt` in `check.ts`, the same count the ledger's rule uses,
-leaving out the transaction being edited. Every screen and state is on
-`/design/transactions` (dev and design builds).
+leaving out the transaction being edited. The coin list on Sell and Send offers
+only the coins held today (`heldNow` in `check.ts`, again leaving out the one
+being edited), each with its quantity, the largest value first as on the
+portfolio; typing filters them in the browser, with no server search. Nothing
+is lost: with none of a coin left today, taking some out on any earlier day
+leaves a later sale short, which the ledger refuses anyway. A coin picked on Buy
+stays picked when the kind changes, and "Held on …: 0" says there is nothing to
+sell. Every screen and state is on `/design/transactions` (dev and design
+builds).
 
 **Wiring.** `useTransactionEditor()` (`editor.tsx`) is the one way a page changes a
 transaction: the transactions page and the portfolio page both render its
@@ -55,6 +68,25 @@ and kept under `["vault", …]`, which the app clears when the vault locks (they
 say what the user holds). "Price that day" is the day's close from the coin's
 history, or the current price for today, converted at the day's rate (or the
 last one before it) when the price currency is not the dollar.
+
+**Import and export** (owner's decisions, 2026-11-09): the "⋯" next to "Add
+transaction" holds Import from CSV and Export to CSV; an empty list offers
+"Import from a file". The format is Keyworth's own (an export, or the template
+filled in by hand): `Date,Type,Coin,Symbol,Quantity,Price,Currency,Fee,Fee
+currency,Note`, a day or a moment in UTC, Buy, Sell, Receive, Send or Income, a
+coin by its id or by a symbol among the 250 largest. A file is read and checked
+on the device (`csv-import.ts`, rules in
+[input-validation.md](../../../shared/schemas/docs/input-validation.md#files)):
+each row by the form's rules, rows recorded already skipped (same type, coin,
+moment, quantity and price; each recorded transaction matches one row, so equal
+fills in one file both count), the ledger's rule over the whole file, the room
+left in the account. The dialog shows what it would add, skip and refuse, row by
+row; `importTransactions` writes the rows in batches of 100
+(`POST /api/vault/batch`, each whole or not at all), waits when told to slow
+down, and on a failure part of the way stores what is in: importing the file
+again adds the rest. Export writes every readable transaction, oldest first,
+each cell safe to open in a spreadsheet; splits (which nothing creates yet) and
+unreadable records are left out and counted in the message.
 
 Each transaction is its own encrypted record of kind `transaction` with a random
 id. `loadTransactions` reads every page of them and splits them into
@@ -93,6 +125,16 @@ with the change applied; nothing is written when a rule fails. They throw a
   decides again. A record deleted elsewhere counts as deleted.
 - **The vault and the API are arguments**, so the unit tests run the service
   against a fake server with a real vault; the app passes its own.
+- **Rows with a problem are skipped, not the file** (owner's decision): the
+  preview names each one and why, and importing a fixed file again adds only
+  what is missing, because recorded rows count as duplicates. A file that does
+  not fit the account is refused whole, before anything is written.
+- **A batch endpoint for the import**, not a loop of single writes: these are
+  limited to 120 a minute, so a thousand rows would take nine. A batch keeps
+  the same quotas under the same lock and is written whole or not at all.
+- **Our own format first**, exchanges' formats later (owner's decision): each
+  has its own columns, kinds and fees, and the format a user can always produce
+  is an export.
 
 ## Pitfalls & gotchas
 
@@ -112,10 +154,20 @@ with the change applied; nothing is written when a rule fails. They throw a
   that only the two together make short. The figures then count what was held
   and show the shortfall.
 - `damaged` records count in no figure; they can be deleted like any other.
+- **Duplicates are matched by content, not by id:** a file has no record ids.
+  A trade typed in by hand with another price or minute is not a duplicate of
+  the same trade in a file.
+- **A day without a time imports as the form keeps it:** noon UTC, or now if
+  noon is still ahead. A day still ahead everywhere keeps its noon and is
+  refused as the future.
+- **Write invisible characters as escapes** (`"\uFEFF"`) in source: a literal
+  byte-order mark looks like nothing, and ESLint skips it inside strings.
 
 ## How to work with it
 
-- Run the tests: `npx vitest run --project unit tests/unit/transactions`.
+- Run the tests: `npx vitest run --project unit tests/unit/transactions`
+  (the CSV in `csv.test.ts` and `csv-import.test.ts`, the import's batches in
+  `service.test.ts`); the batch endpoint in `tests/integration/vault.test.ts`.
 - Look at the screens: `npm run dev` → `/design/transactions`.
 - A new rule: add it to `check.ts` as a problem kind, test it there through the
   service, and give it words where the problems are shown.

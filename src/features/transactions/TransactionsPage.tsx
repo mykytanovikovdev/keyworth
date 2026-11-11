@@ -1,5 +1,6 @@
 import { Button, Notice, showToast, Skeleton } from "../../ui/index.ts";
 import { useTransactionEditor } from "./editor.tsx";
+import { useImportExport } from "./import-export.tsx";
 import { access } from "./queries.ts";
 import { deleteTransaction } from "./service.ts";
 import { TransactionList as ListView } from "./TransactionList.tsx";
@@ -13,6 +14,7 @@ import { TransactionList as ListView } from "./TransactionList.tsx";
 
 export function TransactionsPage() {
   const {
+    userId,
     transactions,
     assetOf,
     openAdd,
@@ -23,6 +25,13 @@ export function TransactionsPage() {
     failed,
     dialog,
   } = useTransactionEditor();
+  const { importDialog, openImport, exportCsv } = useImportExport({
+    userId,
+    current,
+    store,
+    assetOf,
+    failed,
+  });
 
   const removeDamaged = async () => {
     let list = current();
@@ -79,8 +88,11 @@ export function TransactionsPage() {
         onEdit={openEdit}
         onDelete={(id) => void remove(id)}
         onDeleteDamaged={() => void removeDamaged()}
+        onImport={openImport}
+        onExport={exportCsv}
       />
       {dialog}
+      {importDialog}
     </>
   );
 }

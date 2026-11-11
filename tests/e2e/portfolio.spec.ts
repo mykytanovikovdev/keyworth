@@ -123,6 +123,38 @@ test("keeps amounts hidden after a reload, and opens the transactions without on
   await expect(page).toHaveURL(/\/transactions$/);
 });
 
+// The waiting is the router's, the same in every engine.
+test("keeps the page until the next one's code arrives, fetched ahead @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  // Settings' code is held back until the test lets it through.
+  let asked = false;
+  const { promise: released, resolve: release } =
+    Promise.withResolvers<undefined>();
+  await page.route(/\/assets\/SettingsPage-[\w-]+\.js$/, async (route) => {
+    asked = true;
+    await released;
+    await route.continue();
+  });
+  await openApp(page, context, baseURL);
+  // Asked for in the background, before any click.
+  await expect.poll(() => asked).toBe(true);
+
+  await page.getByRole("link", { name: "Settings" }).click();
+  await expect(page).toHaveURL(/\/settings$/);
+  // Long enough for a wrong switch to an empty page to show.
+  await page.waitForTimeout(500);
+  await expect(appHome(page)).toBeVisible();
+
+  release(undefined);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Settings" }),
+  ).toBeVisible();
+  await expect(appHome(page)).toHaveCount(0);
+});
+
 test("says when prices couldn't load, and shows no zero for them", async ({
   page,
   context,

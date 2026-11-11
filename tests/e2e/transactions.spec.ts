@@ -160,7 +160,7 @@ test("takes a date typed from the keyboard, under the CSP", async ({
   expect(await cspViolations(page)).toEqual([]);
 });
 
-test("All sells what was held that day, to the last digit", async ({
+test("a sale offers the coins held, and All sells what was held that day", async ({
   page,
   context,
   baseURL,
@@ -170,6 +170,12 @@ test("All sells what was held that day, to the last digit", async ({
   await expect(visible(page, "+0.53124 BTC")).toBeVisible();
 
   await page.getByRole("button", { name: "Add transaction" }).first().click();
+  // A sale offers only the coins held, each with how much is left.
+  const form = dialogOf(page, "Add transaction");
+  await form.getByRole("radio", { name: "Sell" }).click();
+  await form.getByRole("button", { name: "Show coin options" }).click();
+  await expect(page.getByRole("option")).toHaveText([/Bitcoin.*0\.53124 BTC/]);
+  await page.keyboard.press("Escape");
   const dialog = await fillForm(page, {
     kind: "Sell",
     quantity: "",
@@ -283,4 +289,104 @@ test("fits a 320px screen, and the list and the form have no axe violations", as
   expect(
     (await axe(page).include('[role="dialog"]').analyze()).violations,
   ).toEqual([]);
+});
+
+/** Opens "Import transactions" from the menu and picks a file with this text. */
+async function importFile(page: Page, name: string, text: string) {
+  await page.getByRole("button", { name: "Import or export" }).click();
+  await page.getByRole("menuitem", { name: "Import from CSV…" }).click();
+  const dialog = dialogOf(page, "Import transactions");
+  const chooser = page.waitForEvent("filechooser");
+  await dialog.getByRole("button", { name: "Choose a file" }).click();
+  await (
+    await chooser
+  ).setFiles({ name, mimeType: "text/csv", buffer: Buffer.from(text) });
+  return dialog;
+}
+
+const FILE = [
+  "Date,Type,Coin,Symbol,Quantity,Price,Currency,Fee,Fee currency,Note",
+  '2025-01-10,Buy,crypto:bitcoin,BTC,1,50000,USD,,,=HYPERLINK("x")',
+  "2025-02-10,Sell,,BTC,0.25,61000,USDT,,,",
+  "2025-03-01,Buy,,XYZ,1,1,USD,,,",
+].join("\r\n");
+
+test("imports a CSV file: checked first, written encrypted, and not twice", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const errors = collectErrors(page);
+  const { userId } = await openApp(page, context, baseURL);
+  await add(page);
+  await expect(visible(page, "+0.5 BTC")).toBeVisible();
+
+  const dialog = await importFile(page, "my-trades.csv", FILE);
+  await expect(dialog.getByText("my-trades.csv · 3 rows")).toBeVisible();
+  await expect(dialog.getByText("2 new transactions to add")).toBeVisible();
+  await expect(
+    dialog.getByText(/Row 4:.*"XYZ" isn't among the 250 largest coins/),
+  ).toBeVisible();
+  expect(
+    (await axe(page).include('[role="dialog"]').analyze()).violations,
+  ).toEqual([]);
+  // Nothing is written before the button.
+  expect(await storedTransactions(userId)).toHaveLength(1);
+
+  await dialog.getByRole("button", { name: "Import 2 transactions" }).click();
+  await expect(page.getByText("2 transactions imported")).toBeVisible();
+  await expect(visible(page, "+1 BTC")).toBeVisible();
+  await expect(visible(page, "−0.25 BTC")).toBeVisible();
+  const stored = await storedTransactions(userId);
+  expect(stored).toHaveLength(3);
+  for (const { ciphertext } of stored) {
+    expect(ciphertext.toString("latin1")).not.toMatch(/bitcoin|HYPERLINK|csv/);
+  }
+
+  // The same file again: everything in it is recorded already.
+  const again = await importFile(page, "my-trades.csv", FILE);
+  await expect(again.getByText("Nothing new to add")).toBeVisible();
+  await expect(
+    again.getByText("2 rows are recorded already: skipped"),
+  ).toBeVisible();
+  await expect(
+    again.getByRole("button", { name: "Nothing to import" }),
+  ).toBeDisabled();
+  expect(await storedTransactions(userId)).toHaveLength(3);
+  expect(await cspViolations(page)).toEqual([]);
+  expect(errors).toEqual([]);
+});
+
+test("exports every transaction as a CSV file that imports back as recorded", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await openApp(page, context, baseURL);
+  await add(page, { note: "=1+1" });
+  await expect(visible(page, "+0.5 BTC")).toBeVisible();
+
+  await page.getByRole("button", { name: "Import or export" }).click();
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("menuitem", { name: "Export to CSV" }).click();
+  const download = await downloading;
+  await expect(page.getByText("1 transaction exported")).toBeVisible();
+  expect(download.suggestedFilename()).toMatch(
+    /^keyworth-transactions-\d{4}-\d{2}-\d{2}\.csv$/,
+  );
+  const path = await download.path();
+  const text = (await import("node:fs")).readFileSync(path, "utf8");
+  const [header, row] = text.replace(/^\uFEFF/, "").split("\r\n");
+  expect(header).toBe(
+    "Date,Type,Coin,Symbol,Quantity,Price,Currency,Fee,Fee currency,Note",
+  );
+  // The note stays text in a spreadsheet: a formula gets a leading quote.
+  expect(row).toMatch(/,Buy,crypto:bitcoin,BTC,0\.5,60000,USD,,,'=1\+1$/);
+
+  const dialog = await importFile(page, "export.csv", text);
+  await expect(dialog.getByText("Nothing new to add")).toBeVisible();
+  await expect(
+    dialog.getByText("1 row is recorded already: skipped"),
+  ).toBeVisible();
+  expect(await cspViolations(page)).toEqual([]);
 });

@@ -1,4 +1,4 @@
-import type { RecordKind } from "../../shared/schemas/vault.ts";
+import type { RecordKind, VaultBatch } from "../../shared/schemas/vault.ts";
 import { CryptoError } from "../crypto/index.ts";
 import type { VaultApi } from "./api.ts";
 import type { Vault } from "./vault.ts";
@@ -62,4 +62,17 @@ export async function writeRecord(
 ): Promise<number> {
   const envelope = await vault.encrypt(kind, id, revision + 1, value);
   return api.putRecord(id, { kind, revision, envelope });
+}
+
+/**
+ * A new record encrypted for a batch (`api.createRecords`): stored at
+ * revision 1, as a single create would be.
+ */
+export async function newRecord(
+  vault: Vault,
+  kind: VaultBatch["records"][number]["kind"],
+  id: string,
+  value: unknown,
+): Promise<VaultBatch["records"][number]> {
+  return { id, kind, envelope: await vault.encrypt(kind, id, 1, value) };
 }

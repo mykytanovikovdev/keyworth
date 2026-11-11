@@ -2,8 +2,9 @@ import {
   type Transaction,
   transactionSchema,
 } from "../../../shared/schemas/transaction.ts";
+import { VAULT_BATCH, type VaultBatch } from "../../../shared/schemas/vault.ts";
 import { ApiError, type VaultApi } from "../../vault/api.ts";
-import { readRecords, writeRecord } from "../../vault/records.ts";
+import { newRecord, readRecords, writeRecord } from "../../vault/records.ts";
 import type { Vault } from "../../vault/vault.ts";
 import {
   ledgerProblems,
@@ -153,4 +154,117 @@ export async function deleteTransaction(
     records: after,
     damaged: list.damaged.filter((damaged) => damaged !== id),
   };
+}
+
+/**
+ * An import stopped part of the way. What was written is in `list`; importing
+ * the same file again skips it as recorded already.
+ */
+export class ImportStopped extends Error {
+  readonly written: number;
+  readonly list: TransactionList;
+
+  constructor(written: number, list: TransactionList, cause: unknown) {
+    super(`Import stopped after ${String(written)} transactions.`, { cause });
+    this.name = "ImportStopped";
+    this.written = written;
+    this.list = list;
+  }
+}
+
+type BatchRecord = VaultBatch["records"][number];
+
+/** Room left for the JSON around the records in a batch's body. */
+const BODY_MARGIN = 1024;
+
+/** Records in batches the server takes: by count, and by the body's size. */
+export function inBatches(records: readonly BatchRecord[]): BatchRecord[][] {
+  const batches: BatchRecord[][] = [];
+  let batch: BatchRecord[] = [];
+  let size = 0;
+  for (const record of records) {
+    const bytes = JSON.stringify(record).length + 1;
+    if (
+      batch.length === VAULT_BATCH.maxRecords ||
+      (batch.length > 0 && size + bytes > VAULT_BATCH.maxBytes - BODY_MARGIN)
+    ) {
+      batches.push(batch);
+      batch = [];
+      size = 0;
+    }
+    batch.push(record);
+    size += bytes;
+  }
+  if (batch.length > 0) batches.push(batch);
+  return batches;
+}
+
+/** Times a batch answered "too many requests" is sent again. */
+const RETRIES = 3;
+
+const sleep = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+/**
+ * Adds many transactions at once: an import. Every value meets the same rules
+ * as one from the form, and the ledger's rule is checked over all of them
+ * together before anything is encrypted (a TransactionError refuses the lot).
+ * They are then written in batches, each whole or not at all; `progress` hears
+ * how many are in. A batch answered 429 waits as told and goes again; any
+ * other failure throws ImportStopped with the list as written so far.
+ */
+export async function importTransactions(
+  access: VaultAccess,
+  list: TransactionList,
+  values: readonly unknown[],
+  {
+    now = Date.now(),
+    progress,
+    wait = sleep,
+  }: {
+    now?: number;
+    progress?: (written: number) => void;
+    /** For tests: how a 429's wait is spent. */
+    wait?: (ms: number) => Promise<void>;
+  } = {},
+): Promise<TransactionList> {
+  const added: TransactionRecord[] = [];
+  for (const value of values) {
+    const parsed = parseTransaction(value, now);
+    if ("problem" in parsed) throw new TransactionError([parsed.problem]);
+    added.push({ id: crypto.randomUUID(), revision: 1, value: parsed.value });
+  }
+  const problems = ledgerProblems(list.records, [...list.records, ...added]);
+  if (problems.length > 0) throw new TransactionError(problems);
+
+  const encrypted = await Promise.all(
+    added.map(({ id, value }) =>
+      newRecord(access.vault, "transaction", id, value),
+    ),
+  );
+  let written = 0;
+  const sofar = (): TransactionList => ({
+    records: [...list.records, ...added.slice(0, written)],
+    damaged: list.damaged,
+  });
+  for (const batch of inBatches(encrypted)) {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await access.api.createRecords({ records: batch });
+        break;
+      } catch (error) {
+        const limited =
+          error instanceof ApiError &&
+          error.status === 429 &&
+          attempt < RETRIES;
+        if (!limited) throw new ImportStopped(written, sofar(), error);
+        await wait((error.retryAfter ?? 1) * 1000);
+      }
+    }
+    written += batch.length;
+    progress?.(written);
+  }
+  return sofar();
 }

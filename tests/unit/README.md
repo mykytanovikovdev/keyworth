@@ -58,7 +58,16 @@ Covered now:
   "Price that day" (`market.test.ts`, a stubbed `fetch`): today's current
   price, an earlier day's close with its source, a rate from the day or the last
   one before it, six significant digits under a dollar, none before a history
-  starts.
+  starts. The coins a sale offers (`held.test.ts`): those held now, the edited
+  transaction left out, the largest value first. CSV (`csv.test.ts`,
+  `csv-import.test.ts`): quotes, separators and line ends read back as written,
+  formulas kept as text; a file refused before reading (size, not UTF-8, NUL),
+  missing columns named, each kind of bad row skipped with its reason and
+  spreadsheet row number, duplicates matched once each, the ledger's rule over
+  the whole file, the account's room, and an export that imports back as it
+  was. Importing through the service (`service.test.ts`): batches of 100 with
+  progress, the lot refused before writing, a 429 waited out, a failure part
+  of the way leaving exactly what is in.
 - **Free text:** `shared/schemas/text.ts` (in `schemas.test.ts`) — hidden
   characters dropped as typed, refused by the schema, cleaning twice changes
   nothing ([input-validation.md](../../shared/schemas/docs/input-validation.md)).
