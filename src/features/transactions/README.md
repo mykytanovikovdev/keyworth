@@ -154,6 +154,13 @@ with the change applied; nothing is written when a rule fails. They throw a
   that only the two together make short. The figures then count what was held
   and show the shortfall.
 - `damaged` records count in no figure; they can be deleted like any other.
+- **"Choose a file" is a `<label>` around the file input, not React Aria's
+  `FileTrigger`.** FileTrigger calls the hidden input's `click()` from its
+  press handler; Chrome on iOS opened the picker only on every other tap that
+  way, and never after "Download the template". A tap on the label opens the
+  picker natively in every browser. It is styled with `buttonClassName`, its
+  hover and press as `hover:` and `active:` (a label has no React Aria state),
+  and the focus ring shows on the label while the hidden input has focus.
 - **Duplicates are matched by content, not by id:** a file has no record ids.
   A trade typed in by hand with another price or minute is not a duplicate of
   the same trade in a file.

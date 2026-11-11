@@ -7,6 +7,7 @@ export {
 export { Badge, type BadgeTone } from "./components/Badge.tsx";
 export { Button, IconButton } from "./components/Button.tsx";
 export type { ButtonSize, ButtonVariant } from "./components/button-styles.ts";
+export { buttonClassName } from "./components/button-styles.ts";
 export { Card, type CardTone } from "./components/Card.tsx";
 export { Checkbox } from "./components/Checkbox.tsx";
 export { ComboBox, type ComboBoxOption } from "./components/ComboBox.tsx";

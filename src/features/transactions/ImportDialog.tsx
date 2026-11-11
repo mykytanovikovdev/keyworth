@@ -1,8 +1,13 @@
 import { Check, CircleX, Equal, FileUp, Minus } from "lucide-react";
 import { type ReactNode, useState } from "react";
-import { FileTrigger } from "react-aria-components";
 import { cleanText } from "../../../shared/schemas/text.ts";
-import { Button, Dialog, DialogActions, Notice } from "../../ui/index.ts";
+import {
+  Button,
+  buttonClassName,
+  Dialog,
+  DialogActions,
+  Notice,
+} from "../../ui/index.ts";
 import { CSV_TEMPLATE } from "./csv-export.ts";
 import {
   type FileProblem,
@@ -59,8 +64,7 @@ export function ImportDialog({
   const [step, setStep] = useState<ImportStep>(initial);
   const busy = step.kind === "checking" || step.kind === "importing";
 
-  const choose = (files: FileList | null) => {
-    const file = files?.[0];
+  const choose = (file: File | undefined) => {
     if (!file) return;
     // The name is the file's maker's text: shown as text, short, nothing hidden.
     const name = cleanText(file.name, 80);
@@ -80,16 +84,12 @@ export function ImportDialog({
   };
 
   const picker = (label: string, variant: "primary" | "ghost") => (
-    <FileTrigger acceptedFileTypes={[".csv", "text/csv"]} onSelect={choose}>
-      <Button
-        variant={variant}
-        {...(variant === "ghost" && { size: "sm" as const })}
-        icon={<FileUp aria-hidden="true" />}
-        isDisabled={busy}
-      >
-        {label}
-      </Button>
-    </FileTrigger>
+    <FileButton
+      label={label}
+      variant={variant}
+      isDisabled={busy}
+      onSelect={choose}
+    />
   );
 
   return (
@@ -154,6 +154,54 @@ export function ImportDialog({
         </div>
       )}
     </Dialog>
+  );
+}
+
+/** Hover and press, as `hover:` and `active:` (a label has no React Aria state). */
+const FILE_BUTTON_STATES = {
+  primary: "hover:bg-accent/90 active:bg-accent/80",
+  ghost: "hover:bg-hover hover:text-fg active:bg-hover active:text-fg",
+} as const;
+
+/**
+ * Looks like a Button and opens the file picker. The file input is inside it,
+ * visually hidden, so a tap lands on its label and the browser opens the
+ * picker itself. React Aria's FileTrigger calls the input's `click()` from its
+ * press handler instead, which Chrome on iOS honoured only every other tap,
+ * and not at all after a download.
+ */
+function FileButton({
+  label,
+  variant,
+  isDisabled,
+  onSelect,
+}: {
+  label: string;
+  variant: "primary" | "ghost";
+  isDisabled: boolean;
+  onSelect: (file: File | undefined) => void;
+}) {
+  return (
+    <label
+      {...(isDisabled && { "data-disabled": "" })}
+      className={`${buttonClassName(variant, variant === "ghost" ? "sm" : "md")} ${FILE_BUTTON_STATES[variant]} cursor-pointer has-[input:focus-visible]:outline-2 has-[input:focus-visible]:outline-offset-2 has-[input:focus-visible]:outline-focus`}
+    >
+      <FileUp aria-hidden="true" />
+      {label}
+      <input
+        type="file"
+        accept=".csv,text/csv"
+        className="sr-only"
+        disabled={isDisabled}
+        onChange={(event) => {
+          const input = event.currentTarget;
+          const file = input.files?.[0];
+          // Choosing the same file again is a change too.
+          input.value = "";
+          onSelect(file);
+        }}
+      />
+    </label>
   );
 }
 

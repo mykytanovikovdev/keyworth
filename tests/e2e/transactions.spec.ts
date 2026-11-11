@@ -304,7 +304,8 @@ async function importFile(page: Page, name: string, text: string) {
   await page.getByRole("menuitem", { name: "Import from CSV…" }).click();
   const dialog = dialogOf(page, "Import transactions");
   const chooser = page.waitForEvent("filechooser");
-  await dialog.getByRole("button", { name: "Choose a file" }).click();
+  // A label around the file input: the tap lands on its text, as a person's.
+  await dialog.getByText("Choose a file").click();
   await (
     await chooser
   ).setFiles({ name, mimeType: "text/csv", buffer: Buffer.from(text) });
