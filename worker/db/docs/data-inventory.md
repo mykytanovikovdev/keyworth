@@ -20,6 +20,7 @@ not listed here, it should not exist. Schema: `schema.ts` and the generated
 | `vault_records`   | per record: id, kind, revision, envelope version, IV, **ciphertext**, dates                                                      | Only kind, size, revision and dates                              | user                                                       |
 | `device_unlocks`  | per session: SHA-256 of the device cookie's token, IV, **data key wrapped by a device-only key**, date (unused after 14 days)    | Only the hash and date                                           | session and user; cleanup after 14 days                    |
 | `api_rate_limits` | per user and bucket: window start and count                                                                                      | Yes                                                              | user; cleanup after an hour                                |
+| `upstream_calls`  | per market source: calls this minute and this day (UTC), for all users together                                                  | Yes; nothing in it belongs to a user                             | kept: one row per source, reset by each new minute and day |
 | `market_cache`    | answers of market data sources by request: the snapshot, a coin, a search (with its text), a coin's or a currency's daily series | Yes; nothing in it belongs to a user                             | cleanup once expired (a day; Frankfurter's series 90 days) |
 
 `allowed_emails` and `blocked_emails` are keyed by email, not by user, so they
@@ -36,8 +37,14 @@ sign in again and get an empty account) or still blocked.
   passphrase or the recovery key was last replaced (`updated_at` of a slot).
 - Whether and when a device was remembered, and in which session, so from
   which IP address and browser.
-- When a user last wrote, for up to about a day (`api_rate_limits.window_start`),
-  and, from the requests, when they unlock (the vault is loaded at every unlock).
+- When a user last wrote or asked for market data by name, for up to about a
+  day (`api_rate_limits.window_start`), and, from the requests, when they unlock
+  (the vault is loaded at every unlock).
+- Which coins outside the snapshot, and which searches, are whose, in a small
+  group of users: `market_cache` keeps when each was first asked for
+  (`fetched_at`), and matching that with users' times above often leaves one
+  user. Accepted: making the times coarser does not help when few people use
+  the app at once ([threat model](../../../src/crypto/docs/threat-model.md)).
 - Sessions keep their IP address and browser until they are deleted: on sign-out
   or revocation, or, once expired, by the daily cleanup at the latest.
 - Nothing about the content of records or about the keys that open them.
@@ -97,4 +104,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-11

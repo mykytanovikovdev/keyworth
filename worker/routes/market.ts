@@ -17,6 +17,7 @@ import {
 } from "../../shared/schemas/market.ts";
 import type { AppEnv } from "../env.ts";
 import { rateLimit } from "../limits.ts";
+import { spendCoinGeckoCall } from "../market/budget.ts";
 import {
   type Cached,
   cached,
@@ -104,9 +105,10 @@ const publicQuote = (quote: StoredQuote): QuoteJson => ({
 });
 
 function topSnapshot(c: Context<AppEnv>) {
-  return cached(c.get("db"), TOP, PRICES, () =>
-    topQuotes(c.env.COINGECKO_API_KEY),
-  );
+  return cached(c.get("db"), TOP, PRICES, async () => {
+    await spendCoinGeckoCall(c, { forUser: false });
+    return topQuotes(c.env.COINGECKO_API_KEY);
+  });
 }
 
 /** A coin outside the snapshot; `quote` is null for one the source does not know. */
@@ -136,6 +138,7 @@ async function quotesOutsideTop(
   const found = new Map<string, StoredQuote>();
   if (missing.length > 0) {
     try {
+      await spendCoinGeckoCall(c, { forUser: true });
       const quotes = await quotesFor(
         c.env.COINGECKO_API_KEY,
         missing.map((id) => id.slice("crypto:".length)),
@@ -254,8 +257,10 @@ market.get("/history", limitHistory, async (c) => {
     db,
     historyKey(id),
     COINGECKO_HISTORY,
-    async () =>
-      mergeSeries(null, await dailyHistory(c.env.COINGECKO_API_KEY, id)),
+    async () => {
+      await spendCoinGeckoCall(c, { forUser: true });
+      return mergeSeries(null, await dailyHistory(c.env.COINGECKO_API_KEY, id));
+    },
   );
   return c.json<HistoryJson>({
     asset,
@@ -313,9 +318,10 @@ assets.get("/search", limitSearch, async (c) => {
     return c.json({ error: "invalid_query" }, 400);
   }
   const db = c.get("db");
-  const found = await cached(db, searchKey(query), SEARCH, () =>
-    searchCoins(c.env.COINGECKO_API_KEY, query),
-  );
+  const found = await cached(db, searchKey(query), SEARCH, async () => {
+    await spendCoinGeckoCall(c, { forUser: true });
+    return searchCoins(c.env.COINGECKO_API_KEY, query);
+  });
   // Where their logos are, for coins outside the snapshot.
   await storeCached(
     db,

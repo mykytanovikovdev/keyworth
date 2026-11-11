@@ -25,6 +25,7 @@ request ─► security headers (every response)
 | Rate limit (keys)   | writes to `/api/keys`                                                    | 20 per user per minute                                                                                                | 429 `rate_limited` + `Retry-After`                               |
 | Rate limit (vault)  | writes to `/api/vault`; `POST /api/vault/batch` apart                    | 120 per user per minute; 60 batches per user per minute                                                               | 429 `rate_limited` + `Retry-After`                               |
 | Rate limit (market) | `GET /api/market/prices`, `/history`; `/rates`; `GET /api/assets/search` | 120 each; 60; 60 per user per minute (they can spend calls to the sources)                                            |
+| Source budget       | market reads that call CoinGecko                                         | 30 calls a minute and 320 a day for all users together; 60 an hour per user for coins and searches by name            | What the cache still has, or 502 `market_unavailable`            |
 | Fresh session       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery`                     | Session created in the last 10 minutes (`GET /api/me` says how long is left)                                          | 403 `session_not_fresh`                                          |
 | Body size           | `/api/keys` writes; `PUT /api/vault/:id`; `POST /api/vault/batch`        | 4 KB; 96 KB; 128 KB                                                                                                   | 413 `body_too_large`                                             |
 | Schema              | every body and id                                                        | Exact shapes from `shared/schemas` (lengths, buckets, Argon2 limits, no extra fields)                                 | 400 `invalid_body` / `invalid_id` / `invalid_kind`               |
@@ -36,6 +37,14 @@ request ─► security headers (every response)
 | One-time setup      | `POST /api/keys`                                                         | The check value and both slots once, in one transaction: all three or none                                            | 409 `already_set_up`                                             |
 | Expected slot       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery`                     | `expectedIv` must equal the stored slot's IV                                                                          | 409 `conflict` + stored `iv`, or 404                             |
 | Device unlock       | `GET /api/keys/device`                                                   | Same session **and** the device cookie's token hash, remembered less than 14 days ago                                 | `{ slot: null }` (200: "not remembered" is no error)             |
+
+**CoinGecko's budget** (`worker/market/budget.ts`) is spent before every call
+to its API: one row per source in `upstream_calls` counts this minute's and
+this day's calls for all users together, and a call for one user (a coin or a
+search by name) also counts against that user's hour in `api_rate_limits`.
+The per-route limits alone are per user: one account asking for new coins
+could spend the month's 10,000 calls in an hour and leave everyone without
+prices. Past the budget, a route answers like a failing source.
 
 **Rate limiting** keeps one row per user and bucket in `api_rate_limits`
 (window start and count), updated by a single upsert that resets the count when

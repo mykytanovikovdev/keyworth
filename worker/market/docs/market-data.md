@@ -75,8 +75,11 @@ user's first trade) cuts the series; the server keeps it whole.
   user's own.
 - **A coin outside the snapshot, a coin's history and a currency's rates are
   asked for by name.** At that moment the server sees which coins and
-  currencies this user asks about. It does not keep that: the cache key is the
-  coin or the currency, not the user, and nothing about the request is logged.
+  currencies this user asks about. The cache key is the coin or the currency,
+  not the user, and nothing about the request is logged; but the entry keeps
+  when it was fetched, and the user's rate-limit counter when they last asked,
+  so in a small group the two times can match (accepted, see the
+  [threat model](../../../src/crypto/docs/threat-model.md)).
 - **A search is kept for a day under its text**, so the next person typing the
   same thing costs no call. It is stored under the text, not under who typed it.
 - **Logos are asked for by coin id**, one image per coin a page shows (the
@@ -116,6 +119,12 @@ user's first trade) cuts the series; the server keeps it whole.
 
 ## Decisions and alternatives
 
+- **A budget for CoinGecko shared by all users** (`budget.ts`): 30 calls a
+  minute and 320 a UTC day (about 9,600 a month), and 60 an hour per user for
+  coins and searches by name; the snapshot counts only against the shared
+  budget. The per-route limits are per user, so without it one account could
+  spend the month in an hour. Past it, the routes serve what the cache has or
+  502, as when the source fails. Frankfurter has no allowance to protect.
 - **CoinGecko's Demo plan.** Free, with a key, 10,000 calls a month, 100 a
   minute, a year of daily history; attribution required ("Powered by CoinGecko"
   next to its data, when prices reach the screens). Its license fits a

@@ -5,6 +5,7 @@ import type {
   PricesJson,
   RatesJson,
 } from "../../shared/schemas/market.ts";
+import { COINGECKO_BUDGET } from "../../worker/market/budget.ts";
 import {
   api,
   expectWorkerHeaders,
@@ -104,6 +105,8 @@ beforeEach(async () => {
   await query(
     "delete from market_cache where key like 'coingecko:%' or key like 'frankfurter:%'",
   );
+  // The shared budget counts every call this file makes.
+  await query("delete from upstream_calls");
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -527,6 +530,55 @@ describe("limits", () => {
     );
 
     expect((await prices(cookie)).status).toBe(502);
+  });
+});
+
+describe("CoinGecko's budget", () => {
+  it("is spent by all users together: past a day's budget, the cache answers, or nothing", async () => {
+    const { cookie } = await signedIn("budget-shared");
+    const { calls } = mockSources(defaultAnswer);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect((await prices(cookie)).status).toBe(200);
+    await query(
+      `update market_cache set fetched_at = now() - interval '11 minutes'
+        where key = 'coingecko:top'`,
+    );
+    await query(`update upstream_calls set day_count = $1`, [
+      COINGECKO_BUDGET.perDay,
+    ]);
+
+    const stale = await prices(cookie);
+    await query("delete from market_cache where key = 'coingecko:top'");
+    const none = await prices(cookie);
+
+    expect(stale.status).toBe(200);
+    expect(stale.body?.quotes.length).toBeGreaterThan(0);
+    expect(none.status).toBe(502);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("gives each user an hour's budget for coins and searches by name; the snapshot does not count", async () => {
+    const user = await signedIn("budget-user");
+    const { calls } = mockSources(defaultAnswer);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await query(
+      `insert into api_rate_limits (user_id, bucket, window_start, count)
+       values ($1, 'coingecko', now(), $2)`,
+      [user.userId, COINGECKO_BUDGET.perUserPerHour],
+    );
+
+    const snapshot = await prices(user.cookie);
+    const byName = await prices(user.cookie, "crypto:new-coin");
+    const search = await api("/api/assets/search?q=newcoin", {
+      cookie: user.cookie,
+    });
+
+    expect(snapshot.status).toBe(200);
+    expect(byName.status).toBe(502);
+    expect(search.status).toBe(502);
+    expect(calls.map(({ url }) => url.pathname)).toEqual([
+      "/api/v3/coins/markets",
+    ]);
   });
 });
 

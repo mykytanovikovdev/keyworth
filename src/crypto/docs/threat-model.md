@@ -66,6 +66,11 @@ whom, and what it does not protect. The mechanisms are described in
   under the coin or currency, not the user, and no log records the request.
   Searches are kept for a day under their text, not under who typed them
   ([worker/market/docs/market-data.md](../../../worker/market/docs/market-data.md)).
+  The cache does keep when each was first asked for, and the rate-limit
+  counters when each user last asked for market data: with few users, matching
+  the times can tell whose a coin outside the snapshot or a search is. Coarser
+  times would not help when one person at a time uses the app, so this is
+  accepted.
   A CSV import looks up by id the coins it names outside the snapshot, before
   its preview.
 - Token usage (phase 5).

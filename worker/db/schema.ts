@@ -209,6 +209,19 @@ export const apiRateLimits = pgTable(
 );
 
 /**
+ * Calls to a market source by all of Keyworth together, this minute and this
+ * day (UTC), so one source's allowance is never spent past a budget
+ * (worker/market/budget.ts). One row per source; no user data.
+ */
+export const upstreamCalls = pgTable("upstream_calls", {
+  source: text("source").primaryKey(),
+  minuteStart: timestamp("minute_start", { withTimezone: true }).notNull(),
+  minuteCount: integer("minute_count").notNull(),
+  dayStart: timestamp("day_start", { withTimezone: true }).notNull(),
+  dayCount: integer("day_count").notNull(),
+});
+
+/**
  * Market data shared by every user: answers of price sources, by request (the
  * snapshot, a coin, a search). It holds no user id; a search is kept with its
  * text, unlinked to who typed it. Rows go once they expire (worker/cleanup.ts).
