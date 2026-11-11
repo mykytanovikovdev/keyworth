@@ -41,3 +41,12 @@ export async function chooseTheme(
     window.localStorage.setItem("keyworth-theme", value);
   }, theme);
 }
+
+/**
+ * A click with a person's pause between press and release. Playwright
+ * releases within a millisecond; when the page is busy at that moment (just
+ * unlocked, code loading in the background), React Aria's combo box opens its
+ * list on the press and closes it again on the late release. With the CPU
+ * slowed sixfold that failed 6 runs of 6; with this pause, none.
+ */
+export const LIKE_A_PERSON = { delay: 120 } as const;

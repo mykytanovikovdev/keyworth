@@ -174,6 +174,15 @@ label-based locators: they double as a basic accessibility check.
   address is a random IPv6 documentation-range network (Better Auth counts
   IPv6 by /64, so the random part comes first), sent as `cf-connecting-ip`,
   which only Cloudflare's edge sets in production.
+- **Open a combo box's list with `click(LIKE_A_PERSON)`** (`support.ts`), not a
+  bare `click()`. Playwright releases the button within a millisecond; when
+  the page is busy at that moment (just unlocked, code loading in the
+  background), React Aria opens the list on the press and closes it again on
+  the late release. CI's slower runners hit it; locally it shows with the CPU
+  slowed (`Emulation.setCPUThrottlingRate`), 6 runs of 6.
+- **Do not run the Worker tests while e2e runs:** both use `keyworth_test`,
+  and the Worker tests' setup empties the users table, so e2e users and
+  sessions vanish mid-test.
 - `reuseExistingServer` is on locally: a stale server on port 4173 or 4174 will
   be reused with an old build. Stop it, or let the command rebuild.
 - Axe scans run with reduced motion: text caught mid-fade fails the contrast
