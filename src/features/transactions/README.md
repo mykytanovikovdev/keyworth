@@ -172,6 +172,12 @@ with the change applied; nothing is written when a rule fails. They throw a
 - **A day without a time imports as the form keeps it:** noon UTC, or now if
   noon is still ahead. A day still ahead everywhere keeps its noon and is
   refused as the future.
+- **Numbers in a file are read more strictly than in a field** (`fileAmount`):
+  the preview shows only counts, so a grouped number guessed wrong ("1.234,50"
+  as 1.2345, "1,234" as 1.234) would go in unseen. A point or a lone comma is
+  the decimal separator, spaces may group thousands, any other grouping and the
+  ambiguous "1,234" are refused with a message
+  ([input-validation.md](../../../shared/schemas/docs/input-validation.md#files)).
 - **Write invisible characters as escapes** (`"\uFEFF"`) in source: a literal
   byte-order mark looks like nothing, and ESLint skips it inside strings.
 

@@ -87,12 +87,21 @@ follows these rules:
 How the code meets them: the picker hints `.csv`; `readText` refuses a file
 over 5 MB before reading it, and bytes that are not UTF-8 or hold a NUL;
 `readTable` needs the known columns; every row is rebuilt field by field
-(amounts with the form's rules, currencies from the form's list, the note
-through `cleanText`) and then parsed by the transaction schema; the ledger's
+(amounts strictly, below; currencies from the form's list, the note through
+`cleanText`) and then parsed by the transaction schema; the ledger's
 rule runs over the whole file; the account's room is checked before anything
 is written; the dialog shows what would be added, skipped and refused, and the
 service writes only after the button. A cell quoted in a message is cut to 40
 characters and cleaned. The file name is shown as text, cleaned and cut.
+
+**Numbers in a file are read strictly,** stricter than a field: a field shows
+what it understood as you type, a file's preview shows only counts, so a number
+read a thousand times off would go in unseen. A point is always the decimal
+point (the export and the template write it); a lone comma is one too ("0,5");
+spaces between groups of three digits group thousands ("1 234,50"). Any other
+grouping ("1.234,50", "1,234.50", "1'000") is refused with a message, and so is
+a comma before exactly three digits after one to three others ("1,234" could be
+either). Tested in `tests/unit/transactions/csv-import.test.ts`.
 
 **Export** (`csv-export.ts`) writes CSV that spreadsheets open: a cell that
 starts with `=`, `+`, `-`, `@`, a tab or a carriage return is prefixed with
@@ -185,4 +194,4 @@ language. Secrets, which must be typed again exactly, are printable ASCII only.
    them), how it is shown, and the server's 400.
 8. Add it to the tables above.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-11

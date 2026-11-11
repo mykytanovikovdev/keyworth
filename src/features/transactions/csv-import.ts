@@ -11,7 +11,7 @@ import {
 import { VAULT_LIMITS } from "../../../shared/schemas/vault.ts";
 import { ledgerProblems, parseTransaction } from "./check.ts";
 import { parseCsv, plainCell } from "./csv.ts";
-import { type AssetChoice, executedAt, parseAmount } from "./form-values.ts";
+import { type AssetChoice, executedAt } from "./form-values.ts";
 import {
   dateInWords,
   groupDigits,
@@ -267,6 +267,61 @@ function momentOf(cell: string, now: number): string | null {
 /** A cell quoted in a message: short, and without characters that hide. */
 const quoted = (cell: string) => `"${cleanText(cell, 40)}"`;
 
+/**
+ * A number from a file, as plain digits. A point is always the decimal point,
+ * as the export and the template write it; a lone comma is one too ("0,5"),
+ * as many spreadsheets in Europe save it. Spaces between groups of three
+ * digits ("1 234,50") group thousands and nothing else, so they go. Any other
+ * grouping is refused rather than guessed at: "1.234,50" or "1,234" read the
+ * wrong way would be off by a thousand, and the preview shows only counts. A
+ * comma before exactly three digits, after one to three others, is such a
+ * guess.
+ */
+type FileAmount =
+  { digits: string } | { problem: "grouped" | "ambiguous" | "not-a-number" };
+
+const SPACE_GROUPED = /^\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?$/;
+
+function fileAmount(text: string): FileAmount {
+  const spaced = SPACE_GROUPED.test(text);
+  const plain = /^(\d+)(?:([.,])(\d+))?$/.exec(
+    spaced ? text.replace(/[ \u00a0\u202f]/g, "") : text,
+  );
+  if (!plain) {
+    return {
+      problem:
+        /\d/.test(text) && /^[\d\s.,'\u00a0\u202f]+$/.test(text)
+          ? "grouped"
+          : "not-a-number",
+    };
+  }
+  const [, whole = "", separator, decimals] = plain;
+  if (
+    !spaced &&
+    separator === "," &&
+    decimals?.length === 3 &&
+    whole.length <= 3 &&
+    whole !== "0"
+  ) {
+    return { problem: "ambiguous" };
+  }
+  const digits = decimals === undefined ? whole : `${whole}.${decimals}`;
+  return { digits: decimal(digits).toString() };
+}
+
+/** What to say when a number cannot be taken as it is written. */
+function amountMessage(text: string, problem: FileAmount, wanted: string) {
+  if ("digits" in problem) return wanted;
+  switch (problem.problem) {
+    case "grouped":
+      return `${quoted(text)} has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`;
+    case "ambiguous":
+      return `${quoted(text)} could mean ${text.replace(",", "")} or ${text.replace(",", ".")}: write it without a thousands separator, with a point for decimals.`;
+    case "not-a-number":
+      return wanted;
+  }
+}
+
 /** One row as a transaction, or the first thing wrong with it. */
 function rowValue(
   table: CsvTable,
@@ -306,10 +361,15 @@ function rowValue(
     };
   }
 
-  const quantity = parseAmount(cell("Quantity"));
+  const quantityRead = fileAmount(cell("Quantity"));
+  const quantity = "digits" in quantityRead ? quantityRead.digits : null;
   if (!quantity || !/[1-9]/.test(quantity)) {
     return {
-      message: `${quoted(cell("Quantity"))} isn't a quantity greater than zero.`,
+      message: amountMessage(
+        cell("Quantity"),
+        quantityRead,
+        `${quoted(cell("Quantity"))} isn't a quantity greater than zero.`,
+      ),
     };
   }
 
@@ -321,13 +381,18 @@ function rowValue(
     source: "csv",
   };
   if (type !== "transfer_out") {
-    const price = parseAmount(cell("Price"));
+    const priceRead = fileAmount(cell("Price"));
+    const price = "digits" in priceRead ? priceRead.digits : null;
     const trade = type === "buy" || type === "sell";
     if (!price || (trade && !/[1-9]/.test(price))) {
       return {
-        message: trade
-          ? `${quoted(cell("Price"))} isn't a price greater than zero.`
-          : `${quoted(cell("Price"))} isn't a value per coin (0 for a gift).`,
+        message: amountMessage(
+          cell("Price"),
+          priceRead,
+          trade
+            ? `${quoted(cell("Price"))} isn't a price greater than zero.`
+            : `${quoted(cell("Price"))} isn't a value per coin (0 for a gift).`,
+        ),
       };
     }
     const currency = currencyOf(cell("Currency"));
@@ -339,9 +404,17 @@ function rowValue(
     value.price = price;
     value.priceCurrency = currency;
     if (trade && cell("Fee") !== "") {
-      const fee = parseAmount(cell("Fee"));
-      if (!fee) return { message: `${quoted(cell("Fee"))} isn't a fee.` };
-      value.fee = fee;
+      const feeRead = fileAmount(cell("Fee"));
+      if (!("digits" in feeRead)) {
+        return {
+          message: amountMessage(
+            cell("Fee"),
+            feeRead,
+            `${quoted(cell("Fee"))} isn't a fee.`,
+          ),
+        };
+      }
+      value.fee = feeRead.digits;
       if (cell("Fee currency") !== "") {
         const feeCurrency = currencyOf(cell("Fee currency"));
         if (!feeCurrency) {

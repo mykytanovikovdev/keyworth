@@ -226,6 +226,49 @@ describe("each row", () => {
     });
   });
 
+  it("takes plain numbers with a point or a lone comma, and spaces between thousands", () => {
+    const amounts = (quantity: string, price: string) =>
+      plan(file(`2025-01-01,Buy,,BTC,"${quantity}","${price}",USD,,,`)).added[0]
+        ?.value;
+    expect(amounts("1.234", "60000")).toMatchObject({
+      quantity: "1.234",
+      price: "60000",
+    });
+    expect(amounts("0,5", "1234,567")).toMatchObject({
+      quantity: "0.5",
+      price: "1234.567",
+    });
+    expect(amounts("0,123", "1 234,50")).toMatchObject({
+      quantity: "0.123",
+      price: "1234.5",
+    });
+    expect(amounts("2", "1\u00a0234\u00a0567.5")).toMatchObject({
+      price: "1234567.5",
+    });
+  });
+
+  it("refuses a number grouped any other way, instead of reading it a thousand times off", () => {
+    const { added, problems } = plan(
+      file(
+        '2025-01-01,Buy,,BTC,"1.234,50",1,USD,,,',
+        '2025-01-01,Buy,,BTC,1,"1,234.50",USD,,,',
+        '2025-01-01,Buy,,BTC,"1,234",1,USD,,,',
+        '2025-01-01,Buy,,BTC,1,"60,000",USD,,,',
+        "2025-01-01,Buy,,BTC,1,1,USD,1'000,,",
+        '2025-01-01,Buy,,BTC,1,"1,000,000",USD,,,',
+      ),
+    );
+    expect(added).toEqual([]);
+    expect(problems.map(({ message }) => message)).toEqual([
+      `"1.234,50" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+      `"1,234.50" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+      `"1,234" could mean 1234 or 1.234: write it without a thousands separator, with a point for decimals.`,
+      `"60,000" could mean 60000 or 60.000: write it without a thousands separator, with a point for decimals.`,
+      `"1'000" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+      `"1,000,000" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+    ]);
+  });
+
   it("gets a note back as text, with the export's formula quote taken off", () => {
     const { added } = plan(
       file(`2025-01-01,Buy,,BTC,1,1,USD,,,"'=HYPERLINK(""x"")"`),
