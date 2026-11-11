@@ -3,7 +3,7 @@
 ## Purpose
 
 The app's pages and how they connect: the route tree, the signed-in layouts,
-and the pages that belong to no feature (home, not found).
+and the pages that belong to no feature (not found, the dev-only mockups).
 
 ## How it works
 

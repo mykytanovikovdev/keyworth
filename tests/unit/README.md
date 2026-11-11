@@ -27,7 +27,7 @@ Covered now:
   the ring's one listener; the ring's pace closes it as a fast derivation ends,
   crawls on a slow device, waits when ahead, and never exceeds its limit.
 - `shared/schemas/` (`schemas.test.ts`) — accepted and rejected envelopes,
-  Argon2 settings and record kinds.
+  Argon2 settings, record kinds, transactions by type and the currencies.
 - `src/vault/` (`vault/`) — the key's states and flows against a fake server
   with the real API's rules, several tabs on real BroadcastChannels (handing
   the key over, Lock everywhere, refusing stale or foreign keys), "Remember

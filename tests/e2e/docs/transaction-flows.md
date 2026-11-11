@@ -50,8 +50,8 @@ the database together, with Argon2 at its production settings.
   changes from another device and damaged records are tested against a fake
   server in `tests/unit/transactions/service.test.ts`; the e2e suite proves the
   form shows a refusal, not each refusal.
-- **Firefox on a developer's Mac when the command sandbox blocks it.** CI runs
-  every engine on every pull request.
+- **Firefox where Playwright's build cannot start locally.** CI runs every
+  engine on every pull request.
 
 ## Adding a case
 
@@ -60,4 +60,4 @@ Sign in with `openApp(page, context, baseURL)` (a user with keys, unlocked on
 and the database (`storedTransactions(userId)`). Rows exist twice in the page,
 for a phone and a wide screen: find text with `visible(page, text)`.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-11

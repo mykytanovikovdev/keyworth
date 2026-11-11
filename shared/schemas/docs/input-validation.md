@@ -113,8 +113,9 @@ formula; the import takes that `'` off again.
 - **Strict schemas and allowlists.** Bodies are strict objects with exact sizes
   (`shared/schemas`); ids match a pattern; currencies, kinds and cursors come
   from fixed lists or formats. Something unknown is a 400, not a guess.
-- **Limits before work.** Body size (4 KB, 96 KB), query length, ids per request,
-  rate limits per user, quotas per user ([api-guards.md](../../../worker/routes/docs/api-guards.md)).
+- **Limits before work.** Body size (4 KB, 96 KB, 128 KB), query length, ids
+  per request, rate limits per user, quotas per user
+  ([api-guards.md](../../../worker/routes/docs/api-guards.md)).
 - **No string becomes code.** Queries are Drizzle's or parameterized `sql`
   templates; `sql.raw` takes only constants from the code.
 - **Input never chooses where the server connects.** Market sources are fixed

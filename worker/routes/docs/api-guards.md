@@ -83,10 +83,11 @@ import.
 - **Origin check in addition to SameSite=Lax:** the session cookie already
   stays off other sites' requests; checking `Origin` does not depend on that
   setting, and Better Auth does the same for its routes.
-- **Rate limits in Postgres, on writes only:** Workers keep no memory between
-  requests; Cloudflare's rate-limiting binding counts per location and only
-  approximately, and its availability on the free plan is unconfirmed. Reads
-  stay at one database round trip, which matters for users far from Frankfurt.
+- **Rate limits in Postgres, on writes and on reads that can reach a market
+  source:** Workers keep no memory between requests; Cloudflare's rate-limiting
+  binding counts per location and only approximately, and its availability on
+  the free plan is unconfirmed. Other reads (keys, vault pages) stay at one
+  database round trip, which matters for users far from Frankfurt.
 - **A per-user advisory lock rather than `SERIALIZABLE`:** serializable
   transactions would also stop the race, but fail with retryable errors the
   route would have to repeat; the lock simply queues one user's writes, which
@@ -115,8 +116,9 @@ import.
 
 ## How it is tested
 
-`tests/integration/keys.test.ts` and `tests/integration/vault.test.ts`: every
-answer in the table above, including another origin, no origin, oversized
+`tests/integration/keys.test.ts`, `tests/integration/vault.test.ts` and, for
+the market reads' limits, `tests/integration/market.test.ts`: every answer in
+the table above, including another origin, no origin, oversized
 bodies, seeded rate limits and their reset, freshness, conflicts, kind changes,
 both quotas (for single writes and batches, also arriving at once), a batch
 with a taken id writing nothing, and other users' attempts. See

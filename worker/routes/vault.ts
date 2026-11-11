@@ -54,7 +54,9 @@ interface PageRow extends Record<string, unknown> {
  * (VAULT_PAGE). One statement: a window over the user's records counts the
  * ciphertext before each one and whether any comes after, so the Worker never
  * holds more than a page. Records keep their creation time, so a page does not
- * shift when one is edited; one created meanwhile comes on a later page.
+ * shift when one is edited; one created meanwhile comes on a later page, or,
+ * when its write began before a page was read and finished after, with the
+ * next reading (created_at is when its transaction began).
  *
  * Postgres encodes the bytes, in C: encoding them here, a byte at a time, cost
  * more CPU than a Worker on the free plan has for a page of small records.
