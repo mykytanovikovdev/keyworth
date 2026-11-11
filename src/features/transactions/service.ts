@@ -25,6 +25,21 @@ export interface VaultAccess {
   api: VaultApi;
 }
 
+/**
+ * Hands decrypted transactions to `keep` (the page's cache) only while the
+ * data key is open. App.tsx clears ["vault", …] when the vault locks; a write
+ * that finishes after that must not bring them back. True when kept.
+ */
+export function keepIfUnlocked(
+  access: VaultAccess,
+  list: TransactionList,
+  keep: (list: TransactionList) => void,
+): boolean {
+  if (access.vault.getState().status !== "unlocked") return false;
+  keep(list);
+  return true;
+}
+
 export interface TransactionRecord {
   id: string;
   /** The revision it was read with: a change sends it back. */

@@ -33,6 +33,7 @@ import { heldAt, heldNow } from "./check.ts";
 import { access, transactionsQuery } from "./queries.ts";
 import {
   deleteTransaction,
+  keepIfUnlocked,
   saveTransaction,
   TransactionError,
   type TransactionList,
@@ -166,9 +167,10 @@ export function useTransactionEditor() {
   const [pending, setPending] = useState(false);
   const key = transactionsQuery(userId).queryKey;
   const current = () => queryClient.getQueryData<TransactionList>(key);
-  const store = (list: TransactionList) => {
-    queryClient.setQueryData(key, list);
-  };
+  const store = (list: TransactionList) =>
+    keepIfUnlocked(access, list, (kept) => {
+      queryClient.setQueryData(key, kept);
+    });
   const failed = (error: unknown) => {
     const { title, description } = failureMessage(error);
     showToast(title, { tone: "error", description });

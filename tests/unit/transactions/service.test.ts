@@ -5,6 +5,7 @@ import {
   ImportStopped,
   importTransactions,
   inBatches,
+  keepIfUnlocked,
   loadTransactions,
   saveTransaction,
   TransactionError,
@@ -367,6 +368,20 @@ describe("other devices", () => {
       records: [],
       damaged: [],
     });
+  });
+});
+
+describe("the page's copy of the list", () => {
+  it("is kept only while the data key is open, never after a lock", async () => {
+    const { access } = await unlocked();
+    const list = await saved(access, trade("buy", "2025-01-01", "1"));
+    const kept: TransactionList[] = [];
+
+    expect(keepIfUnlocked(access, list, (l) => kept.push(l))).toBe(true);
+    await access.vault.lock("lock");
+    expect(keepIfUnlocked(access, list, (l) => kept.push(l))).toBe(false);
+
+    expect(kept).toEqual([list]);
   });
 });
 

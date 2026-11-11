@@ -147,6 +147,9 @@ with the change applied; nothing is written when a rule fails. They throw a
   never a plain number (`gte(1)` throws "Invalid value").
 - A query that names coins goes under `["vault", userId, …]`; only the snapshot,
   the same for everyone, may stay outside it.
+- The list goes into the cache through `keepIfUnlocked`: a save or an import
+  that finishes after the vault locked keeps nothing (a Lock also reloads the
+  page, but the rule should not depend on that).
 - A new field follows [input-validation.md](../../../shared/schemas/docs/input-validation.md):
   its limit, its kind's filter, a schema, and text-only output.
 

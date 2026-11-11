@@ -37,7 +37,8 @@ import {
 interface ImportExportOptions {
   userId: string;
   current: () => TransactionList | undefined;
-  store: (list: TransactionList) => void;
+  /** False when the vault locked meanwhile: nothing was kept. */
+  store: (list: TransactionList) => boolean;
   assetOf: (assetId: string) => AssetChoice;
   failed: (error: unknown) => void;
 }
@@ -108,7 +109,7 @@ export function useImportExport({
       { progress },
     ).then(
       (next) => {
-        store(next);
+        if (!store(next)) return;
         setOpen(false);
         showToast(`${counted(total, "transaction", "transactions")} imported`, {
           tone: "success",
@@ -117,7 +118,7 @@ export function useImportExport({
       (error: unknown) => {
         setOpen(false);
         if (error instanceof ImportStopped) {
-          store(error.list);
+          if (!store(error.list)) return;
           showToast("The import stopped", {
             tone: "error",
             description: `${String(error.written)} of ${counted(total, "transaction", "transactions")} were imported. Import the file again to add the rest: what's in already is skipped.`,
