@@ -1,5 +1,6 @@
 import { getLocalTimeZone, today } from "@internationalized/date";
 import {
+  useQueries,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
@@ -23,9 +24,10 @@ import {
 } from "./form-values.ts";
 import {
   assetsOf,
+  combineQuotes,
   outsideSnapshot,
   priceOnDay,
-  quotesQuery,
+  quotesQueries,
   searchCoins,
   snapshotQuery,
 } from "./market.ts";
@@ -111,7 +113,11 @@ export function useTransactionEditor() {
       ),
     [snapshot.data, records],
   );
-  const outside = useQuery(quotesQuery(userId, outsideIds));
+  // 50 coins a request: more held outside the snapshot take several.
+  const outside = useQueries({
+    queries: quotesQueries(userId, outsideIds),
+    combine: combineQuotes,
+  });
   const assets = useMemo(() => {
     const known = new Map<string, AssetChoice>();
     for (const coin of [

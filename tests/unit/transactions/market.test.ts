@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   outsideSnapshot,
   priceOnDay,
+  quotesQueries,
   quotesQuery,
   snapshotQuery,
 } from "../../../src/features/transactions/market.ts";
@@ -40,7 +41,7 @@ const quote = {
 
 describe("coins asked for by name", () => {
   it("are none until the snapshot is in, then only those it lacks, once each", () => {
-    const held = ["crypto:bitcoin", "crypto:rare", "crypto:rare"];
+    const held = ["crypto:bitcoin", "crypto:rare", "crypto:rare", "stock:AAPL"];
 
     expect(outsideSnapshot(undefined, held)).toEqual([]);
     expect(
@@ -49,6 +50,17 @@ describe("coins asked for by name", () => {
         held,
       ),
     ).toEqual(["crypto:rare"]);
+  });
+
+  it("are asked 50 at a time, every one of them", () => {
+    const ids = Array.from({ length: 120 }, (_, i) => `crypto:c${String(i)}`);
+
+    const asked = quotesQueries("user", ids).map(({ queryKey }) =>
+      queryKey.slice(3),
+    );
+
+    expect(asked.map((chunk) => chunk.length)).toEqual([50, 50, 20]);
+    expect(asked.flat().sort()).toEqual([...ids].sort());
   });
 });
 

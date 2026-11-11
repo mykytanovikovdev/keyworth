@@ -67,7 +67,8 @@ search; names of coins outside it, and "Price that day", are asked for by id
 and kept under `["vault", …]`, which the app clears when the vault locks (they
 say what the user holds). Coins outside the snapshot are asked for only once
 the snapshot is in (`outsideSnapshot`): before it, every coin would look
-outside. "Price that day" is the day's close from the coin's history, or for
+outside. They go 50 to a request (`quotesQueries`), as many requests as it takes,
+read as one answer (`combineQuotes`). "Price that day" is the day's close from the coin's history, or for
 today the price the page already has (asking by id only for a coin it lacks),
 converted at the day's rate (or the last one before it) when the price
 currency is not the dollar.

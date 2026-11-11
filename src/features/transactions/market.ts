@@ -1,7 +1,8 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type UseQueryResult } from "@tanstack/react-query";
 import { type Decimal, decimal } from "../../../shared/money/decimal.ts";
 import {
   type AssetSearchJson,
+  cryptoAssetIdSchema,
   type HistoryJson,
   MARKET_LIMITS,
   type PricesJson,
@@ -73,7 +74,8 @@ export const quotesQuery = (userId: string, ids: readonly string[]) => {
 /**
  * The coins to ask for by name: those the snapshot does not have. None until
  * the snapshot is in: before it, every coin would look outside, and the
- * server would learn ones it already gives everyone.
+ * server would learn ones it already gives everyone. Only crypto ids the
+ * route takes: another kind would make it refuse the whole request.
  */
 export function outsideSnapshot(
   snapshot: PricesJson | undefined,
@@ -81,7 +83,45 @@ export function outsideSnapshot(
 ): string[] {
   if (!snapshot) return [];
   const inSnapshot = new Set(snapshot.quotes.map(({ id }) => id));
-  return [...new Set(assetIds)].filter((id) => !inSnapshot.has(id));
+  return [...new Set(assetIds)].filter(
+    (id) => !inSnapshot.has(id) && cryptoAssetIdSchema.safeParse(id).success,
+  );
+}
+
+/** Coins outside the snapshot as queries of at most 50, all of them asked. */
+export function quotesQueries(userId: string, ids: readonly string[]) {
+  const sorted = [...new Set(ids)].sort();
+  const queries = [];
+  for (let at = 0; at < sorted.length; at += MARKET_LIMITS.idsPerRequest) {
+    queries.push(
+      quotesQuery(userId, sorted.slice(at, at + MARKET_LIMITS.idsPerRequest)),
+    );
+  }
+  return queries;
+}
+
+/**
+ * Those queries read as one answer: the quotes that have come, still loading
+ * while any is, and one refetch for all. For `useQueries`' `combine`; kept
+ * outside components, so the result is recomputed only when results change.
+ */
+export function combineQuotes(results: UseQueryResult<PricesJson>[]) {
+  const answers = results.flatMap(({ data }) => (data ? [data] : []));
+  const data: PricesJson | undefined =
+    answers.length === 0
+      ? undefined
+      : {
+          currency: "USD",
+          fetchedAt: answers
+            .map(({ fetchedAt }) => fetchedAt)
+            .reduce((a, b) => (b < a ? b : a)),
+          quotes: answers.flatMap(({ quotes }) => quotes),
+        };
+  return {
+    data,
+    isLoading: results.some(({ isLoading }) => isLoading),
+    refetch: () => Promise.all(results.map(({ refetch }) => refetch())),
+  };
 }
 
 export const assetsOf = (prices: PricesJson | undefined): AssetChoice[] =>
