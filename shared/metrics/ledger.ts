@@ -31,6 +31,24 @@ export function utcDate(executedAt: string): string {
   return executedAt.slice(0, 10);
 }
 
+/** Milliseconds in a UTC day: UTC has no daylight-saving changes. */
+export const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** The UTC date `days` after `date` (`days` below 0: before it). */
+export function addDays(date: string, days: number): string {
+  return new Date(Date.parse(`${date}T00:00:00Z`) + days * DAY_MS)
+    .toISOString()
+    .slice(0, 10);
+}
+
+/** Whole days from the UTC date `from` to `date`, below 0 when it is earlier. */
+export function daysBetween(from: string, date: string): number {
+  return Math.round(
+    (Date.parse(`${date}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) /
+      DAY_MS,
+  );
+}
+
 export function toBase(
   amount: Decimal,
   currency: string,

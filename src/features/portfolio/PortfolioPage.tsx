@@ -1,10 +1,9 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { utcDate } from "../../../shared/metrics/ledger.ts";
+import { addDays, utcDate } from "../../../shared/metrics/ledger.ts";
 import { Button, Notice } from "../../ui/index.ts";
 import { useTransactionEditor } from "../transactions/editor.tsx";
 import {
-  dayBefore,
   historyQuery,
   priceSeries,
   quoteLookup,
@@ -78,9 +77,7 @@ export function PortfolioPage() {
     [baseCurrency, records],
   );
   // A week earlier: a first transaction on a weekend needs Friday's rate.
-  const rates = useQuery(
-    ratesQuery(userId, currencies, dayBefore(firstDay, 7)),
-  );
+  const rates = useQuery(ratesQuery(userId, currencies, addDays(firstDay, -7)));
   const ratesNeeded = currencies.some((code) => code !== "USD");
   const assetIds = useMemo(() => [...firstDays.keys()], [firstDays]);
   // Combined into one stable value: a new array every render would redo the

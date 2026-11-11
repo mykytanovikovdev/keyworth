@@ -1,4 +1,5 @@
 import { queryOptions, type UseQueryResult } from "@tanstack/react-query";
+import { addDays, daysBetween } from "../../../shared/metrics/ledger.ts";
 import { type Decimal, decimal } from "../../../shared/money/decimal.ts";
 import {
   type AssetSearchJson,
@@ -135,12 +136,7 @@ export async function searchCoins(text: string): Promise<AssetChoice[]> {
   return found.assets.map(({ id, symbol, name }) => ({ id, symbol, name }));
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const ONE = decimal("1");
-const dayBefore = (day: string, days: number) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) - days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
 
 /** The last value of a series on or before a day: a holiday keeps the rate before it. */
 export function valueOn(
@@ -148,8 +144,7 @@ export function valueOn(
   day: string,
 ): string | null {
   if (!series) return null;
-  const start = Date.parse(`${series.from}T00:00:00Z`);
-  const index = Math.round((Date.parse(`${day}T00:00:00Z`) - start) / DAY_MS);
+  const index = daysBetween(series.from, day);
   for (let i = Math.min(index, series.values.length - 1); i >= 0; i--) {
     const value = series.values[i];
     if (value) return value;
@@ -201,7 +196,7 @@ export async function priceOnDay(
   if (currency === "USD") return { price: offered(decimal(usd)), source };
   // A week back, so a weekend or a rate not yet published has one before it.
   const rates = await getJson<RatesJson>(
-    `/api/market/rates?quotes=${encodeURIComponent(currency)}&from=${dayBefore(day, 7)}`,
+    `/api/market/rates?quotes=${encodeURIComponent(currency)}&from=${addDays(day, -7)}`,
   );
   const rate = valueOn(rates.rates[currency], day);
   if (rate === null) return null;

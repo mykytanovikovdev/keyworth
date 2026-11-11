@@ -1,6 +1,7 @@
 import { type Decimal, ZERO } from "../money/decimal.ts";
 import {
   applyQuantity,
+  DAY_MS,
   inOrder,
   type MoneyContext,
   toBase,
@@ -46,11 +47,7 @@ export interface HistoryPoint {
 export function eachDay(from: string, to: string): string[] {
   const days: string[] = [];
   const end = Date.parse(`${to}T00:00:00Z`);
-  for (
-    let day = Date.parse(`${from}T00:00:00Z`);
-    day <= end;
-    day += 24 * 60 * 60 * 1000
-  ) {
+  for (let day = Date.parse(`${from}T00:00:00Z`); day <= end; day += DAY_MS) {
     days.push(new Date(day).toISOString().slice(0, 10));
   }
   return days;
