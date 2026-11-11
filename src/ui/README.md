@@ -8,12 +8,12 @@ Keyworth looks.** Every screen is built from what is described here; a new
 style or component outside it needs a deliberate decision first.
 
 In scope: tokens, theme switching, accessible base components (buttons, fields,
-cards, badges, dialogs, toasts, tooltips, skeletons, the theme toggle), motion
-helpers, and the `/design` page that shows all of them.
+cards, badges, dialogs, toasts, tooltips, skeletons, the theme toggle), the two
+charts (`ValueChart`, `AllocationBar`), motion helpers, and the `/design` page
+that shows all of them.
 
 Out of scope: screens and feature components (they live in `src/features/` and
-compose these parts), and charts (wrappers arrive with the first chart, in
-phase 4, and take their colors from the tokens below).
+compose these parts).
 
 ## How it works
 
@@ -185,7 +185,7 @@ and form controls match.
 | `ComboBox`                | React Aria `ComboBox`      | Type to filter or search, pick from a list; a picture and a detail per option      |
 | `DateField`               | React Aria `DateField`     | Day / month / year segments (`en-GB` order), the date repeated in words below      |
 | `SegmentedControl`        | `ToggleButtonGroup`        | A few options, all visible, such as a form's tabs (Buy, Sell, Receive, Send)       |
-| `ActionMenu`              | React Aria `Menu`          | A "⋯" button with an item's actions (Edit, Delete)                                 |
+| `ActionMenu`              | React Aria `Menu`          | A "⋯" button with an item's or a page's actions (Edit, Delete; Import, Export)     |
 | `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                        |
 | `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller            |
 | `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon               |
@@ -217,6 +217,12 @@ transactions screens (a `TextField` action, "All" beside a sale's quantity, on
 group (`data-focus-within`) rather than on the input. `ValueChart` and
 `AllocationBar` come from the phase 1 prototype, and were approved on
 2026-11-09 for the portfolio page (`/design/portfolio`).
+
+Buttons and links that act as buttons share `buttonClassName(variant, size)`
+in `components/button-styles.ts`. It is exported for an element that cannot be
+a React Aria `Button`, such as the label that opens a file picker in the import
+dialog; that element adds its own `hover:` and `active:` states, because the
+shared classes take hover and press from React Aria's data attributes.
 
 **Charts are our own SVG**, not a charting library (lightweight-charts and
 Recharts were in the first plan). Two charts need little: a line with a fill

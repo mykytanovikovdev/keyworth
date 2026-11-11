@@ -129,7 +129,7 @@ folder if a comparison is ever needed.
 - **Use Chromium for captures.** Playwright's Firefox build on macOS ignores
   color-scheme emulation.
 - **Mock numbers are plain numbers,** used for display only. Real money uses
-  decimal strings from phase 4.
+  decimal strings (`shared/money`).
 
 ## How to work with it
 

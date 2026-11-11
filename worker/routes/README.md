@@ -63,8 +63,8 @@ model: [src/crypto/docs/remember-device.md](../../src/crypto/docs/remember-devic
 
 ## Pitfalls & gotchas
 
-- **A stolen session can still delete records** (it cannot read them); export
-  (phase 4) is the defense.
+- **A stolen session can still delete records** (it cannot read them); a CSV
+  export of the transactions is the defense.
 - **The device cookie is `__Host-` only over HTTPS;** on `http://localhost` it is
   plain `keyworth-device` without Secure, so local development and the e2e
   builds work in every browser.
