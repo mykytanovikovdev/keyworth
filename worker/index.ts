@@ -1,4 +1,5 @@
 import { Hono, type MiddlewareHandler } from "hono";
+import { routePath } from "hono/route";
 import type { MeJson } from "../shared/schemas/me.ts";
 import { createAuth } from "./auth.ts";
 import { deleteExpiredData } from "./cleanup.ts";
@@ -71,10 +72,11 @@ app.route("/api", api);
 
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 
-// Never the error itself or the request: see describe-error.ts.
+// Never the error itself or the request: see describe-error.ts. The route's
+// pattern, not the path, which can hold a coin's id (/api/assets/:id/logo).
 app.onError((error, c) => {
   console.error(
-    `Unhandled error on ${c.req.method} ${c.req.path}\n${describeError(error)}`,
+    `Unhandled error on ${c.req.method} ${routePath(c, -1)}\n${describeError(error)}`,
   );
   return c.json({ error: "internal_error" }, 500);
 });

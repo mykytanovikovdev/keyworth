@@ -17,6 +17,16 @@ export function plainDigits(value: number): string {
   return /e/i.test(text) ? decimal(text).toString() : text;
 }
 
+/**
+ * Whether a price or a rate from a source can be real: 0, or between 1e-18
+ * (the decimals a transaction takes) and 1e15. Anything else, such as 1e308
+ * from a broken or hostile source, would be kept as hundreds of digits and
+ * cost every user CPU and storage.
+ */
+export function plausible(value: number): boolean {
+  return value === 0 || (value >= 1e-18 && value <= 1e15);
+}
+
 /** A source failed. The message names the source and the kind of failure only. */
 export class MarketError extends Error {
   /** The source's HTTP status, when it answered with an error. */
@@ -38,6 +48,9 @@ async function request(
   try {
     response = await fetch(url, {
       headers,
+      // A redirect is a failure, not followed: fetch would send the API key's
+      // header to wherever it points, and an image could leave the allowed host.
+      redirect: "manual",
       signal: AbortSignal.timeout(TIMEOUT_MS),
     });
   } catch {

@@ -91,7 +91,9 @@ user's first trade) cuts the series; the server keeps it whole.
 ## Invariants
 
 1. `market_cache` holds no user id, email or address, and no request is logged
-   with what it asked for: a failure logs only the source and the kind of failure.
+   with what it asked for: a failure logs only the source and the kind of failure,
+   and an unexpected error logs the route's pattern (`/api/assets/:id/logo`),
+   never the path with the coin in it.
 2. Nothing from CoinGecko is served or kept for more than a day (its API terms);
    the daily cleanup deletes expired rows. Frankfurter's data, free of such
    terms, is kept for 90 days from its last refresh.
@@ -103,10 +105,14 @@ user's first trade) cuts the series; the server keeps it whole.
 4. A logo comes only from CoinGecko's image host, only as PNG, JPEG, WebP or GIF,
    at most 100 KB. An SVG is a document that can carry script, so it is refused.
 5. A source gets at most 8 seconds per answer, and 2 MB (CoinGecko) or 1 MB
-   (Frankfurter, whose longest series is about 400 KB).
-6. A series holds only real days from 2010-07-18 to tomorrow: a source's date in
+   (Frankfurter, whose longest series is about 400 KB). A redirect is a failure,
+   never followed: it would carry the key's header, or an image request, to
+   another host.
+6. A price or rate is kept only if it can be real: 0, or between 1e-18 and 1e15.
+   A broken source's 1e308 would otherwise be stored as hundreds of digits.
+7. A series holds only real days from 2010-07-18 to tomorrow: a source's date in
    the year 9999 is dropped, not turned into millions of empty days.
-7. The routes need a session, like every other route after `requireSession`.
+8. The routes need a session, like every other route after `requireSession`.
 
 ## Decisions and alternatives
 
@@ -170,8 +176,12 @@ the Worker tests have no real network at all (`outboundService` in
 `vitest.config.ts`), so a request that slips past the mock fails loudly instead
 of reaching a source. It covers which source each coin uses and how it is asked,
 the day a close belongs to, the rows a series drops, a refresh that asks for the
-last week only, stale entries while a source fails, each 400, and how long each
-source's data is kept. What it proves about storage:
+last week only, stale entries while a source fails, each 400, each read's
+limit a minute (429 before any call), a redirect refused, a logo over 100 KB or
+in SVG refused, prices that cannot be real dropped, an unexpected error logged
+by route and not by coin, and how long each source's data is kept. The 8-second
+limit is not tested: the runner cannot wait that long or fake the clock under
+`AbortSignal.timeout`. What it proves about storage:
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).
 
 ## How to change it safely
