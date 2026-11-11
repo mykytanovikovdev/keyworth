@@ -107,7 +107,8 @@ export function ImportDialog({
               <p className="text-sm text-fg-muted">
                 A CSV file in Keyworth&apos;s format: one made by Export to CSV,
                 or the template filled in. It&apos;s read on this device and
-                never uploaded; each transaction is encrypted before it&apos;s
+                never uploaded: only coins outside the 250 largest are looked up
+                by their id, and each transaction is encrypted before it&apos;s
                 saved.
               </p>
               {step.kind === "choose" && step.problem && (

@@ -78,7 +78,12 @@ user's first trade) cuts the series; the server keeps it whole.
   currencies this user asks about. It does not keep that: the cache key is the
   coin or the currency, not the user, and nothing about the request is logged.
 - **A search is kept for a day under its text**, so the next person typing the
-  same thing costs no call. Nothing links it to who typed it.
+  same thing costs no call. It is stored under the text, not under who typed it.
+- **Logos are asked for by coin id**, one image per coin a page shows (the
+  coins in a user's list, the results of a search), so the server sees those
+  ids too, whether or not the coin is in the snapshot. Nothing about a logo
+  request is kept per user or logged; the image itself is cached by Cloudflare
+  under the coin.
 - **The sources see only Keyworth's server,** never a user's address: every call,
   logos included, goes through the Worker. Logos also have to, because the page's
   CSP allows images from its own origin only.
@@ -178,4 +183,4 @@ ids, currencies or search text into an error message or a log line. A new
 entry in `COIN_METRICS_CODES` is checked first by comparing the two sources'
 prices for the coin.
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-11
