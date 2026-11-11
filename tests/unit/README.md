@@ -68,6 +68,9 @@ Covered now:
   was. Importing through the service (`service.test.ts`): batches of 100 with
   progress, the lot refused before writing, a 429 waited out, a failure part
   of the way leaving exactly what is in.
+- **Privacy policy:** `legal/storage-names.test.ts` — every `keyworth-…` name
+  the browser's code stores is listed by name on the privacy page, as
+  `src/features/legal/README.md` requires.
 - **Free text:** `shared/schemas/text.ts` (in `schemas.test.ts`) — hidden
   characters dropped as typed, refused by the schema, cleaning twice changes
   nothing ([input-validation.md](../../shared/schemas/docs/input-validation.md)).
