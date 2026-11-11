@@ -50,7 +50,8 @@ whom, and what it does not protect. The mechanisms are described in
 - The name and email from Google, and sign-in sessions (when, IP address,
   browser).
 - For each record: its kind (trade, chat, alert…), its size bucket, its
-  revision, when it was created and changed, and how many records a user has.
+  revision, when it was created and changed, and how many records a user has
+  (a CSV import shows as many records created at once).
 - The Argon2 settings and salts, that a recovery key exists, and when the
   passphrase or the recovery key was last replaced.
 - When a device was remembered, and in which sign-in session (so from which IP
@@ -114,8 +115,13 @@ Anthropic directly and the server sees none of it.
 - **Deleting the account with the Google account alone.** Deletion needs a
   Google sign-in from the last 10 minutes, not the passphrase, so that a user
   who lost both secrets can start over. Whoever takes over the Google account
-  can therefore delete the Keyworth account and its data (not read them);
-  Export (phase 4) is the defense against losing data this way.
+  can therefore delete the Keyworth account and its data (not read them); a
+  CSV export of the transactions, kept by the user, is the defense against
+  losing them this way.
+- **An exported file.** Export to CSV decrypts the transactions in the browser
+  and saves them as a plain-text file on the device; from then on, protecting
+  that file is up to the user. Importing reads a file in the browser, and only
+  envelopes reach the server.
 - **Deletion and rollback by the server.** The server cannot read or forge
   records, but it can delete one, or return an older version of the same record
   together with its older revision (the AAD still matches). Detecting this would
@@ -126,8 +132,8 @@ Anthropic directly and the server sees none of it.
 - **A stolen session cookie.** It reads no plaintext, but it can:
   - download the passphrase slot and try passphrases offline, as with a
     database dump (below);
-  - delete records, or overwrite them with data that no longer decrypts (Export,
-    phase 4, is the defense), and write a deleted record's first version back;
+  - delete records, or overwrite them with data that no longer decrypts (a CSV
+    export is the defense), and write a deleted record's first version back;
   - fill the user's quotas and keep the user's write limit used up.
 
   Signed in within the last 10 minutes (the condition that also allows
@@ -181,4 +187,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-07
+Last reviewed: 2026-11-11

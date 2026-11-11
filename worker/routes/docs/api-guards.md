@@ -100,8 +100,8 @@ import.
   download the passphrase slot for offline guessing and use up the user's
   limits; signed in within 10 minutes, it can replace the wrapped keys. These
   are stated in the
-  [threat model](../../../src/crypto/docs/threat-model.md); Export (phase 4)
-  is the defense against losing records.
+  [threat model](../../../src/crypto/docs/threat-model.md); a CSV export of the
+  transactions is the defense against losing them.
 - **In the Workers test runner every request keeps its database connection
   until the test file ends,** so tests seed rate-limit counters instead of
   sending a hundred requests.
@@ -121,4 +121,4 @@ A new route gets `rateLimit()` and `maxBody()` on writes, a schema from
 `shared/schemas`, queries scoped by `c.get("user").id`, and tests for each
 refusal and for another user's attempt — in the same commit.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-11
