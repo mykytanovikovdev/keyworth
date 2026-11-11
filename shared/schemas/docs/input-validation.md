@@ -105,10 +105,13 @@ grouping ("1.234,50", "1,234.50", "1'000") is refused with a message, and so is
 a comma before exactly three digits after one to three others ("1,234" could be
 either). Tested in `tests/unit/transactions/csv-import.test.ts`.
 
-**Export** (`csv-export.ts`) writes CSV that spreadsheets open: a cell that
-starts with `=`, `+`, `-`, `@`, a tab or a carriage return is prefixed with
-`'`, so a note such as `=HYPERLINK(...)` stays text instead of becoming a
-formula; the import takes that `'` off again.
+**Export** (`csv-export.ts`) writes CSV that spreadsheets open: where a formula
+could start, at the start of a cell or after a `;` (a spreadsheet whose list
+separator is `;` splits the line there, quotes or not), a `=`, `+`, `-`, `@`, a
+tab or a carriage return gets one more `'` before it, so a note such as
+`=HYPERLINK(...)` stays text instead of becoming a formula. The import takes
+off exactly that `'`, so every note comes back as it was, one that starts with
+`'=` included.
 
 ## What the server does with input
 
@@ -157,7 +160,7 @@ formula; the import takes that `'` off again.
 | A request that makes the server call elsewhere             | Fixed hosts; input only as a checked path segment or an encoded query value                             | `market.test.ts` (refused ids; other hosts fail the test)                                              |
 | Input in the logs                                          | Fixed error messages that name no input                                                                 | `market.test.ts` (the one log line)                                                                    |
 | Slow patterns on long input (ReDoS)                        | Anchored patterns without nested repetition, run on input already cut to its limit                      | Review                                                                                                 |
-| A formula in an exported cell                              | Export prefixes `= + - @`, tab and CR with `'`                                                          | `tests/unit/transactions/csv.test.ts`; `transactions.spec.ts` (the downloaded file)                    |
+| A formula in an exported cell                              | Export puts a `'` before `= + - @`, tab and CR at a cell's start and after `;`                          | `tests/unit/transactions/csv.test.ts`; `transactions.spec.ts` (the downloaded file)                    |
 | A hostile file                                             | [Files](#files): size first, strict UTF-8, each row rebuilt and parsed, a preview before writing        | `tests/unit/transactions/csv-import.test.ts`; `tests/e2e/transactions.spec.ts`                         |
 | Instructions hidden in data for the assistant              | Data reaches the model marked as untrusted and cut to size (project rule 12, phase 5)                   | With the chat, phase 5                                                                                 |
 

@@ -96,4 +96,26 @@ describe("cells and formulas", () => {
     expect(plainCell("'quoted")).toBe("'quoted");
     expect(plainCell("plain")).toBe("plain");
   });
+
+  it("guards a formula after a semicolon too, where some spreadsheets split a line", () => {
+    expect(safeCell('x;=HYPERLINK("y")')).toBe(`x;'=HYPERLINK("y")`);
+    expect(safeCell("a; -1;@b")).toBe("a; '-1;'@b");
+    expect(safeCell("a;b; c")).toBe("a;b; c");
+  });
+
+  it("reads back exactly what was written, quotes of the note's own included", () => {
+    for (const note of [
+      "'=1+1",
+      "''=1",
+      "x;'=1",
+      "x;=1",
+      "=;=",
+      "'",
+      "';=",
+      "a; ''@b",
+      "plain; text",
+    ]) {
+      expect(plainCell(safeCell(note)), note).toBe(note);
+    }
+  });
 });
