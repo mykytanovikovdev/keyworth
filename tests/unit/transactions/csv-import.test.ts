@@ -7,7 +7,9 @@ import {
 } from "../../../src/features/transactions/csv-export.ts";
 import {
   type ImportContext,
+  coinsToLookUp,
   IMPORT_MAX_BYTES,
+  IMPORT_MAX_UNKNOWN_COINS,
   planImport,
   readTable,
   readText,
@@ -350,7 +352,64 @@ describe("the ledger's rule over the whole file", () => {
   });
 });
 
+describe("coins looked up by id", () => {
+  const lookUp = (
+    text: string,
+    known: (id: string) => boolean = () => false,
+  ) => {
+    const read = readTable(text);
+    if ("problem" in read) throw new Error(read.problem.kind);
+    return coinsToLookUp(read.table, known);
+  };
+
+  it("are the well-formed ids the snapshot lacks, once each", () => {
+    expect(
+      lookUp(
+        file(
+          "2025-01-01,Buy,crypto:bitcoin,,1,1,USD,,,",
+          "2025-01-01,Buy,crypto:rare,,1,1,USD,,,",
+          "2025-01-01,Buy,crypto:rare,,1,1,USD,,,",
+          "2025-01-01,Buy,Not An Id,,1,1,USD,,,",
+          "2025-01-01,Buy,,BTC,1,1,USD,,,",
+        ),
+        (id) => id === "crypto:bitcoin",
+      ),
+    ).toEqual({ ids: ["crypto:rare"] });
+  });
+
+  it("are refused past a hundred, before any is asked for", () => {
+    const rows = Array.from(
+      { length: IMPORT_MAX_UNKNOWN_COINS + 1 },
+      (_, i) => `2025-01-01,Buy,crypto:coin-${String(i)},,1,1,USD,,,`,
+    );
+    expect(lookUp(file(...rows))).toEqual({
+      problem: {
+        kind: "too-many-coins",
+        coins: IMPORT_MAX_UNKNOWN_COINS + 1,
+        limit: IMPORT_MAX_UNKNOWN_COINS,
+      },
+    });
+    expect(lookUp(file(...rows.slice(1)))).toMatchObject({
+      ids: expect.any(Array) as unknown,
+    });
+  });
+});
+
 describe("room in the account", () => {
+  it("refuses at once a file longer than the room and every recorded row together", () => {
+    const read = readTable(
+      file("2025-01-01,Buy,,BTC,1,1,USD,,,", "2025-01-02,Buy,,BTC,1,1,USD,,,"),
+    );
+    if ("problem" in read) throw new Error(read.problem.kind);
+
+    expect(
+      planImport(
+        read.table,
+        contextOf([], { stored: VAULT_LIMITS.maxRecords - 1 }),
+      ),
+    ).toEqual({ problem: { kind: "over-quota", rows: 2, room: 1 } });
+  });
+
   it("refuses the file when its new rows do not fit", () => {
     const read = readTable(
       file("2025-01-01,Buy,,BTC,1,1,USD,,,", "2025-01-02,Buy,,BTC,1,1,USD,,,"),

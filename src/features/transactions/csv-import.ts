@@ -3,6 +3,7 @@ import {
   FIAT_CURRENCIES,
   STABLECOINS,
 } from "../../../shared/schemas/currencies.ts";
+import { cryptoAssetIdSchema } from "../../../shared/schemas/market.ts";
 import { cleanText } from "../../../shared/schemas/text.ts";
 import {
   TRANSACTION_LIMITS,
@@ -30,6 +31,12 @@ import {
 
 /** More than a decade of trades; a larger file is refused unread. */
 export const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Coins outside the snapshot one import looks up by id: two requests of 50.
+ * Each new one costs a call to CoinGecko, whose allowance all users share.
+ */
+export const IMPORT_MAX_UNKNOWN_COINS = 100;
 
 /** The columns of Keyworth's format, in the order an export writes them. */
 export const CSV_COLUMNS = [
@@ -74,7 +81,9 @@ export type FileProblem =
   /** More new transactions than the account has room for. */
   | { kind: "over-quota"; rows: number; room: number }
   /** The coins couldn't be looked up: not the file's fault. */
-  | { kind: "market-unavailable" };
+  | { kind: "market-unavailable" }
+  /** More coins outside the snapshot than one import looks up by id. */
+  | { kind: "too-many-coins"; coins: number; limit: number };
 
 const count = (n: number) => groupDigits(String(n));
 
@@ -101,6 +110,8 @@ export function fileProblemText(problem: FileProblem): string {
       return "Coin names couldn't load, so the file can't be checked. Try again in a minute.";
     case "over-quota":
       return `This file has ${count(problem.rows)} new ${problem.rows === 1 ? "transaction" : "transactions"}, and your account has room for ${count(problem.room)} more.`;
+    case "too-many-coins":
+      return `This file names ${count(problem.coins)} coins outside the 250 largest, and one import looks up at most ${count(problem.limit)}. Split it into smaller files.`;
   }
 }
 
@@ -183,15 +194,37 @@ const cellOf = (
   return index === undefined ? "" : plainCell(cells[index] ?? "").trim();
 };
 
-/** Coin ids the file names, to look up the ones the snapshot does not hold. */
-export function coinIdsIn(table: CsvTable): string[] {
-  return [
+/**
+ * The coin ids a file names that are to be looked up by id: well formed, not
+ * known already (the snapshot), at most IMPORT_MAX_UNKNOWN_COINS. Any other
+ * id is a coin nobody knows, and its row says so.
+ */
+export function coinsToLookUp(
+  table: CsvTable,
+  known: (id: string) => boolean,
+): { ids: string[] } | { problem: FileProblem } {
+  const ids = [
     ...new Set(
       table.rows
         .map(({ cells }) => cellOf(table, cells, "Coin"))
-        .filter((id) => id !== ""),
+        .filter(
+          (id) =>
+            id !== "" &&
+            !known(id) &&
+            cryptoAssetIdSchema.safeParse(id).success,
+        ),
     ),
   ];
+  if (ids.length > IMPORT_MAX_UNKNOWN_COINS) {
+    return {
+      problem: {
+        kind: "too-many-coins",
+        coins: ids.length,
+        limit: IMPORT_MAX_UNKNOWN_COINS,
+      },
+    };
+  }
+  return { ids };
 }
 
 export interface ImportContext {
@@ -472,6 +505,14 @@ export function planImport(
   table: CsvTable,
   context: ImportContext,
 ): { plan: ImportPlan } | { problem: FileProblem } {
+  const room = Math.max(0, VAULT_LIMITS.maxRecords - context.stored);
+  // At most one row per recorded transaction is a duplicate, so a file longer
+  // than that and the room together cannot fit: refused before any row is
+  // checked, which a file of a hundred thousand rows would take a minute for.
+  const atLeastNew = table.rows.length - context.existing.length;
+  if (atLeastNew > room) {
+    return { problem: { kind: "over-quota", rows: atLeastNew, room } };
+  }
   const problems: ImportPlan["problems"] = [];
   const duplicates: number[] = [];
   const candidates: (ImportPlan["added"][number] & { id: string })[] = [];
@@ -504,9 +545,19 @@ export function planImport(
   // further down. Leaving a short one out only adds units, so one pass does.
   const short = new Map<string, string>();
   const after = [...context.existing, ...candidates];
+  const candidateById = new Map(candidates.map((c) => [c.id, c]));
+  // The file's own outgoing rows by coin: what a recorded sale left short
+  // looks through, instead of every row each time.
+  const outgoing = new Map<string, typeof candidates>();
+  for (const c of candidates) {
+    if (c.value.type !== "sell" && c.value.type !== "transfer_out") continue;
+    const list = outgoing.get(c.value.assetId) ?? [];
+    list.push(c);
+    outgoing.set(c.value.assetId, list);
+  }
   for (const problem of ledgerProblems(context.existing, after)) {
     if (problem.kind !== "oversold") continue;
-    const candidate = candidates.find((c) => c.id === problem.transactionId);
+    const candidate = candidateById.get(problem.transactionId);
     const held = quantityText(problem.held, candidate?.asset.symbol ?? "");
     const when = dateInWords(problem.executedAt);
     if (candidate) {
@@ -515,13 +566,8 @@ export function planImport(
     }
     // A recorded sale would be left short: by the file's earlier ones.
     const moment = Date.parse(problem.executedAt);
-    for (const c of candidates) {
-      if (
-        c.value.assetId === problem.assetId &&
-        (c.value.type === "sell" || c.value.type === "transfer_out") &&
-        Date.parse(c.value.executedAt) <= moment &&
-        !short.has(c.id)
-      ) {
+    for (const c of outgoing.get(problem.assetId) ?? []) {
+      if (Date.parse(c.value.executedAt) <= moment && !short.has(c.id)) {
         short.set(
           c.id,
           `This would leave your ${quantityText(problem.asked, c.asset.symbol)} going out on ${when} short.`,
@@ -538,7 +584,6 @@ export function planImport(
     .map(({ row, value, asset }) => ({ row, value, asset }));
   problems.sort((a, b) => a.row - b.row);
 
-  const room = Math.max(0, VAULT_LIMITS.maxRecords - context.stored);
   if (added.length > room) {
     return { problem: { kind: "over-quota", rows: added.length, room } };
   }

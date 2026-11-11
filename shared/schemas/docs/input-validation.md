@@ -75,7 +75,9 @@ follows these rules:
 4. **Text, not bytes.** Decoded as UTF-8 with `fatal: true`; a NUL byte or an
    invalid sequence means it is not a CSV file. A byte-order mark is dropped.
 5. **Rows within the vault's limits.** At most as many rows as the user's quota
-   can still hold; more is refused before anything is written.
+   can still hold; more is refused before anything is written, and a file
+   longer than the room and every recorded row together before any row is
+   checked. At most 100 coins outside the snapshot are looked up by id.
 6. **Every row through the transaction service.** Each cell is free text, an
    amount, a date or a choice, and gets that kind's rules; nothing is written
    unless the user confirms the preview.

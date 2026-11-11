@@ -178,6 +178,11 @@ with the change applied; nothing is written when a rule fails. They throw a
 - **A day without a time imports as the form keeps it:** noon UTC, or now if
   noon is still ahead. A day still ahead everywhere keeps its noon and is
   refused as the future.
+- **A file's coins outside the snapshot are looked up by id, at most 100**
+  (`coinsToLookUp`): each new one costs a call to CoinGecko, whose allowance all
+  users share. A file longer than the account's room and its recorded rows
+  together is refused before any row is checked, and the check itself looks
+  rows up by id, so a hostile file of 5 MB cannot hold the page for a minute.
 - **Numbers in a file are read more strictly than in a field** (`fileAmount`):
   the preview shows only counts, so a grouped number guessed wrong ("1.234,50"
   as 1.2345, "1,234" as 1.234) would go in unseen. A point or a lone comma is

@@ -1,14 +1,11 @@
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
-import {
-  cryptoAssetIdSchema,
-  MARKET_LIMITS,
-} from "../../../shared/schemas/market.ts";
+import { MARKET_LIMITS } from "../../../shared/schemas/market.ts";
 import { showToast } from "../../ui/index.ts";
 import { exportFileName, transactionsCsv } from "./csv-export.ts";
 import {
-  coinIdsIn,
+  coinsToLookUp,
   type FileProblem,
   type ImportPlan,
   planImport,
@@ -75,10 +72,9 @@ export function useImportExport({
     try {
       top = assetsOf(await queryClient.query(snapshotQuery));
       for (const coin of top) known.set(coin.id, coin);
-      // Only well-formed ids are asked for; any other is a coin nobody knows.
-      const asked = coinIdsIn(table.table).filter(
-        (id) => !known.has(id) && cryptoAssetIdSchema.safeParse(id).success,
-      );
+      const lookUp = coinsToLookUp(table.table, (id) => known.has(id));
+      if ("problem" in lookUp) return lookUp;
+      const asked = lookUp.ids;
       for (let at = 0; at < asked.length; at += MARKET_LIMITS.idsPerRequest) {
         const ids = asked.slice(at, at + MARKET_LIMITS.idsPerRequest);
         const prices = await queryClient.query(quotesQuery(userId, ids));
