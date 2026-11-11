@@ -24,7 +24,7 @@ const IMAGES = "https://coin-images.coingecko.com/coins/images";
 interface Call {
   url: URL;
   headers: Headers;
-  redirect: RequestRedirect;
+  redirect: Request["redirect"];
 }
 
 /**
