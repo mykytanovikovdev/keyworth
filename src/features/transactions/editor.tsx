@@ -23,6 +23,7 @@ import {
 } from "./form-values.ts";
 import {
   assetsOf,
+  outsideSnapshot,
   priceOnDay,
   quotesQuery,
   searchCoins,
@@ -101,9 +102,14 @@ export function useTransactionEditor() {
   );
   // Coins outside the snapshot, by id: their names and today's prices (a
   // coin just picked in the form is named already, but still needs a price).
-  const outsideIds = [
-    ...new Set(records.map(({ value }) => value.assetId)),
-  ].filter((id) => !top.some((coin) => coin.id === id));
+  const outsideIds = useMemo(
+    () =>
+      outsideSnapshot(
+        snapshot.data,
+        records.map(({ value }) => value.assetId),
+      ),
+    [snapshot.data, records],
+  );
   const outside = useQuery(quotesQuery(userId, outsideIds));
   const assets = useMemo(() => {
     const known = new Map<string, AssetChoice>();
@@ -132,10 +138,13 @@ export function useTransactionEditor() {
     () => ({ top, search: searchCoins }),
     [top],
   );
+  // Today's prices already here are used before any coin is asked for by
+  // name; "today" is read at each call, so a tab left open past midnight
+  // moves on.
   const priceOn = useMemo(
     () => (assetId: string, day: string, currency: string) =>
-      priceOnDay(assetId, day, currency, localToday()),
-    [],
+      priceOnDay(assetId, day, currency, localToday(), (id) => prices.get(id)),
+    [prices],
   );
 
   const [form, setForm] = useState<OpenForm | null>(null);

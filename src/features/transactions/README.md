@@ -65,9 +65,12 @@ deleted, closes the form. Undo puts the deleted transaction back under a new id.
 Market data: the shared snapshot names most coins and offers them first in the
 search; names of coins outside it, and "Price that day", are asked for by id
 and kept under `["vault", …]`, which the app clears when the vault locks (they
-say what the user holds). "Price that day" is the day's close from the coin's
-history, or the current price for today, converted at the day's rate (or the
-last one before it) when the price currency is not the dollar.
+say what the user holds). Coins outside the snapshot are asked for only once
+the snapshot is in (`outsideSnapshot`): before it, every coin would look
+outside. "Price that day" is the day's close from the coin's history, or for
+today the price the page already has (asking by id only for a coin it lacks),
+converted at the day's rate (or the last one before it) when the price
+currency is not the dollar.
 
 **Import and export** (owner's decisions, 2026-11-09): the "⋯" next to "Add
 transaction" holds Import from CSV and Export to CSV; an empty list offers

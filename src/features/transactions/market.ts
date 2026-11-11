@@ -70,6 +70,20 @@ export const quotesQuery = (userId: string, ids: readonly string[]) => {
   });
 };
 
+/**
+ * The coins to ask for by name: those the snapshot does not have. None until
+ * the snapshot is in: before it, every coin would look outside, and the
+ * server would learn ones it already gives everyone.
+ */
+export function outsideSnapshot(
+  snapshot: PricesJson | undefined,
+  assetIds: Iterable<string>,
+): string[] {
+  if (!snapshot) return [];
+  const inSnapshot = new Set(snapshot.quotes.map(({ id }) => id));
+  return [...new Set(assetIds)].filter((id) => !inSnapshot.has(id));
+}
+
 export const assetsOf = (prices: PricesJson | undefined): AssetChoice[] =>
   prices?.quotes.map(choiceOf) ?? [];
 
@@ -112,21 +126,28 @@ function offered(price: Decimal): string {
 /**
  * A coin's price on a day, in a currency: the day's close from its history,
  * or the current price for today, converted at the day's rate. Null when the
- * sources have none.
+ * sources have none. Today's price comes from what the page already has
+ * (`priceNow`, the snapshot of the 250 largest included) before the coin is
+ * asked for by name, so a coin in the snapshot is never named to the server.
  */
 export async function priceOnDay(
   assetId: string,
   day: string,
   currency: string,
   today: string,
+  priceNow: (assetId: string) => string | undefined = () => undefined,
 ): Promise<PriceOnDay | null> {
   let usd: string | null;
   let source: string;
   if (day >= today) {
-    const prices = await getJson<PricesJson>(
-      `/api/market/prices?ids=${encodeURIComponent(assetId)}`,
-    );
-    usd = prices.quotes[0]?.price ?? null;
+    usd =
+      priceNow(assetId) ??
+      (
+        await getJson<PricesJson>(
+          `/api/market/prices?ids=${encodeURIComponent(assetId)}`,
+        )
+      ).quotes[0]?.price ??
+      null;
     source = "CoinGecko";
   } else {
     const history = await getJson<HistoryJson>(

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  outsideSnapshot,
   priceOnDay,
   quotesQuery,
   snapshotQuery,
@@ -37,6 +38,20 @@ const quote = {
   price: "75000",
 };
 
+describe("coins asked for by name", () => {
+  it("are none until the snapshot is in, then only those it lacks, once each", () => {
+    const held = ["crypto:bitcoin", "crypto:rare", "crypto:rare"];
+
+    expect(outsideSnapshot(undefined, held)).toEqual([]);
+    expect(
+      outsideSnapshot(
+        { currency: "USD", fetchedAt: "", quotes: [quote] },
+        held,
+      ),
+    ).toEqual(["crypto:rare"]);
+  });
+});
+
 describe("the price on a day", () => {
   it("is today's current price for today", async () => {
     const asked = serve(() => ({
@@ -54,6 +69,21 @@ describe("the price on a day", () => {
 
     expect(price).toEqual({ price: "75000.00", source: "CoinGecko" });
     expect(asked).toEqual(["/api/market/prices?ids=crypto%3Abitcoin"]);
+  });
+
+  it("is today's price the page already has, with no coin asked for by name", async () => {
+    const asked = serve(() => ({ currency: "USD", fetchedAt: "", quotes: [] }));
+
+    const price = await priceOnDay(
+      "crypto:bitcoin",
+      "2026-11-08",
+      "USD",
+      "2026-11-08",
+      (id) => (id === "crypto:bitcoin" ? "75000" : undefined),
+    );
+
+    expect(price).toEqual({ price: "75000.00", source: "CoinGecko" });
+    expect(asked).toEqual([]);
   });
 
   it("is the day's close from the coin's history for an earlier day, with its source", async () => {
