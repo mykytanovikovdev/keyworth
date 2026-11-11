@@ -37,6 +37,7 @@ import {
   type FieldErrors,
   type FormValues,
   fromTransaction,
+  type PriceOnDay,
   problemErrors,
   toTransaction,
 } from "../features/transactions/form-values.ts";
@@ -44,10 +45,7 @@ import {
   type ListedTransaction,
   TransactionList,
 } from "../features/transactions/TransactionList.tsx";
-import {
-  type PriceOnDay,
-  TransactionForm,
-} from "../features/transactions/TransactionForm.tsx";
+import { TransactionForm } from "../features/transactions/TransactionForm.tsx";
 import { Section } from "../features/settings/Section.tsx";
 import {
   ButtonLink,

@@ -91,7 +91,7 @@ export const VAULT_BATCH = Object.freeze({
 });
 
 /** Only kinds that come in numbers; settings stay one record, written alone. */
-export const BATCH_KINDS = ["transaction"] as const satisfies RecordKind[];
+const BATCH_KINDS = ["transaction"] as const satisfies RecordKind[];
 
 export const vaultBatchSchema = z.strictObject({
   records: z

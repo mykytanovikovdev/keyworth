@@ -37,6 +37,7 @@ import {
   AMOUNT_MAX_LENGTH,
   executedAt,
   parseAmount,
+  type PriceOnDay,
   typedAmount,
 } from "./form-values.ts";
 import { money, quantity as quantityText, shortDate } from "./format.ts";
@@ -58,13 +59,6 @@ const KINDS = [
 
 const isKind = (id: string): id is FormKind =>
   KINDS.some((kind) => kind.id === id);
-
-export interface PriceOnDay {
-  /** Plain digits, in the price currency. */
-  price: string;
-  /** Whose price it is, said after it: "Coin Metrics", "CoinGecko". */
-  source: string;
-}
 
 interface TransactionFormProps {
   isOpen: boolean;

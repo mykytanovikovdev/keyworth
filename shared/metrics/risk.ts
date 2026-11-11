@@ -14,7 +14,7 @@ export interface DatedReturn {
 }
 
 /** Crypto trades every day; stocks will pass 252. */
-export const CRYPTO_PERIODS_PER_YEAR = 365;
+const CRYPTO_PERIODS_PER_YEAR = 365;
 
 /** Below this many returns, a correlation says nothing. */
 const MIN_RETURNS_FOR_CORRELATION = 3;

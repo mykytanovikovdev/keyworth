@@ -44,7 +44,7 @@ const PERIOD_DAYS: Record<Exclude<Period, "All">, number> = {
 };
 
 /** Five data colors; a sixth asset and beyond share the neutral "Other". */
-export const SERIES_SLOTS = 5;
+const SERIES_SLOTS = 5;
 export type SeriesSlot = 1 | 2 | 3 | 4 | 5;
 
 export interface Holding {

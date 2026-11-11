@@ -11,8 +11,7 @@ import {
   type RatesJson,
 } from "../../../shared/schemas/market.ts";
 import { ApiError } from "../../vault/api.ts";
-import type { AssetChoice } from "./form-values.ts";
-import type { PriceOnDay } from "./TransactionForm.tsx";
+import type { AssetChoice, PriceOnDay } from "./form-values.ts";
 
 /*
  * Market data for the transaction screens, from Keyworth's own server (the

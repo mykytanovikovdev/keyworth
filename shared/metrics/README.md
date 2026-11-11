@@ -8,7 +8,12 @@ the browser on decrypted data, so the server never sees these figures and the
 model only explains them.
 
 Not here: fetching prices and rates (`worker/market`), reading records
-(`src/vault`), formatting, screens.
+(`src/vault`), formatting, screens. The portfolio page's own totals (all-time
+profit, income, the share of each coin) are added up from these figures by
+`summarize()` in `src/features/portfolio/summary.ts`: pure and tested
+(`tests/unit/portfolio/summary.test.ts`), it decides what the page shows, such
+as leaving out a coin with no price, which is a screen's choice rather than a
+calculation of this folder.
 
 ## How it works
 

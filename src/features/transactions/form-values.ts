@@ -104,6 +104,14 @@ export function typedAmount(next: string, previous: string): string {
 
 const decimalsOf = (plain: string) => plain.split(".")[1]?.length ?? 0;
 
+/** "Price that day", offered in the form. */
+export interface PriceOnDay {
+  /** Plain digits, in the price currency. */
+  price: string;
+  /** Whose price it is, said after it: "Coin Metrics", "CoinGecko". */
+  source: string;
+}
+
 /** A day has begun somewhere on Earth once UTC+14 has reached it. */
 const EARLIEST_OFFSET_MS = 14 * 60 * 60 * 1000;
 
