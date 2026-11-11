@@ -883,6 +883,27 @@ describe("exchange rates", () => {
     ).toEqual(["EUR", "GEL"]);
   });
 
+  it("keeps each currency it got even when a later one fails, so the next request goes on from there", async () => {
+    const { cookie } = await signedIn("rates-partial");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { calls } = mockSources((url) =>
+      url.searchParams.get("quotes") === "GEL"
+        ? new Response("down", { status: 503 })
+        : answer(url),
+    );
+
+    const failed = await rates(cookie, "EUR,GEL", "2026-03-01");
+    const kept = await query<{ key: string }>(
+      "select key from market_cache where key like 'frankfurter:rate:%' order by key",
+    );
+
+    expect(failed.status).toBe(502);
+    expect(kept.map(({ key }) => key)).toEqual(["frankfurter:rate:EUR"]);
+    expect(
+      frankfurter(calls).map(({ url }) => url.searchParams.get("quotes")),
+    ).toEqual(["EUR", "GEL"]);
+  });
+
   it.each([
     ["the dollar itself", "USD"],
     ["a code in lower case", "eur"],

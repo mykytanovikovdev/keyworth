@@ -149,7 +149,10 @@ user's first trade) cuts the series; the server keeps it whole.
 - **Series checked by hand, not with zod.** A series since 2010 is about 6,000
   rows; zod's jitless parsing costs too much CPU per row for a Worker on the
   free plan (10 ms a request). Parsing and merging a whole series takes about
-  3 ms the first time, once for everyone; a refresh takes under 1 ms. Days are
+  3 ms the first time, once for everyone; a refresh takes under 1 ms. Several
+  series in one request (`/rates` takes up to 10) are loaded one after another,
+  each stored as soon as it is merged: ten new ones at once would pass 10 ms,
+  and a request stopped part of the way keeps what it did for the next. Days are
   counted as numbers, because `Date.parse` is slow per point and takes
   `2026-02-30` for March 2.
 - **The whole series from its start, not from the first request's day.** One
