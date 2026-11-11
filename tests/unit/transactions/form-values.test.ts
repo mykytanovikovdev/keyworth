@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  executedAt,
   parseAmount,
   typedAmount,
 } from "../../../src/features/transactions/form-values.ts";
@@ -8,6 +9,23 @@ import {
  * What the form's amount fields let through as they are typed or pasted into,
  * and what they mean once read.
  */
+
+describe("a day without a time", () => {
+  const now = Date.parse("2026-11-09T15:00:00Z");
+
+  it("is noon UTC, or now while noon is still ahead", () => {
+    expect(executedAt("2026-11-08", now)).toBe("2026-11-08T12:00:00Z");
+    expect(executedAt("2026-11-09", Date.parse("2026-11-09T08:30:00Z"))).toBe(
+      "2026-11-09T08:30:00Z",
+    );
+  });
+
+  it("keeps its noon when it has begun nowhere yet, so the rules refuse it", () => {
+    // Begun in UTC+14 (10:00 UTC on the 9th): already a day of someone's.
+    expect(executedAt("2026-11-10", now)).toBe("2026-11-09T15:00:00Z");
+    expect(executedAt("2026-11-11", now)).toBe("2026-11-11T12:00:00Z");
+  });
+});
 
 describe("typing an amount", () => {
   it.each([

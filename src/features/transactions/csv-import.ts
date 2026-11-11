@@ -264,9 +264,6 @@ const currencyOf = (cell: string): string | undefined => {
   return CURRENCIES.has(code) ? code : undefined;
 };
 
-/** A day has begun somewhere on Earth once UTC+14 has reached it. */
-const EARLIEST_OFFSET_MS = 14 * 60 * 60 * 1000;
-
 /** The time a day or a moment names, if it is a real one. */
 function timeOf(text: string, day: string): number | null {
   const time = Date.parse(text);
@@ -283,12 +280,7 @@ function timeOf(text: string, day: string): number | null {
 function momentOf(cell: string, now: number): string | null {
   if (DAY.test(cell)) {
     const start = timeOf(`${cell}T00:00:00Z`, cell);
-    if (start === null) return null;
-    // A day still ahead everywhere keeps its noon, which the rules then
-    // refuse as the future; executedAt would make it now.
-    return start - EARLIEST_OFFSET_MS > now
-      ? `${cell}T12:00:00Z`
-      : executedAt(cell, now);
+    return start === null ? null : executedAt(cell, now);
   }
   if (!MOMENT.test(cell)) return null;
   const time = timeOf(cell, cell.slice(0, 10));
