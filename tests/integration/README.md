@@ -135,7 +135,7 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
   A test that sends a hundred requests can exhaust Postgres's connections:
   seed counters and data with `query()` instead (see the rate-limit tests).
   Files also run in parallel, so `compose.yaml` raises `max_connections` to
-  300; "remaining connection slots are reserved" (53300) means that budget ran
+  500; "remaining connection slots are reserved" (53300) means that budget ran
   out, not that the code is wrong.
 - **Never let pg end a connection inside workerd.** "TypeError: This socket has
   been closed" as an unhandled error after the tests pass means a pool ended
