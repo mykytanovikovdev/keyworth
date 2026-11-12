@@ -131,6 +131,12 @@ uninviting, deleting and listing, as described in
   at once one record below either limit (exactly one succeeds); the write rate
   limit answers 429 with `Retry-After` (the seconds left in the window), resets
   after its window, and covers Lock (`DELETE /api/keys/device`).
+- **Deleting several** (`POST /api/vault/delete`): the user's transactions by
+  id go and are counted, a settings record named among them stays, an unknown id
+  is no error; another user's ids delete nothing of theirs; no list, an empty
+  one, a malformed or repeated id, more than 1,000 ids or another field are
+  refused (400), as are a body over 48 KB (413), another origin (403) and a
+  user past 30 a minute (429), with nothing deleted.
 - **A held lock:** while another transaction keeps a user's write lock, that
   user's write is refused as `busy` (429, `Retry-After: 2`) after the 2-second
   wait, and another user's write goes through at once.
@@ -208,4 +214,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-12

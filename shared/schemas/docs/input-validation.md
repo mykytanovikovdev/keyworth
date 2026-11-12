@@ -118,7 +118,7 @@ off exactly that `'`, so every note comes back as it was, one that starts with
 - **Strict schemas and allowlists.** Bodies are strict objects with exact sizes
   (`shared/schemas`); ids match a pattern; currencies, kinds and cursors come
   from fixed lists or formats. Something unknown is a 400, not a guess.
-- **Limits before work.** Body size (4 KB, 96 KB, 128 KB), query length, ids
+- **Limits before work.** Body size (4 KB, 96 KB, 128 KB, 48 KB), query length, ids
   per request, rate limits per user, quotas per user
   ([api-guards.md](../../../worker/routes/docs/api-guards.md)).
 - **No string becomes code.** Queries are Drizzle's or parameterized `sql`
@@ -200,4 +200,4 @@ language. Secrets, which must be typed again exactly, are printable ASCII only.
    them), how it is shown, and the server's 400.
 8. Add it to the tables above.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-12

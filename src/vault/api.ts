@@ -72,6 +72,11 @@ export interface VaultApi {
   createRecords(batch: VaultBatch): Promise<void>;
   /** Fails with ApiError 404 `not_found` when it is already gone. */
   deleteRecord(id: string): Promise<void>;
+  /**
+   * Several transactions deleted at once, at most VAULT_DELETE.maxIds; an id
+   * already gone is no error. Returns how many went.
+   */
+  deleteRecords(ids: readonly string[]): Promise<number>;
 }
 
 async function request(
@@ -166,5 +171,9 @@ export const httpApi: VaultApi = {
   },
   async deleteRecord(id) {
     await request("DELETE", `/api/vault/${encodeURIComponent(id)}`);
+  },
+  async deleteRecords(ids) {
+    const response = await request("POST", "/api/vault/delete", { ids });
+    return (await json<{ deleted: number }>(response)).deleted;
   },
 };

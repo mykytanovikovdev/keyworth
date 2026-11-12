@@ -112,6 +112,27 @@ export const vaultBatchSchema = z.strictObject({
 
 export type VaultBatch = z.infer<typeof vaultBatchSchema>;
 
+/**
+ * `POST /api/vault/delete`: several transactions deleted at once (selected,
+ * or all of them). A thousand ids are about 39 KB of JSON.
+ */
+export const VAULT_DELETE = Object.freeze({
+  maxIds: 1000,
+  maxBytes: 48 * 1024,
+});
+
+export const vaultDeleteSchema = z.strictObject({
+  ids: z
+    .array(recordIdSchema)
+    .min(1)
+    .max(VAULT_DELETE.maxIds)
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: "Each id once.",
+    }),
+});
+
+export type VaultDelete = z.infer<typeof vaultDeleteSchema>;
+
 /** One record as `GET /api/vault` returns it. */
 export interface VaultRecordJson {
   id: string;

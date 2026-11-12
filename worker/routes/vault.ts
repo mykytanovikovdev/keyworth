@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { type Context, Hono } from "hono";
 import { decodeBase64url } from "../../shared/schemas/base64url.ts";
 import {
@@ -7,11 +7,13 @@ import {
   recordKindSchema,
   VAULT_BATCH,
   VAULT_CURSOR,
+  VAULT_DELETE,
   VAULT_LIMITS,
   VAULT_PAGE,
   type VaultPageJson,
   type VaultRecordJson,
   vaultBatchSchema,
+  vaultDeleteSchema,
   vaultWriteSchema,
 } from "../../shared/schemas/vault.ts";
 import type { Database } from "../db/client.ts";
@@ -287,6 +289,32 @@ vault.post("/batch", limitBatches, batchBody, async (c) => {
   }
   if (!written) return c.json({ error: "quota_exceeded" }, 413);
   return c.json({ written: rows.length }, 201);
+});
+
+const limitDeletes = rateLimit("vault-delete", 30);
+const deleteBody = maxBody(VAULT_DELETE.maxBytes);
+
+/**
+ * Deletes several of the user's transactions at once: those selected, or all
+ * of them. Only records of kind `transaction`, so a list of ids cannot take
+ * the settings with it; an id that is not there (deleted on another device
+ * meanwhile) is no error. Answers how many went.
+ */
+vault.post("/delete", limitDeletes, deleteBody, async (c) => {
+  const body = vaultDeleteSchema.safeParse(await readJson(c));
+  if (!body.success) return c.json({ error: "invalid_body" }, 400);
+  const deleted = await c
+    .get("db")
+    .delete(vaultRecords)
+    .where(
+      and(
+        eq(vaultRecords.userId, c.get("user").id),
+        eq(vaultRecords.kind, "transaction"),
+        inArray(vaultRecords.id, body.data.ids),
+      ),
+    )
+    .returning({ id: vaultRecords.id });
+  return c.json({ deleted: deleted.length });
 });
 
 vault.delete("/:id", limitWrites, async (c) => {

@@ -982,3 +982,94 @@ describe("batch", () => {
     expect(await storedCount(owner.userId)).toBe(1);
   });
 });
+
+describe("deleting several", () => {
+  const remove = (user: { cookie: string }, body: unknown, origin?: string) =>
+    api("/api/vault/delete", {
+      cookie: user.cookie,
+      method: "POST",
+      body,
+      ...(origin !== undefined && { origin }),
+    });
+
+  /** A user with three stored transactions and a settings record. */
+  async function stocked(label: string) {
+    const user = await vaultUser(label);
+    const records = await transactions(user, [{ n: 1 }, { n: 2 }, { n: 3 }]);
+    expect((await batch(user, records)).status).toBe(201);
+    const settings = crypto.randomUUID();
+    expect((await put(user, settings, { base: "USD" })).status).toBe(201);
+    return { user, ids: records.map(({ id }) => id), settings };
+  }
+
+  it("needs a session", async () => {
+    const response = await fetchWorker("/api/vault/delete", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ids: [crypto.randomUUID()] }),
+    });
+    expect(response.status).toBe(401);
+  });
+
+  it("deletes the user's transactions by id, never settings, and counts what went", async () => {
+    const { user, ids, settings } = await stocked("delete-many");
+
+    const response = await remove(user, {
+      ids: [ids[0], ids[1], settings, crypto.randomUUID()],
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ deleted: 2 });
+    expect((await list(user)).map(({ id }) => id).sort()).toEqual(
+      [ids[2], settings].sort(),
+    );
+  });
+
+  it("deletes nothing of another user's, whatever ids it is sent", async () => {
+    const alice = await stocked("delete-many-alice");
+    const bob = await vaultUser("delete-many-bob");
+
+    const response = await remove(bob, { ids: alice.ids });
+
+    expect(await response.json()).toEqual({ deleted: 0 });
+    expect(await list(alice.user, "transaction")).toHaveLength(3);
+  });
+
+  it("refuses what is not a list of ids, each once, at most a thousand", async () => {
+    // One user for every case: in this runner each request keeps its database
+    // connection until the file ends.
+    const user = await vaultUser("delete-many-bad");
+    const id = crypto.randomUUID();
+    for (const [what, body] of [
+      ["no list", {}],
+      ["an empty list", { ids: [] }],
+      ["something not an id", { ids: ["not-an-id"] }],
+      ["an id twice", { ids: [id, id] }],
+      [
+        "more than a thousand ids",
+        { ids: Array.from({ length: 1001 }, () => crypto.randomUUID()) },
+      ],
+      ["another field", { ids: [id], userId: "someone" }],
+    ] as const) {
+      expect((await remove(user, body)).status, what).toBe(400);
+    }
+  });
+
+  it("refuses a body over 48 KB, another origin, and a user past 30 a minute", async () => {
+    const { user, ids } = await stocked("delete-many-guards");
+    const big = await remove(user, { ids, padding: "x".repeat(49 * 1024) });
+    const foreign = await remove(user, { ids }, "https://evil.example");
+    await query(
+      `insert into api_rate_limits (user_id, bucket, window_start, count)
+       values ($1, 'vault-delete', now(), 30)
+       on conflict (user_id, bucket) do update set count = 30, window_start = now()`,
+      [user.userId],
+    );
+    const limited = await remove(user, { ids });
+
+    expect(big.status).toBe(413);
+    expect(foreign.status).toBe(403);
+    expect(limited.status).toBe(429);
+    expect(await list(user, "transaction")).toHaveLength(3);
+  });
+});

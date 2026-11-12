@@ -179,6 +179,17 @@ export function fakeServer(userId = ALICE) {
           throw new ApiError(404, { error: "not_found" });
         }
       }),
+    // Like the server: transactions only, an id already gone is no error.
+    deleteRecords: (ids) =>
+      call("deleteRecords", () => {
+        let deleted = 0;
+        for (const id of ids) {
+          if (records.get(id)?.kind === "transaction" && records.delete(id)) {
+            deleted += 1;
+          }
+        }
+        return deleted;
+      }),
   };
   return {
     api,
