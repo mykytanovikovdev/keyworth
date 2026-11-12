@@ -17,13 +17,14 @@ calculations.
 | File                   | Role                                                                                          |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
 | `check.ts`             | The rules, pure: the schema, no date in the future, no sale beyond what was held              |
-| `service.ts`           | Load, save (add or replace) and delete through the vault; `TransactionError`                  |
+| `service.ts`           | Load, save (add or replace), delete one or several through the vault; `TransactionError`      |
 | `form-values.ts`       | The form's fields: four tabs to five kinds, amounts as typed (`typedAmount`), errors in words |
 | `coin-search.ts`       | Finding a coin: the snapshot's 250, then the server's search; on a sale, the coins held       |
-| `format.ts`            | Dates in words, amounts with every digit they have                                            |
+| `format.ts`            | Dates in words, amounts with every digit they have, the types' names                          |
 | `AssetLogo.tsx`        | A coin's logo through the server, or its symbol in a circle                                   |
 | `TransactionForm.tsx`  | The "Add transaction" / "Edit transaction" dialog                                             |
-| `TransactionList.tsx`  | Columns on a wide screen, two lines a row on a phone; the empty state; unreadable records     |
+| `TransactionList.tsx`  | Columns on a wide screen, two lines a row on a phone; select mode; the empty state            |
+| `DeleteAllDialog.tsx`  | "Delete all transactions?": asked once, with Export to CSV beside it                          |
 | `editor.tsx`           | Adding, editing, deleting with Undo, for any page: the form, refusals in words, coin names    |
 | `TransactionsPage.tsx` | `/transactions`: the list, and the editor for each row                                        |
 | `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
@@ -65,9 +66,13 @@ deleted, closes the form. Undo puts the deleted transaction back under a new id.
 Market data: the shared snapshot names most coins and offers them first in the
 search; names of coins outside it, and "Price that day", are asked for by id
 and kept under `["vault", …]`, which the app clears when the vault locks (they
-say what the user holds). "Price that day" is the day's close from the coin's
-history, or the current price for today, converted at the day's rate (or the
-last one before it) when the price currency is not the dollar.
+say what the user holds). Coins outside the snapshot are asked for only once
+the snapshot is in (`outsideSnapshot`): before it, every coin would look
+outside. They go 50 to a request (`quotesQueries`), as many requests as it takes,
+read as one answer (`combineQuotes`). "Price that day" is the day's close from the coin's history, or for
+today the price the page already has (asking by id only for a coin it lacks),
+converted at the day's rate (or the last one before it) when the price
+currency is not the dollar.
 
 **Import and export** (owner's decisions, 2026-11-09): the "⋯" next to "Add
 transaction" holds Import from CSV and Export to CSV; an empty list offers
@@ -87,6 +92,25 @@ down, and on a failure part of the way stores what is in: importing the file
 again adds the rest. Export writes every readable transaction, oldest first,
 each cell safe to open in a spreadsheet; splits (which nothing creates yet) and
 unreadable records are left out and counted in the message.
+
+**Deleting several** (owner's decisions, 2026-11-12): "Select transactions" in
+the "⋯" turns each row's menu into a box on its left (a phone's logo makes way),
+a bar above the list says how many are chosen, with Select all, Delete and
+Cancel; pressing a row chooses it. Deleting the chosen ones asks nothing and
+offers Undo, like deleting one. "Delete all transactions…" asks once, with the
+count and Export to CSV beside it, and also offers Undo. Both go through
+`deleteTransactions`: the ledger's rule once for all of them (a remaining sale
+keeps the purchase it needs), unreadable records among the ids too, a thousand
+ids a request (`POST /api/vault/delete`, transactions only). Undo writes the
+removed ones back as new records through `importTransactions`, under new ids,
+while the page is open. A request that fails part of the way makes the list be
+read again, since some may have gone.
+
+**Imports that go wrong** say what to do: a sale beyond what was held names
+what it sold, what was held and what to change; a coin given only by a symbol
+outside the 250 largest asks for its id, and how to find it. The preview offers
+the refused rows as a file in the same format with a Reason column the import
+ignores (`refusedCsv`): fix them, import that file.
 
 Each transaction is its own encrypted record of kind `transaction` with a random
 id. `loadTransactions` reads every page of them and splits them into
@@ -144,6 +168,9 @@ with the change applied; nothing is written when a rule fails. They throw a
   never a plain number (`gte(1)` throws "Invalid value").
 - A query that names coins goes under `["vault", userId, …]`; only the snapshot,
   the same for everyone, may stay outside it.
+- The list goes into the cache through `keepIfUnlocked`: a save or an import
+  that finishes after the vault locked keeps nothing (a Lock also reloads the
+  page, but the rule should not depend on that).
 - A new field follows [input-validation.md](../../../shared/schemas/docs/input-validation.md):
   its limit, its kind's filter, a schema, and text-only output.
 
@@ -172,6 +199,17 @@ with the change applied; nothing is written when a rule fails. They throw a
 - **A day without a time imports as the form keeps it:** noon UTC, or now if
   noon is still ahead. A day still ahead everywhere keeps its noon and is
   refused as the future.
+- **A file's coins outside the snapshot are looked up by id, at most 100**
+  (`coinsToLookUp`): each new one costs a call to CoinGecko, whose allowance all
+  users share. A file longer than the account's room and its recorded rows
+  together is refused before any row is checked, and the check itself looks
+  rows up by id, so a hostile file of 5 MB cannot hold the page for a minute.
+- **Numbers in a file are read more strictly than in a field** (`fileAmount`):
+  the preview shows only counts, so a grouped number guessed wrong ("1.234,50"
+  as 1.2345, "1,234" as 1.234) would go in unseen. A point or a lone comma is
+  the decimal separator, spaces may group thousands, any other grouping and the
+  ambiguous "1,234" are refused with a message
+  ([input-validation.md](../../../shared/schemas/docs/input-validation.md#files)).
 - **Write invisible characters as escapes** (`"\uFEFF"`) in source: a literal
   byte-order mark looks like nothing, and ESLint skips it inside strings.
 

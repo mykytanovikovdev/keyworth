@@ -55,9 +55,10 @@ Prices and fees in the base currency.
 
 `tests/unit/metrics/positions.test.ts` checks this table row by row.
 
-Unrealized P&L is today's value less the cost. Total gain is realized plus
-unrealized plus income; income counts as cost when received, so it is not counted
-twice.
+Unrealized P&L is today's value less the cost. Income counts as cost when
+received, so it is not counted twice: the portfolio page shows all-time profit
+(realized plus unrealized) and income as two figures, and together they are the
+total gain (`src/features/portfolio/summary.ts`).
 
 ## Currencies
 
@@ -165,4 +166,4 @@ A new transaction type needs a row in the rules table and a decision about wheth
 it moves money for `portfolioHistory`. Never compute money through `number`, and
 never let a missing input become zero.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-11

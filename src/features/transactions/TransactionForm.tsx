@@ -37,6 +37,7 @@ import {
   AMOUNT_MAX_LENGTH,
   executedAt,
   parseAmount,
+  type PriceOnDay,
   typedAmount,
 } from "./form-values.ts";
 import { money, quantity as quantityText, shortDate } from "./format.ts";
@@ -58,13 +59,6 @@ const KINDS = [
 
 const isKind = (id: string): id is FormKind =>
   KINDS.some((kind) => kind.id === id);
-
-export interface PriceOnDay {
-  /** Plain digits, in the price currency. */
-  price: string;
-  /** Whose price it is, said after it: "Coin Metrics", "CoinGecko". */
-  source: string;
-}
 
 interface TransactionFormProps {
   isOpen: boolean;
@@ -169,10 +163,17 @@ export function TransactionForm({
     ),
   }));
   const trade = values.kind === "buy" || values.kind === "sell";
-  const held =
-    takesOut && values.asset && values.day && heldAt
-      ? heldAt(values.asset.id, executedAt(values.day, openedAt))
-      : null;
+  // A whole pass over the ledger: only when the coin or the day changes, not
+  // at every keystroke in the amounts.
+  const assetId = values.asset?.id;
+  const held = useMemo(
+    () =>
+      takesOut && assetId && values.day && heldAt
+        ? heldAt(assetId, executedAt(values.day, openedAt))
+        : null,
+    [takesOut, assetId, values.day, heldAt, openedAt],
+  );
+  // Hidden while the quantity is refused: the refusal says what was held.
   const heldLine =
     held !== null && values.day && values.asset
       ? `Held on ${shortDate(values.day)}: ${quantityText(held, values.asset.symbol)}`
@@ -285,18 +286,19 @@ export function TransactionForm({
                 </Button>
               ),
             })}
-            {...((heldLine !== null || values.kind === "send") && {
-              description: (
-                <>
-                  {heldLine && <span className="block">{heldLine}</span>}
-                  {values.kind === "send" && (
-                    <span className="block">
-                      Include the network fee, if it was paid in this coin.
-                    </span>
-                  )}
-                </>
-              ),
-            })}
+            {...((heldLine !== null || values.kind === "send") &&
+              shown.quantity === undefined && {
+                description: (
+                  <>
+                    {heldLine && <span className="block">{heldLine}</span>}
+                    {values.kind === "send" && (
+                      <span className="block">
+                        Include the network fee, if it was paid in this coin.
+                      </span>
+                    )}
+                  </>
+                ),
+              })}
             isInvalid={shown.quantity !== undefined}
             {...(shown.quantity && { errorMessage: shown.quantity })}
           />
@@ -331,18 +333,20 @@ export function TransactionForm({
                 />
               </div>
               {hint && (
-                <p className="text-xs text-fg-muted">
-                  Price that day: {money(hint.price, values.priceCurrency)} (
-                  {hint.source}) ·{" "}
+                <div className="flex flex-wrap items-center justify-between gap-x-3 text-xs">
+                  <p className="text-fg-muted">
+                    Price that day: {money(hint.price, values.priceCurrency)} (
+                    {hint.source})
+                  </p>
                   <AriaButton
                     onPress={() => {
                       update({ price: hint.price });
                     }}
-                    className="rounded-sm font-medium text-accent underline-offset-2 data-hovered:underline"
+                    className="-mx-1 inline-flex min-h-8 items-center rounded-sm px-1 font-medium text-accent underline-offset-2 data-hovered:underline"
                   >
                     Use this price
                   </AriaButton>
-                </p>
+                </div>
               )}
             </div>
           )}
@@ -419,7 +423,12 @@ export function TransactionForm({
                 {values.kind === "buy" ? "Total paid" : "Total received"}
               </span>
               <span className="font-medium tabular-nums">
-                {total ? money(total, values.priceCurrency) : "—"}
+                {/* No total for amounts that were refused. */}
+                {total &&
+                shown.quantity === undefined &&
+                shown.price === undefined
+                  ? money(total, values.priceCurrency)
+                  : "—"}
               </span>
             </div>
           )}

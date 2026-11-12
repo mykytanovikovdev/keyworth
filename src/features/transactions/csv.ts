@@ -91,19 +91,29 @@ export function parseCsv(
   return { records };
 }
 
-/** Starts a spreadsheet would read as a formula: `=SUM(…)`, `+1`, `@cmd`. */
-const FORMULA = /^[=+\-@\t\r]/;
+/*
+ * Where a spreadsheet could start a formula: at the start of a cell, and after
+ * a ";" too, because a spreadsheet in a region whose list separator is ";"
+ * (much of Europe) splits a comma-separated line there, quotes or not. A
+ * formula starts with = + - @, a tab or a carriage return.
+ */
+const FORMULA_AT = /(^|; *)('*)(?=[=+\-@\t\r])/g;
+const ESCAPED_AT = /(^|; *)'('*)(?=[=+\-@\t\r])/g;
 
 /**
- * A cell as written for spreadsheets: one that would start a formula gets a
- * leading `'`, so `=HYPERLINK(…)` in a note stays text when the file is opened.
+ * A cell as written for spreadsheets: where a formula could start, one more
+ * `'` goes before it (and before any `'` already there), so `=HYPERLINK(…)` in
+ * a note stays text when the file is opened, wherever it is in the note.
  */
 export const safeCell = (text: string): string =>
-  FORMULA.test(text) ? `'${text}` : text;
+  text.replace(FORMULA_AT, "$1'$2");
 
-/** A cell as read back: the `'` that `safeCell` added comes off again. */
+/**
+ * A cell as read back: exactly the `'` that `safeCell` added comes off, so a
+ * note that itself starts with `'=` comes back as it was.
+ */
 export const plainCell = (text: string): string =>
-  text.startsWith("'") && FORMULA.test(text.slice(1)) ? text.slice(1) : text;
+  text.replace(ESCAPED_AT, "$1$2");
 
 const quoteField = (text: string): string =>
   /[",;\t\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;

@@ -1,4 +1,4 @@
-import { Button, Notice } from "../../ui/index.ts";
+import { Button, Notice, TextLink } from "../../ui/index.ts";
 
 interface PortfolioNoticesProps {
   /** Transactions that cannot be decrypted or read. */
@@ -62,14 +62,16 @@ export function PortfolioNotices({
       {damaged > 0 && (
         <Notice tone="warning">
           {damaged === 1
-            ? "1 transaction can't be read and is left out of every figure. You can delete it on the Transactions page."
-            : `${String(damaged)} transactions can't be read and are left out of every figure. You can delete them on the Transactions page.`}
+            ? "1 transaction can't be read and is left out of every figure. You can delete it on the "
+            : `${String(damaged)} transactions can't be read and are left out of every figure. You can delete them on the `}
+          <TextLink href="/transactions">Transactions page</TextLink>.
         </Notice>
       )}
       {oversold && (
         <Notice tone="info">
           A sale moved more than you held at the time; only what you held is
-          counted. Check it on the Transactions page.
+          counted. Check it on the{" "}
+          <TextLink href="/transactions">Transactions page</TextLink>.
         </Notice>
       )}
     </>

@@ -1,6 +1,6 @@
 import { STABLECOINS } from "../../shared/schemas/currencies.ts";
 import type { DailyPoint } from "./series.ts";
-import { fetchJson, MarketError, plainDigits } from "./upstream.ts";
+import { fetchJson, MarketError, plainDigits, plausible } from "./upstream.ts";
 
 /*
  * Frankfurter, no key: central banks' exchange rates, blended across the banks
@@ -93,7 +93,8 @@ async function pair(
       !DAY.test(date) ||
       typeof rate !== "number" ||
       !Number.isFinite(rate) ||
-      rate <= 0
+      rate <= 0 ||
+      !plausible(rate)
     ) {
       continue;
     }

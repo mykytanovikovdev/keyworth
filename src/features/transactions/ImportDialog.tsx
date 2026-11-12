@@ -1,4 +1,4 @@
-import { Check, CircleX, Equal, FileUp, Minus } from "lucide-react";
+import { Check, CircleX, Download, Equal, FileUp, Minus } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { cleanText } from "../../../shared/schemas/text.ts";
 import {
@@ -107,7 +107,8 @@ export function ImportDialog({
               <p className="text-sm text-fg-muted">
                 A CSV file in Keyworth&apos;s format: one made by Export to CSV,
                 or the template filled in. It&apos;s read on this device and
-                never uploaded; each transaction is encrypted before it&apos;s
+                never uploaded: only coins outside the 250 largest are looked up
+                by their id, and each transaction is encrypted before it&apos;s
                 saved.
               </p>
               {step.kind === "choose" && step.problem && (
@@ -262,6 +263,21 @@ function Preview({
                 <li>and {count(plan.problems.length - LISTED)} more</li>
               )}
             </ul>
+            {plan.refusedCsv && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Download aria-hidden="true" />}
+                className="ml-4 self-start"
+                onPress={() => {
+                  if (plan.refusedCsv) {
+                    downloadText(plan.refusedCsv, "keyworth-refused-rows.csv");
+                  }
+                }}
+              >
+                Download these rows to fix
+              </Button>
+            )}
           </li>
         )}
       </ul>

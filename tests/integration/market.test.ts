@@ -5,6 +5,7 @@ import type {
   PricesJson,
   RatesJson,
 } from "../../shared/schemas/market.ts";
+import { COINGECKO_BUDGET } from "../../worker/market/budget.ts";
 import {
   api,
   expectWorkerHeaders,
@@ -24,6 +25,7 @@ const IMAGES = "https://coin-images.coingecko.com/coins/images";
 interface Call {
   url: URL;
   headers: Headers;
+  redirect: Request["redirect"];
 }
 
 /**
@@ -44,7 +46,7 @@ function mockSources(answer: (url: URL) => Response | Promise<Response>) {
       ) {
         throw new Error(`Unexpected request to ${url.hostname}`);
       }
-      calls.push({ url, headers: request.headers });
+      calls.push({ url, headers: request.headers, redirect: request.redirect });
       return Promise.resolve(answer(url));
     });
   return { calls, spy };
@@ -72,6 +74,9 @@ const MARKETS = [
   }),
   coin({ id: "no-price", current_price: null }),
   coin({ id: "negative-price", current_price: -1 }),
+  // Not real prices: kept, they would be hundreds of digits.
+  coin({ id: "absurd-price", current_price: 1e308 }),
+  coin({ id: "vanishing-price", current_price: 5e-324 }),
   coin({ id: "Not An Id" }),
   coin({ id: "elsewhere", image: "https://evil.example/logo.png" }),
 ];
@@ -100,6 +105,8 @@ beforeEach(async () => {
   await query(
     "delete from market_cache where key like 'coingecko:%' or key like 'frankfurter:%'",
   );
+  // The shared budget counts every call this file makes.
+  await query("delete from upstream_calls");
 });
 afterEach(() => {
   vi.restoreAllMocks();
@@ -158,6 +165,8 @@ describe("prices", () => {
     expect(calls[0]?.headers.get("x-cg-demo-api-key")).toBe(
       "test-coingecko-key",
     );
+    // A redirect would carry the key's header elsewhere: it is a failure.
+    expect(calls[0]?.redirect).toBe("manual");
     expect(calls[0]?.url.searchParams.get("precision")).toBe("full");
   });
 
@@ -418,6 +427,51 @@ describe("logos", () => {
     }
   });
 
+  it("refuses a logo over 100 KB", async () => {
+    const { cookie } = await signedIn("logo-large");
+    mockSources((url) =>
+      url.hostname === "coin-images.coingecko.com"
+        ? new Response(new Uint8Array(100 * 1024 + 1), {
+            headers: { "content-type": "image/png" },
+          })
+        : defaultAnswer(url),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await prices(cookie);
+    // A logo URL not cached by an earlier test.
+    await query(
+      `update market_cache set value = jsonb_set(value, '{0,image}', '"${IMAGES}/1/small/too-large.png"') where key = 'coingecko:top'`,
+    );
+
+    const response = await api("/api/assets/crypto:bitcoin/logo", { cookie });
+    expect(response.status).toBe(502);
+  });
+
+  it("logs an unexpected failure by its route, never by the coin it named", async () => {
+    const { cookie } = await signedIn("logo-error-log");
+    mockSources(defaultAnswer);
+    const logged = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    // A stored address that cannot be fetched: a bug, not a source failing.
+    await query(
+      `insert into market_cache (key, value, fetched_at, expires_at)
+       values ('coingecko:logo:crypto:secret-coin', '{"image": "not an address"}',
+               now(), now() + interval '1 day')`,
+    );
+
+    const response = await api("/api/assets/crypto:secret-coin/logo", {
+      cookie,
+    });
+
+    expect(response.status).toBe(500);
+    const lines = logged.mock.calls.map((args) => args.join(" "));
+    expect(
+      lines.some((line) => line.includes("GET /api/assets/:id/logo")),
+    ).toBe(true);
+    expect(lines.join("\n")).not.toContain("secret-coin");
+  });
+
   it("refuses an SVG: it is a document that could run script", async () => {
     const { cookie } = await signedIn("logo-svg");
     mockSources(images("image/svg+xml"));
@@ -431,6 +485,100 @@ describe("logos", () => {
 
     const response = await api("/api/assets/crypto:bitcoin/logo", { cookie });
     expect(response.status).toBe(502);
+  });
+});
+
+describe("limits", () => {
+  it("stops each read that can reach a source at its limit a minute, before any call", async () => {
+    const user = await signedIn("market-limits");
+    const { calls } = mockSources(defaultAnswer);
+    const reads = [
+      ["market", 120, "/api/market/prices"],
+      [
+        "history",
+        120,
+        "/api/market/history?asset=crypto:bitcoin&from=2026-01-01",
+      ],
+      ["rates", 60, "/api/market/rates?quotes=EUR&from=2026-01-01"],
+      ["search", 60, "/api/assets/search?q=bit"],
+    ] as const;
+    // Seeded, not sent: every request here keeps a database connection.
+    for (const [bucket, limit] of reads) {
+      await query(
+        `insert into api_rate_limits (user_id, bucket, window_start, count)
+         values ($1, $2, now(), $3)`,
+        [user.userId, bucket, limit],
+      );
+    }
+
+    for (const [, , path] of reads) {
+      const response = await api(path, { cookie: user.cookie });
+      expect(response.status, path).toBe(429);
+      expect(response.headers.get("retry-after"), path).toBe("60");
+    }
+    expect(calls).toEqual([]);
+  });
+
+  it("refuses a source's redirect instead of following it", async () => {
+    const { cookie } = await signedIn("market-redirect");
+    mockSources(
+      () =>
+        new Response(null, {
+          status: 302,
+          headers: { location: "https://evil.example/markets" },
+        }),
+    );
+
+    expect((await prices(cookie)).status).toBe(502);
+  });
+});
+
+describe("CoinGecko's budget", () => {
+  it("is spent by all users together: past a day's budget, the cache answers, or nothing", async () => {
+    const { cookie } = await signedIn("budget-shared");
+    const { calls } = mockSources(defaultAnswer);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    expect((await prices(cookie)).status).toBe(200);
+    await query(
+      `update market_cache set fetched_at = now() - interval '11 minutes'
+        where key = 'coingecko:top'`,
+    );
+    await query(`update upstream_calls set day_count = $1`, [
+      COINGECKO_BUDGET.perDay,
+    ]);
+
+    const stale = await prices(cookie);
+    await query("delete from market_cache where key = 'coingecko:top'");
+    const none = await prices(cookie);
+
+    expect(stale.status).toBe(200);
+    expect(stale.body?.quotes.length).toBeGreaterThan(0);
+    expect(none.status).toBe(502);
+    expect(calls).toHaveLength(1);
+  });
+
+  it("gives each user an hour's budget for coins and searches by name; the snapshot does not count", async () => {
+    const user = await signedIn("budget-user");
+    const { calls } = mockSources(defaultAnswer);
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await query(
+      `insert into api_rate_limits (user_id, bucket, window_start, count)
+       values ($1, 'coingecko', now(), $2)`,
+      [user.userId, COINGECKO_BUDGET.perUserPerHour],
+    );
+
+    const snapshot = await prices(user.cookie);
+    const byName = await prices(user.cookie, "crypto:new-coin");
+    const search = await api("/api/assets/search?q=newcoin", {
+      cookie: user.cookie,
+    });
+
+    expect(snapshot.status).toBe(200);
+    expect(byName.status).toBe(502);
+    expect(search.status).toBe(502);
+    expect(calls.map(({ url }) => url.pathname)).toEqual([
+      "/api/v3/coins/markets",
+    ]);
   });
 });
 
@@ -730,6 +878,27 @@ describe("exchange rates", () => {
     await rates(cookie, "EUR", "2026-03-01");
     await rates(cookie, "EUR,GEL", "2026-03-01");
 
+    expect(
+      frankfurter(calls).map(({ url }) => url.searchParams.get("quotes")),
+    ).toEqual(["EUR", "GEL"]);
+  });
+
+  it("keeps each currency it got even when a later one fails, so the next request goes on from there", async () => {
+    const { cookie } = await signedIn("rates-partial");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const { calls } = mockSources((url) =>
+      url.searchParams.get("quotes") === "GEL"
+        ? new Response("down", { status: 503 })
+        : answer(url),
+    );
+
+    const failed = await rates(cookie, "EUR,GEL", "2026-03-01");
+    const kept = await query<{ key: string }>(
+      "select key from market_cache where key like 'frankfurter:rate:%' order by key",
+    );
+
+    expect(failed.status).toBe(502);
+    expect(kept.map(({ key }) => key)).toEqual(["frankfurter:rate:EUR"]);
     expect(
       frankfurter(calls).map(({ url }) => url.searchParams.get("quotes")),
     ).toEqual(["EUR", "GEL"]);

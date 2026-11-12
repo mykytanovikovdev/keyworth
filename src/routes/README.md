@@ -3,7 +3,7 @@
 ## Purpose
 
 The app's pages and how they connect: the route tree, the signed-in layouts,
-and the pages that belong to no feature (home, not found).
+and the pages that belong to no feature (not found, the dev-only mockups).
 
 ## How it works
 
@@ -79,7 +79,8 @@ bundle:size`.
 - Redirects are thrown (`throw redirect(...)`); ESLint allows exactly that type.
 - Search params are validated per route (`validateSearch`); read them with
   `route.useSearch()`, never from `window.location`.
-- **A lazy page that takes props** (Settings and sign-in take the search) is
+- **A lazy page that takes props** (Settings, sign-in and Transactions, whose
+  `?import=true` opens the import, take the search) is
   rendered by a small route component, which the router cannot see into: wrap
   it in `waitingFor(page, component)` (`pages.ts`), or the router switches at
   once and shows an empty page until the code arrives. A plain `React.lazy`

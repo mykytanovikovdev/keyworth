@@ -78,7 +78,13 @@ const homeRoute = createRoute({
 const transactionsRoute = createRoute({
   getParentRoute: () => appRoute,
   path: "/transactions",
-  component: TransactionsPage,
+  // Set by the portfolio's "Import from a file": opens the import at once.
+  validateSearch: (search): { import?: true } =>
+    search.import === true ? { import: true } : {},
+  component: waitingFor(TransactionsPage, function Transactions() {
+    const search = transactionsRoute.useSearch();
+    return <TransactionsPage openImport={search.import === true} />;
+  }),
 });
 
 const settingsRoute = createRoute({

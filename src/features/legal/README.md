@@ -41,7 +41,8 @@ terms, and `worker/auth.ts` records `TERMS_VERSION` with each new account.
   - what the server stores and how long (the cleanup in `worker/cleanup.ts` is
     what makes the "2 days" true);
   - any new cookie or localStorage, sessionStorage or IndexedDB entry, each of
-    which is listed by name.
+    which is listed by name. A `keyworth-…` name in the browser's code that the
+    policy does not list fails `tests/unit/legal/storage-names.test.ts`.
 - Links stay inside the app (`TextLink`, React Aria's `Link`): Settings links
   here with the data open, and a page reload would lock it.
 - Long storage names must wrap at 320 px (`overflow-wrap` in `LegalPage`).

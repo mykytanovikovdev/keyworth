@@ -331,6 +331,16 @@ function Fields() {
         label="Remember this device"
         description="Stay unlocked in this browser until you lock Keyworth."
       />
+      {/* Choosing rows: "some" shows a dash; a row's own box has its label hidden. */}
+      <div className="flex items-center gap-4">
+        <Checkbox label="Select all" isIndeterminate />
+        <Checkbox
+          label="Select Buy 5 LTC on Dec 20, 2025"
+          hideLabel
+          defaultSelected
+        />
+        <Checkbox label="Select Sell 0.05 BTC on Nov 20, 2025" hideLabel />
+      </div>
     </div>
   );
 }

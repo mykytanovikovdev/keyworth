@@ -6,6 +6,7 @@ import {
   type PriceSeries,
   portfolioHistory,
 } from "../../../shared/metrics/history.ts";
+import { addDays, daysBetween } from "../../../shared/metrics/ledger.ts";
 import { decimal } from "../../../shared/money/decimal.ts";
 import {
   buy,
@@ -37,6 +38,16 @@ const shown = ({ date, value, inflow, outflow, movedIn }: HistoryPoint) => [
   outflow?.toString() ?? null,
   movedIn?.toString() ?? null,
 ];
+
+describe("days in UTC", () => {
+  it("move by whole days across months, years and a daylight-saving change", () => {
+    expect(addDays("2025-03-29", 3)).toBe("2025-04-01");
+    expect(addDays("2025-01-03", -7)).toBe("2024-12-27");
+    expect(addDays("2024-02-28", 1)).toBe("2024-02-29");
+    expect(daysBetween("2025-03-29", "2025-04-01")).toBe(3);
+    expect(daysBetween("2025-04-01", "2025-03-29")).toBe(-3);
+  });
+});
 
 describe("eachDay", () => {
   it("crosses months and a daylight-saving change, both ends included", () => {

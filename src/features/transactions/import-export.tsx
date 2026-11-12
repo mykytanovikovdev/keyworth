@@ -1,14 +1,11 @@
 import { getLocalTimeZone, today } from "@internationalized/date";
 import { useQueryClient } from "@tanstack/react-query";
 import { type ReactNode, useState } from "react";
-import {
-  cryptoAssetIdSchema,
-  MARKET_LIMITS,
-} from "../../../shared/schemas/market.ts";
+import { MARKET_LIMITS } from "../../../shared/schemas/market.ts";
 import { showToast } from "../../ui/index.ts";
 import { exportFileName, transactionsCsv } from "./csv-export.ts";
 import {
-  coinIdsIn,
+  coinsToLookUp,
   type FileProblem,
   type ImportPlan,
   planImport,
@@ -37,9 +34,12 @@ import {
 interface ImportExportOptions {
   userId: string;
   current: () => TransactionList | undefined;
-  store: (list: TransactionList) => void;
+  /** False when the vault locked meanwhile: nothing was kept. */
+  store: (list: TransactionList) => boolean;
   assetOf: (assetId: string) => AssetChoice;
   failed: (error: unknown) => void;
+  /** The dialog is open from the first render (loaded on demand). */
+  startOpen?: boolean;
 }
 
 const counted = (n: number, one: string, many: string) =>
@@ -51,13 +51,14 @@ export function useImportExport({
   store,
   assetOf,
   failed,
+  startOpen = false,
 }: ImportExportOptions): {
   importDialog: ReactNode;
   openImport: () => void;
   exportCsv: () => void;
 } {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
 
   const check = async (
     file: File,
@@ -74,10 +75,9 @@ export function useImportExport({
     try {
       top = assetsOf(await queryClient.query(snapshotQuery));
       for (const coin of top) known.set(coin.id, coin);
-      // Only well-formed ids are asked for; any other is a coin nobody knows.
-      const asked = coinIdsIn(table.table).filter(
-        (id) => !known.has(id) && cryptoAssetIdSchema.safeParse(id).success,
-      );
+      const lookUp = coinsToLookUp(table.table, (id) => known.has(id));
+      if ("problem" in lookUp) return lookUp;
+      const asked = lookUp.ids;
       for (let at = 0; at < asked.length; at += MARKET_LIMITS.idsPerRequest) {
         const ids = asked.slice(at, at + MARKET_LIMITS.idsPerRequest);
         const prices = await queryClient.query(quotesQuery(userId, ids));
@@ -108,7 +108,7 @@ export function useImportExport({
       { progress },
     ).then(
       (next) => {
-        store(next);
+        if (!store(next)) return;
         setOpen(false);
         showToast(`${counted(total, "transaction", "transactions")} imported`, {
           tone: "success",
@@ -117,7 +117,7 @@ export function useImportExport({
       (error: unknown) => {
         setOpen(false);
         if (error instanceof ImportStopped) {
-          store(error.list);
+          if (!store(error.list)) return;
           showToast("The import stopped", {
             tone: "error",
             description: `${String(error.written)} of ${counted(total, "transaction", "transactions")} were imported. Import the file again to add the rest: what's in already is skipped.`,

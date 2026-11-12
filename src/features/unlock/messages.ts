@@ -43,6 +43,12 @@ export function failureMessage(error: unknown): {
         "This key was just changed in another tab or device. Nothing was changed here; try again.",
     };
   }
+  if (error instanceof ApiError && error.code === "busy") {
+    return {
+      title: "The server is busy",
+      description: "Nothing was saved. Try again in a moment.",
+    };
+  }
   if (error instanceof ApiError && error.code === "rate_limited") {
     return {
       title: "Too many attempts",

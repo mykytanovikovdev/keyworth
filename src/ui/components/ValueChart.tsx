@@ -3,6 +3,7 @@ import {
   useCallback,
   useId,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -101,24 +102,28 @@ export function ValueChart({
     };
   }, [ready, width]);
 
-  const ticks = niceTicks(Math.min(...values), Math.max(...values));
-  const low = ticks[0] ?? 0;
-  const high = ticks[ticks.length - 1] ?? 1;
-  const innerWidth = Math.max(width - PAD.left - PAD.right, 1);
-  const innerHeight = height - PAD.top - PAD.bottom;
-  const x = (index: number) =>
-    PAD.left + (index / (values.length - 1)) * innerWidth;
-  const y = (value: number) =>
-    PAD.top + (1 - (value - low) / (high - low || 1)) * innerHeight;
-
-  const line = values
-    .map(
-      (value, index) =>
-        `${index === 0 ? "M" : "L"}${x(index).toFixed(1)} ${y(value).toFixed(1)}`,
-    )
-    .join(" ");
-  const bottom = PAD.top + innerHeight;
-  const area = `${line} L${x(values.length - 1).toFixed(1)} ${String(bottom)} L${x(0).toFixed(1)} ${String(bottom)} Z`;
+  // The axes and the paths depend on the series and the size only: built once
+  // for them, not again at every move of the pointer over a year of points.
+  const { ticks, innerWidth, x, y, line, area, bottom } = useMemo(() => {
+    const ticks = niceTicks(Math.min(...values), Math.max(...values));
+    const low = ticks[0] ?? 0;
+    const high = ticks[ticks.length - 1] ?? 1;
+    const innerWidth = Math.max(width - PAD.left - PAD.right, 1);
+    const innerHeight = height - PAD.top - PAD.bottom;
+    const x = (index: number) =>
+      PAD.left + (index / (values.length - 1)) * innerWidth;
+    const y = (value: number) =>
+      PAD.top + (1 - (value - low) / (high - low || 1)) * innerHeight;
+    const line = values
+      .map(
+        (value, index) =>
+          `${index === 0 ? "M" : "L"}${x(index).toFixed(1)} ${y(value).toFixed(1)}`,
+      )
+      .join(" ");
+    const bottom = PAD.top + innerHeight;
+    const area = `${line} L${x(values.length - 1).toFixed(1)} ${String(bottom)} L${x(0).toFixed(1)} ${String(bottom)} Z`;
+    return { ticks, innerWidth, x, y, line, area, bottom };
+  }, [values, width, height]);
   const last = values[values.length - 1] ?? 0;
   const lastTick = formatTick(last);
   const hoverValue = hover === null ? undefined : values[hover];

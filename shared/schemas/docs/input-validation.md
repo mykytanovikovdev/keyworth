@@ -75,7 +75,9 @@ follows these rules:
 4. **Text, not bytes.** Decoded as UTF-8 with `fatal: true`; a NUL byte or an
    invalid sequence means it is not a CSV file. A byte-order mark is dropped.
 5. **Rows within the vault's limits.** At most as many rows as the user's quota
-   can still hold; more is refused before anything is written.
+   can still hold; more is refused before anything is written, and a file
+   longer than the room and every recorded row together before any row is
+   checked. At most 100 coins outside the snapshot are looked up by id.
 6. **Every row through the transaction service.** Each cell is free text, an
    amount, a date or a choice, and gets that kind's rules; nothing is written
    unless the user confirms the preview.
@@ -87,25 +89,38 @@ follows these rules:
 How the code meets them: the picker hints `.csv`; `readText` refuses a file
 over 5 MB before reading it, and bytes that are not UTF-8 or hold a NUL;
 `readTable` needs the known columns; every row is rebuilt field by field
-(amounts with the form's rules, currencies from the form's list, the note
-through `cleanText`) and then parsed by the transaction schema; the ledger's
+(amounts strictly, below; currencies from the form's list, the note through
+`cleanText`) and then parsed by the transaction schema; the ledger's
 rule runs over the whole file; the account's room is checked before anything
 is written; the dialog shows what would be added, skipped and refused, and the
 service writes only after the button. A cell quoted in a message is cut to 40
 characters and cleaned. The file name is shown as text, cleaned and cut.
 
-**Export** (`csv-export.ts`) writes CSV that spreadsheets open: a cell that
-starts with `=`, `+`, `-`, `@`, a tab or a carriage return is prefixed with
-`'`, so a note such as `=HYPERLINK(...)` stays text instead of becoming a
-formula; the import takes that `'` off again.
+**Numbers in a file are read strictly,** stricter than a field: a field shows
+what it understood as you type, a file's preview shows only counts, so a number
+read a thousand times off would go in unseen. A point is always the decimal
+point (the export and the template write it); a lone comma is one too ("0,5");
+spaces between groups of three digits group thousands ("1 234,50"). Any other
+grouping ("1.234,50", "1,234.50", "1'000") is refused with a message, and so is
+a comma before exactly three digits after one to three others ("1,234" could be
+either). Tested in `tests/unit/transactions/csv-import.test.ts`.
+
+**Export** (`csv-export.ts`) writes CSV that spreadsheets open: where a formula
+could start, at the start of a cell or after a `;` (a spreadsheet whose list
+separator is `;` splits the line there, quotes or not), a `=`, `+`, `-`, `@`, a
+tab or a carriage return gets one more `'` before it, so a note such as
+`=HYPERLINK(...)` stays text instead of becoming a formula. The import takes
+off exactly that `'`, so every note comes back as it was, one that starts with
+`'=` included.
 
 ## What the server does with input
 
 - **Strict schemas and allowlists.** Bodies are strict objects with exact sizes
   (`shared/schemas`); ids match a pattern; currencies, kinds and cursors come
   from fixed lists or formats. Something unknown is a 400, not a guess.
-- **Limits before work.** Body size (4 KB, 96 KB), query length, ids per request,
-  rate limits per user, quotas per user ([api-guards.md](../../../worker/routes/docs/api-guards.md)).
+- **Limits before work.** Body size (4 KB, 96 KB, 128 KB, 48 KB), query length, ids
+  per request, rate limits per user, quotas per user
+  ([api-guards.md](../../../worker/routes/docs/api-guards.md)).
 - **No string becomes code.** Queries are Drizzle's or parameterized `sql`
   templates; `sql.raw` takes only constants from the code.
 - **Input never chooses where the server connects.** Market sources are fixed
@@ -145,7 +160,7 @@ formula; the import takes that `'` off again.
 | A request that makes the server call elsewhere             | Fixed hosts; input only as a checked path segment or an encoded query value                             | `market.test.ts` (refused ids; other hosts fail the test)                                              |
 | Input in the logs                                          | Fixed error messages that name no input                                                                 | `market.test.ts` (the one log line)                                                                    |
 | Slow patterns on long input (ReDoS)                        | Anchored patterns without nested repetition, run on input already cut to its limit                      | Review                                                                                                 |
-| A formula in an exported cell                              | Export prefixes `= + - @`, tab and CR with `'`                                                          | `tests/unit/transactions/csv.test.ts`; `transactions.spec.ts` (the downloaded file)                    |
+| A formula in an exported cell                              | Export puts a `'` before `= + - @`, tab and CR at a cell's start and after `;`                          | `tests/unit/transactions/csv.test.ts`; `transactions.spec.ts` (the downloaded file)                    |
 | A hostile file                                             | [Files](#files): size first, strict UTF-8, each row rebuilt and parsed, a preview before writing        | `tests/unit/transactions/csv-import.test.ts`; `tests/e2e/transactions.spec.ts`                         |
 | Instructions hidden in data for the assistant              | Data reaches the model marked as untrusted and cut to size (project rule 12, phase 5)                   | With the chat, phase 5                                                                                 |
 
@@ -185,4 +200,4 @@ language. Secrets, which must be typed again exactly, are printable ASCII only.
    them), how it is shown, and the server's 400.
 8. Add it to the tables above.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-12

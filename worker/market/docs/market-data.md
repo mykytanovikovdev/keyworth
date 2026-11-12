@@ -75,10 +75,18 @@ user's first trade) cuts the series; the server keeps it whole.
   user's own.
 - **A coin outside the snapshot, a coin's history and a currency's rates are
   asked for by name.** At that moment the server sees which coins and
-  currencies this user asks about. It does not keep that: the cache key is the
-  coin or the currency, not the user, and nothing about the request is logged.
+  currencies this user asks about. The cache key is the coin or the currency,
+  not the user, and nothing about the request is logged; but the entry keeps
+  when it was fetched, and the user's rate-limit counter when they last asked,
+  so in a small group the two times can match (accepted, see the
+  [threat model](../../../src/crypto/docs/threat-model.md)).
 - **A search is kept for a day under its text**, so the next person typing the
-  same thing costs no call. Nothing links it to who typed it.
+  same thing costs no call. It is stored under the text, not under who typed it.
+- **Logos are asked for by coin id**, one image per coin a page shows (the
+  coins in a user's list, the results of a search), so the server sees those
+  ids too, whether or not the coin is in the snapshot. Nothing about a logo
+  request is kept per user or logged; the image itself is cached by Cloudflare
+  under the coin.
 - **The sources see only Keyworth's server,** never a user's address: every call,
   logos included, goes through the Worker. Logos also have to, because the page's
   CSP allows images from its own origin only.
@@ -86,7 +94,9 @@ user's first trade) cuts the series; the server keeps it whole.
 ## Invariants
 
 1. `market_cache` holds no user id, email or address, and no request is logged
-   with what it asked for: a failure logs only the source and the kind of failure.
+   with what it asked for: a failure logs only the source and the kind of failure,
+   and an unexpected error logs the route's pattern (`/api/assets/:id/logo`),
+   never the path with the coin in it.
 2. Nothing from CoinGecko is served or kept for more than a day (its API terms);
    the daily cleanup deletes expired rows. Frankfurter's data, free of such
    terms, is kept for 90 days from its last refresh.
@@ -98,13 +108,23 @@ user's first trade) cuts the series; the server keeps it whole.
 4. A logo comes only from CoinGecko's image host, only as PNG, JPEG, WebP or GIF,
    at most 100 KB. An SVG is a document that can carry script, so it is refused.
 5. A source gets at most 8 seconds per answer, and 2 MB (CoinGecko) or 1 MB
-   (Frankfurter, whose longest series is about 400 KB).
-6. A series holds only real days from 2010-07-18 to tomorrow: a source's date in
+   (Frankfurter, whose longest series is about 400 KB). A redirect is a failure,
+   never followed: it would carry the key's header, or an image request, to
+   another host.
+6. A price or rate is kept only if it can be real: 0, or between 1e-18 and 1e15.
+   A broken source's 1e308 would otherwise be stored as hundreds of digits.
+7. A series holds only real days from 2010-07-18 to tomorrow: a source's date in
    the year 9999 is dropped, not turned into millions of empty days.
-7. The routes need a session, like every other route after `requireSession`.
+8. The routes need a session, like every other route after `requireSession`.
 
 ## Decisions and alternatives
 
+- **A budget for CoinGecko shared by all users** (`budget.ts`): 30 calls a
+  minute and 320 a UTC day (about 9,600 a month), and 60 an hour per user for
+  coins and searches by name; the snapshot counts only against the shared
+  budget. The per-route limits are per user, so without it one account could
+  spend the month in an hour. Past it, the routes serve what the cache has or
+  502, as when the source fails. Frankfurter has no allowance to protect.
 - **CoinGecko's Demo plan.** Free, with a key, 10,000 calls a month, 100 a
   minute, a year of daily history; attribution required ("Powered by CoinGecko"
   next to its data, when prices reach the screens). Its license fits a
@@ -129,7 +149,10 @@ user's first trade) cuts the series; the server keeps it whole.
 - **Series checked by hand, not with zod.** A series since 2010 is about 6,000
   rows; zod's jitless parsing costs too much CPU per row for a Worker on the
   free plan (10 ms a request). Parsing and merging a whole series takes about
-  3 ms the first time, once for everyone; a refresh takes under 1 ms. Days are
+  3 ms the first time, once for everyone; a refresh takes under 1 ms. Several
+  series in one request (`/rates` takes up to 10) are loaded one after another,
+  each stored as soon as it is merged: ten new ones at once would pass 10 ms,
+  and a request stopped part of the way keeps what it did for the next. Days are
   counted as numbers, because `Date.parse` is slow per point and takes
   `2026-02-30` for March 2.
 - **The whole series from its start, not from the first request's day.** One
@@ -165,8 +188,12 @@ the Worker tests have no real network at all (`outboundService` in
 `vitest.config.ts`), so a request that slips past the mock fails loudly instead
 of reaching a source. It covers which source each coin uses and how it is asked,
 the day a close belongs to, the rows a series drops, a refresh that asks for the
-last week only, stale entries while a source fails, each 400, and how long each
-source's data is kept. What it proves about storage:
+last week only, stale entries while a source fails, each 400, each read's
+limit a minute (429 before any call), a redirect refused, a logo over 100 KB or
+in SVG refused, prices that cannot be real dropped, an unexpected error logged
+by route and not by coin, and how long each source's data is kept. The 8-second
+limit is not tested: the runner cannot wait that long or fake the clock under
+`AbortSignal.timeout`. What it proves about storage:
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).
 
 ## How to change it safely
@@ -178,4 +205,4 @@ ids, currencies or search text into an error message or a log line. A new
 entry in `COIN_METRICS_CODES` is checked first by comparing the two sources'
 prices for the coin.
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-11

@@ -37,6 +37,7 @@ import {
   type FieldErrors,
   type FormValues,
   fromTransaction,
+  type PriceOnDay,
   problemErrors,
   toTransaction,
 } from "../features/transactions/form-values.ts";
@@ -44,10 +45,9 @@ import {
   type ListedTransaction,
   TransactionList,
 } from "../features/transactions/TransactionList.tsx";
-import {
-  type PriceOnDay,
-  TransactionForm,
-} from "../features/transactions/TransactionForm.tsx";
+import { DeleteAllDialog } from "../features/transactions/DeleteAllDialog.tsx";
+import { KIND_LABEL } from "../features/transactions/format.ts";
+import { TransactionForm } from "../features/transactions/TransactionForm.tsx";
 import { Section } from "../features/settings/Section.tsx";
 import {
   ButtonLink,
@@ -310,11 +310,23 @@ interface DemoProps {
     id?: string;
     errors?: FieldErrors;
   };
+  /** Opens in select mode with the newest this many chosen. */
+  select?: number;
+  /** Opens "Delete all transactions?" at once. */
+  deleteAll?: boolean;
 }
 
 /** The list and the form working together on sample data, as the app will. */
-function Demo({ start = SAMPLE, damaged = 0, open, importing }: DemoProps) {
+function Demo({
+  start = SAMPLE,
+  damaged = 0,
+  open,
+  importing,
+  select,
+  deleteAll = false,
+}: DemoProps) {
   const [entries, setEntries] = useState(start);
+  const [deleteAllOpen, setDeleteAllOpen] = useState(deleteAll);
   const [importOpen, setImportOpen] = useState(importing !== undefined);
   const [broken, setBroken] = useState(damaged);
   const [form, setForm] = useState<{
@@ -355,16 +367,71 @@ function Demo({ start = SAMPLE, damaged = 0, open, importing }: DemoProps) {
     }
     setEntries(after);
     setForm(null);
-    showToast("Transaction deleted", {
-      ...(removed && {
+    const [named] = removed ? listed([removed]) : [];
+    showToast(
+      named
+        ? `Deleted ${KIND_LABEL[named.value.type]} · ${named.name}`
+        : "Transaction deleted",
+      {
+        ...(removed && {
+          action: {
+            label: "Undo",
+            onAction: () => {
+              setEntries((current) => [...current, removed]);
+            },
+          },
+        }),
+      },
+    );
+  };
+
+  /** Several at once: the same rule as one, and one Undo for them all. */
+  const removeMany = (ids: readonly string[], everything = false) => {
+    const gone = new Set(ids);
+    const removed = entries.filter((e) => gone.has(e.id));
+    const after = entries.filter((e) => !gone.has(e.id));
+    const problems = ledgerProblems(entries, after);
+    if (problems.length > 0) {
+      showToast("Can't delete these transactions", {
+        tone: "error",
+        description:
+          problemErrors(problems, {
+            isThisOne: () => false,
+            symbolOf,
+          }).form ?? "",
+      });
+      return;
+    }
+    setEntries(after);
+    showToast(
+      everything
+        ? "All transactions deleted"
+        : removed.length === 1
+          ? "1 transaction deleted"
+          : `${String(removed.length)} transactions deleted`,
+      {
         action: {
           label: "Undo",
           onAction: () => {
-            setEntries((current) => [...current, removed]);
+            setEntries((current) => [...current, ...removed]);
           },
         },
-      }),
-    });
+      },
+    );
+  };
+
+  const exportAll = () => {
+    const { text, rows } = transactionsCsv(
+      entries.map((entry) => entry.value),
+      assetOf,
+    );
+    downloadText(text, exportFileName(day(0)));
+    showToast(
+      rows === 1
+        ? "1 transaction exported"
+        : `${String(rows)} transactions exported`,
+      { tone: "success" },
+    );
   };
 
   const submit = (values: FormValues) => {
@@ -421,17 +488,29 @@ function Demo({ start = SAMPLE, damaged = 0, open, importing }: DemoProps) {
         onImport={() => {
           setImportOpen(true);
         }}
-        onExport={() => {
-          const { text, rows } = transactionsCsv(
-            entries.map((entry) => entry.value),
-            assetOf,
-          );
-          downloadText(text, exportFileName(day(0)));
-          showToast(
-            rows === 1
-              ? "1 transaction exported"
-              : `${String(rows)} transactions exported`,
-            { tone: "success" },
+        onExport={exportAll}
+        onDeleteSelected={(ids) => {
+          removeMany(ids);
+        }}
+        onDeleteAll={() => {
+          setDeleteAllOpen(true);
+        }}
+        {...(select !== undefined && {
+          defaultSelected: listed(entries)
+            .slice(0, select)
+            .map(({ id }) => id),
+        })}
+      />
+      <DeleteAllDialog
+        isOpen={deleteAllOpen}
+        onOpenChange={setDeleteAllOpen}
+        count={entries.length}
+        onExport={exportAll}
+        onDelete={() => {
+          setDeleteAllOpen(false);
+          removeMany(
+            entries.map(({ id }) => id),
+            true,
           );
         }}
       />
@@ -792,6 +871,21 @@ const SCREENS: { id: string; label: string; render: () => ReactNode }[] = [
     id: "settings-currency",
     label: "14. Settings: base currency search",
     render: () => <SettingsCurrency />,
+  },
+  {
+    id: "select",
+    label: "20. Select transactions",
+    render: () => <Demo select={0} />,
+  },
+  {
+    id: "select-some",
+    label: "21. Select: two chosen",
+    render: () => <Demo select={2} />,
+  },
+  {
+    id: "delete-all",
+    label: "22. Delete all transactions",
+    render: () => <Demo deleteAll />,
   },
   {
     id: "import",

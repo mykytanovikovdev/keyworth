@@ -3,6 +3,7 @@ import {
   FIAT_CURRENCIES,
   STABLECOINS,
 } from "../../../shared/schemas/currencies.ts";
+import { cryptoAssetIdSchema } from "../../../shared/schemas/market.ts";
 import { cleanText } from "../../../shared/schemas/text.ts";
 import {
   TRANSACTION_LIMITS,
@@ -10,8 +11,8 @@ import {
 } from "../../../shared/schemas/transaction.ts";
 import { VAULT_LIMITS } from "../../../shared/schemas/vault.ts";
 import { ledgerProblems, parseTransaction } from "./check.ts";
-import { parseCsv, plainCell } from "./csv.ts";
-import { type AssetChoice, executedAt, parseAmount } from "./form-values.ts";
+import { parseCsv, plainCell, safeCell, toCsv } from "./csv.ts";
+import { type AssetChoice, executedAt } from "./form-values.ts";
 import {
   dateInWords,
   groupDigits,
@@ -30,6 +31,12 @@ import {
 
 /** More than a decade of trades; a larger file is refused unread. */
 export const IMPORT_MAX_BYTES = 5 * 1024 * 1024;
+
+/**
+ * Coins outside the snapshot one import looks up by id: two requests of 50.
+ * Each new one costs a call to CoinGecko, whose allowance all users share.
+ */
+export const IMPORT_MAX_UNKNOWN_COINS = 100;
 
 /** The columns of Keyworth's format, in the order an export writes them. */
 export const CSV_COLUMNS = [
@@ -74,7 +81,9 @@ export type FileProblem =
   /** More new transactions than the account has room for. */
   | { kind: "over-quota"; rows: number; room: number }
   /** The coins couldn't be looked up: not the file's fault. */
-  | { kind: "market-unavailable" };
+  | { kind: "market-unavailable" }
+  /** More coins outside the snapshot than one import looks up by id. */
+  | { kind: "too-many-coins"; coins: number; limit: number };
 
 const count = (n: number) => groupDigits(String(n));
 
@@ -101,6 +110,8 @@ export function fileProblemText(problem: FileProblem): string {
       return "Coin names couldn't load, so the file can't be checked. Try again in a minute.";
     case "over-quota":
       return `This file has ${count(problem.rows)} new ${problem.rows === 1 ? "transaction" : "transactions"}, and your account has room for ${count(problem.room)} more.`;
+    case "too-many-coins":
+      return `This file names ${count(problem.coins)} coins outside the 250 largest, and one import looks up at most ${count(problem.limit)}. Split it into smaller files.`;
   }
 }
 
@@ -183,15 +194,37 @@ const cellOf = (
   return index === undefined ? "" : plainCell(cells[index] ?? "").trim();
 };
 
-/** Coin ids the file names, to look up the ones the snapshot does not hold. */
-export function coinIdsIn(table: CsvTable): string[] {
-  return [
+/**
+ * The coin ids a file names that are to be looked up by id: well formed, not
+ * known already (the snapshot), at most IMPORT_MAX_UNKNOWN_COINS. Any other
+ * id is a coin nobody knows, and its row says so.
+ */
+export function coinsToLookUp(
+  table: CsvTable,
+  known: (id: string) => boolean,
+): { ids: string[] } | { problem: FileProblem } {
+  const ids = [
     ...new Set(
       table.rows
         .map(({ cells }) => cellOf(table, cells, "Coin"))
-        .filter((id) => id !== ""),
+        .filter(
+          (id) =>
+            id !== "" &&
+            !known(id) &&
+            cryptoAssetIdSchema.safeParse(id).success,
+        ),
     ),
   ];
+  if (ids.length > IMPORT_MAX_UNKNOWN_COINS) {
+    return {
+      problem: {
+        kind: "too-many-coins",
+        coins: ids.length,
+        limit: IMPORT_MAX_UNKNOWN_COINS,
+      },
+    };
+  }
+  return { ids };
 }
 
 export interface ImportContext {
@@ -215,6 +248,33 @@ export interface ImportPlan {
   duplicates: number[];
   /** Rows skipped, and why, in words. */
   problems: { row: number; message: string }[];
+  /** Those rows as a file to fix and import again; null when there are none. */
+  refusedCsv: string | null;
+}
+
+// Spreadsheets take a file as UTF-8 only with it (written as an escape: the
+// character itself is invisible in the source).
+const BYTE_ORDER_MARK = "\uFEFF";
+
+/**
+ * Refused rows as a file in Keyworth's format, cells as the file had them,
+ * with a Reason column the import ignores: fix the rows, import the file.
+ */
+function refusedRowsCsv(
+  table: CsvTable,
+  problems: readonly { row: number; message: string }[],
+): string {
+  const cellsOf = new Map(table.rows.map(({ row, cells }) => [row, cells]));
+  const records = [
+    [...CSV_COLUMNS, "Reason"],
+    ...problems.map(({ row, message }) => [
+      ...CSV_COLUMNS.map((column) =>
+        cellOf(table, cellsOf.get(row) ?? [], column),
+      ),
+      message,
+    ]),
+  ];
+  return BYTE_ORDER_MARK + toCsv(records.map((record) => record.map(safeCell)));
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -230,9 +290,6 @@ const currencyOf = (cell: string): string | undefined => {
   const code = cell.toUpperCase();
   return CURRENCIES.has(code) ? code : undefined;
 };
-
-/** A day has begun somewhere on Earth once UTC+14 has reached it. */
-const EARLIEST_OFFSET_MS = 14 * 60 * 60 * 1000;
 
 /** The time a day or a moment names, if it is a real one. */
 function timeOf(text: string, day: string): number | null {
@@ -250,12 +307,7 @@ function timeOf(text: string, day: string): number | null {
 function momentOf(cell: string, now: number): string | null {
   if (DAY.test(cell)) {
     const start = timeOf(`${cell}T00:00:00Z`, cell);
-    if (start === null) return null;
-    // A day still ahead everywhere keeps its noon, which the rules then
-    // refuse as the future; executedAt would make it now.
-    return start - EARLIEST_OFFSET_MS > now
-      ? `${cell}T12:00:00Z`
-      : executedAt(cell, now);
+    return start === null ? null : executedAt(cell, now);
   }
   if (!MOMENT.test(cell)) return null;
   const time = timeOf(cell, cell.slice(0, 10));
@@ -266,6 +318,61 @@ function momentOf(cell: string, now: number): string | null {
 
 /** A cell quoted in a message: short, and without characters that hide. */
 const quoted = (cell: string) => `"${cleanText(cell, 40)}"`;
+
+/**
+ * A number from a file, as plain digits. A point is always the decimal point,
+ * as the export and the template write it; a lone comma is one too ("0,5"),
+ * as many spreadsheets in Europe save it. Spaces between groups of three
+ * digits ("1 234,50") group thousands and nothing else, so they go. Any other
+ * grouping is refused rather than guessed at: "1.234,50" or "1,234" read the
+ * wrong way would be off by a thousand, and the preview shows only counts. A
+ * comma before exactly three digits, after one to three others, is such a
+ * guess.
+ */
+type FileAmount =
+  { digits: string } | { problem: "grouped" | "ambiguous" | "not-a-number" };
+
+const SPACE_GROUPED = /^\d{1,3}(?:[ \u00a0\u202f]\d{3})+(?:[.,]\d+)?$/;
+
+function fileAmount(text: string): FileAmount {
+  const spaced = SPACE_GROUPED.test(text);
+  const plain = /^(\d+)(?:([.,])(\d+))?$/.exec(
+    spaced ? text.replace(/[ \u00a0\u202f]/g, "") : text,
+  );
+  if (!plain) {
+    return {
+      problem:
+        /\d/.test(text) && /^[\d\s.,'\u00a0\u202f]+$/.test(text)
+          ? "grouped"
+          : "not-a-number",
+    };
+  }
+  const [, whole = "", separator, decimals] = plain;
+  if (
+    !spaced &&
+    separator === "," &&
+    decimals?.length === 3 &&
+    whole.length <= 3 &&
+    whole !== "0"
+  ) {
+    return { problem: "ambiguous" };
+  }
+  const digits = decimals === undefined ? whole : `${whole}.${decimals}`;
+  return { digits: decimal(digits).toString() };
+}
+
+/** What to say when a number cannot be taken as it is written. */
+function amountMessage(text: string, problem: FileAmount, wanted: string) {
+  if ("digits" in problem) return wanted;
+  switch (problem.problem) {
+    case "grouped":
+      return `${quoted(text)} has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`;
+    case "ambiguous":
+      return `${quoted(text)} could mean ${text.replace(",", "")} or ${text.replace(",", ".")}: write it without a thousands separator, with a point for decimals.`;
+    case "not-a-number":
+      return wanted;
+  }
+}
 
 /** One row as a transaction, or the first thing wrong with it. */
 function rowValue(
@@ -301,15 +408,20 @@ function rowValue(
       message: id
         ? `${quoted(id)} isn't a coin Keyworth knows.`
         : symbol
-          ? `${quoted(symbol)} isn't among the 250 largest coins: put its id from an export in Coin.`
+          ? `${quoted(symbol)} isn't among the 250 largest coins, so the symbol isn't enough: fill in its Coin id. To find it, add the coin once by hand and export.`
           : "No coin: fill in Coin or Symbol.",
     };
   }
 
-  const quantity = parseAmount(cell("Quantity"));
+  const quantityRead = fileAmount(cell("Quantity"));
+  const quantity = "digits" in quantityRead ? quantityRead.digits : null;
   if (!quantity || !/[1-9]/.test(quantity)) {
     return {
-      message: `${quoted(cell("Quantity"))} isn't a quantity greater than zero.`,
+      message: amountMessage(
+        cell("Quantity"),
+        quantityRead,
+        `${quoted(cell("Quantity"))} isn't a quantity greater than zero.`,
+      ),
     };
   }
 
@@ -321,13 +433,18 @@ function rowValue(
     source: "csv",
   };
   if (type !== "transfer_out") {
-    const price = parseAmount(cell("Price"));
+    const priceRead = fileAmount(cell("Price"));
+    const price = "digits" in priceRead ? priceRead.digits : null;
     const trade = type === "buy" || type === "sell";
     if (!price || (trade && !/[1-9]/.test(price))) {
       return {
-        message: trade
-          ? `${quoted(cell("Price"))} isn't a price greater than zero.`
-          : `${quoted(cell("Price"))} isn't a value per coin (0 for a gift).`,
+        message: amountMessage(
+          cell("Price"),
+          priceRead,
+          trade
+            ? `${quoted(cell("Price"))} isn't a price greater than zero.`
+            : `${quoted(cell("Price"))} isn't a value per coin (0 for a gift).`,
+        ),
       };
     }
     const currency = currencyOf(cell("Currency"));
@@ -339,9 +456,17 @@ function rowValue(
     value.price = price;
     value.priceCurrency = currency;
     if (trade && cell("Fee") !== "") {
-      const fee = parseAmount(cell("Fee"));
-      if (!fee) return { message: `${quoted(cell("Fee"))} isn't a fee.` };
-      value.fee = fee;
+      const feeRead = fileAmount(cell("Fee"));
+      if (!("digits" in feeRead)) {
+        return {
+          message: amountMessage(
+            cell("Fee"),
+            feeRead,
+            `${quoted(cell("Fee"))} isn't a fee.`,
+          ),
+        };
+      }
+      value.fee = feeRead.digits;
       if (cell("Fee currency") !== "") {
         const feeCurrency = currencyOf(cell("Fee currency"));
         if (!feeCurrency) {
@@ -399,6 +524,14 @@ export function planImport(
   table: CsvTable,
   context: ImportContext,
 ): { plan: ImportPlan } | { problem: FileProblem } {
+  const room = Math.max(0, VAULT_LIMITS.maxRecords - context.stored);
+  // At most one row per recorded transaction is a duplicate, so a file longer
+  // than that and the room together cannot fit: refused before any row is
+  // checked, which a file of a hundred thousand rows would take a minute for.
+  const atLeastNew = table.rows.length - context.existing.length;
+  if (atLeastNew > room) {
+    return { problem: { kind: "over-quota", rows: atLeastNew, room } };
+  }
   const problems: ImportPlan["problems"] = [];
   const duplicates: number[] = [];
   const candidates: (ImportPlan["added"][number] & { id: string })[] = [];
@@ -431,27 +564,36 @@ export function planImport(
   // further down. Leaving a short one out only adds units, so one pass does.
   const short = new Map<string, string>();
   const after = [...context.existing, ...candidates];
+  const candidateById = new Map(candidates.map((c) => [c.id, c]));
+  // The file's own outgoing rows by coin: what a recorded sale left short
+  // looks through, instead of every row each time.
+  const outgoing = new Map<string, typeof candidates>();
+  for (const c of candidates) {
+    if (c.value.type !== "sell" && c.value.type !== "transfer_out") continue;
+    const list = outgoing.get(c.value.assetId) ?? [];
+    list.push(c);
+    outgoing.set(c.value.assetId, list);
+  }
   for (const problem of ledgerProblems(context.existing, after)) {
     if (problem.kind !== "oversold") continue;
-    const candidate = candidates.find((c) => c.id === problem.transactionId);
+    const candidate = candidateById.get(problem.transactionId);
     const held = quantityText(problem.held, candidate?.asset.symbol ?? "");
     const when = dateInWords(problem.executedAt);
     if (candidate) {
-      short.set(candidate.id, `You held ${held} on ${when}.`);
+      const verb = candidate.value.type === "sell" ? "Sells" : "Sends";
+      short.set(
+        candidate.id,
+        `${verb} ${quantityText(problem.asked, candidate.asset.symbol)}, but you held ${held} on ${when}. Fix the quantity, or add the buy before it.`,
+      );
       continue;
     }
     // A recorded sale would be left short: by the file's earlier ones.
     const moment = Date.parse(problem.executedAt);
-    for (const c of candidates) {
-      if (
-        c.value.assetId === problem.assetId &&
-        (c.value.type === "sell" || c.value.type === "transfer_out") &&
-        Date.parse(c.value.executedAt) <= moment &&
-        !short.has(c.id)
-      ) {
+    for (const c of outgoing.get(problem.assetId) ?? []) {
+      if (Date.parse(c.value.executedAt) <= moment && !short.has(c.id)) {
         short.set(
           c.id,
-          `This would leave your ${quantityText(problem.asked, c.asset.symbol)} going out on ${when} short.`,
+          `This would leave your recorded ${quantityText(problem.asked, c.asset.symbol)} going out on ${when} short: fix this row's quantity.`,
         );
       }
     }
@@ -465,11 +607,16 @@ export function planImport(
     .map(({ row, value, asset }) => ({ row, value, asset }));
   problems.sort((a, b) => a.row - b.row);
 
-  const room = Math.max(0, VAULT_LIMITS.maxRecords - context.stored);
   if (added.length > room) {
     return { problem: { kind: "over-quota", rows: added.length, room } };
   }
   return {
-    plan: { rows: table.rows.length, added, duplicates, problems },
+    plan: {
+      rows: table.rows.length,
+      added,
+      duplicates,
+      problems,
+      refusedCsv: problems.length > 0 ? refusedRowsCsv(table, problems) : null,
+    },
   };
 }

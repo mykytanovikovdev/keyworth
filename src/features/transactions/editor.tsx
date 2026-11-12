@@ -1,5 +1,6 @@
 import { getLocalTimeZone, today } from "@internationalized/date";
 import {
+  useQueries,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
@@ -23,15 +24,22 @@ import {
 } from "./form-values.ts";
 import {
   assetsOf,
+  combineQuotes,
+  outsideSnapshot,
   priceOnDay,
-  quotesQuery,
+  quotesQueries,
   searchCoins,
   snapshotQuery,
 } from "./market.ts";
 import { heldAt, heldNow } from "./check.ts";
+import { KIND_LABEL } from "./format.ts";
 import { access, transactionsQuery } from "./queries.ts";
 import {
   deleteTransaction,
+  deleteTransactions,
+  ImportStopped,
+  importTransactions,
+  keepIfUnlocked,
   saveTransaction,
   TransactionError,
   type TransactionList,
@@ -101,10 +109,19 @@ export function useTransactionEditor() {
   );
   // Coins outside the snapshot, by id: their names and today's prices (a
   // coin just picked in the form is named already, but still needs a price).
-  const outsideIds = [
-    ...new Set(records.map(({ value }) => value.assetId)),
-  ].filter((id) => !top.some((coin) => coin.id === id));
-  const outside = useQuery(quotesQuery(userId, outsideIds));
+  const outsideIds = useMemo(
+    () =>
+      outsideSnapshot(
+        snapshot.data,
+        records.map(({ value }) => value.assetId),
+      ),
+    [snapshot.data, records],
+  );
+  // 50 coins a request: more held outside the snapshot take several.
+  const outside = useQueries({
+    queries: quotesQueries(userId, outsideIds),
+    combine: combineQuotes,
+  });
   const assets = useMemo(() => {
     const known = new Map<string, AssetChoice>();
     for (const coin of [
@@ -132,10 +149,13 @@ export function useTransactionEditor() {
     () => ({ top, search: searchCoins }),
     [top],
   );
+  // Today's prices already here are used before any coin is asked for by
+  // name; "today" is read at each call, so a tab left open past midnight
+  // moves on.
   const priceOn = useMemo(
     () => (assetId: string, day: string, currency: string) =>
-      priceOnDay(assetId, day, currency, localToday()),
-    [],
+      priceOnDay(assetId, day, currency, localToday(), (id) => prices.get(id)),
+    [prices],
   );
 
   const [form, setForm] = useState<OpenForm | null>(null);
@@ -153,13 +173,20 @@ export function useTransactionEditor() {
         : [],
     [formOpen, records, editing, assets, prices],
   );
+  // Stable while the list and the form stay: the form keeps its answer.
+  const heldFor = useMemo(
+    () => (assetId: string, at: string) =>
+      heldAt(records, assetId, at, editing).toString(),
+    [records, editing],
+  );
   const [errors, setErrors] = useState<FieldErrors>({});
   const [pending, setPending] = useState(false);
   const key = transactionsQuery(userId).queryKey;
   const current = () => queryClient.getQueryData<TransactionList>(key);
-  const store = (list: TransactionList) => {
-    queryClient.setQueryData(key, list);
-  };
+  const store = (list: TransactionList) =>
+    keepIfUnlocked(access, list, (kept) => {
+      queryClient.setQueryData(key, kept);
+    });
   const failed = (error: unknown) => {
     const { title, description } = failureMessage(error);
     showToast(title, { tone: "error", description });
@@ -262,7 +289,8 @@ export function useTransactionEditor() {
       return;
     }
     if (!removed) return;
-    showToast("Transaction deleted", {
+    const named = `${KIND_LABEL[removed.value.type]} · ${assetOf(removed.value.assetId).name}`;
+    showToast(`Deleted ${named}`, {
       action: {
         label: "Undo",
         onAction: () => {
@@ -278,6 +306,67 @@ export function useTransactionEditor() {
     });
   };
 
+  /**
+   * Several at once (selected, or all): one rule check, one Undo that writes
+   * them back under new ids, as a single delete's does. True when they went.
+   */
+  const removeMany = async (
+    ids: readonly string[],
+    { everything = false } = {},
+  ): Promise<boolean> => {
+    const list = current();
+    if (!list) return false;
+    const gone = new Set(ids);
+    const removed = list.records.filter((record) => gone.has(record.id));
+    try {
+      store(await deleteTransactions(access, list, ids));
+    } catch (error) {
+      if (error instanceof TransactionError) {
+        const { form: message, quantity } = problemErrors(error.problems, {
+          isThisOne: () => false,
+          symbolOf: (assetId) => assetOf(assetId).symbol,
+        });
+        showToast("Can't delete these transactions", {
+          tone: "error",
+          description: message ?? quantity ?? "",
+        });
+      } else {
+        failed(error);
+        // Some may have gone before the failure: read the list again.
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
+      return false;
+    }
+    const count = removed.length;
+    showToast(
+      everything
+        ? "All transactions deleted"
+        : count === 1
+          ? "1 transaction deleted"
+          : `${String(count)} transactions deleted`,
+      {
+        ...(count > 0 && {
+          action: {
+            label: "Undo",
+            onAction: () => {
+              const now = current();
+              if (!now) return;
+              importTransactions(
+                access,
+                now,
+                removed.map(({ value }) => value),
+              ).then(store, (error: unknown) => {
+                if (error instanceof ImportStopped) store(error.list);
+                failed(error);
+              });
+            },
+          },
+        }),
+      },
+    );
+    return true;
+  };
+
   const dialog: ReactNode = form && (
     <TransactionForm
       key={form.key}
@@ -290,7 +379,7 @@ export function useTransactionEditor() {
       coins={coins}
       currencies={PRICE_CURRENCIES}
       priceOn={priceOn}
-      heldAt={(assetId, at) => heldAt(records, assetId, at, form.id).toString()}
+      heldAt={heldFor}
       heldCoins={held}
       errors={errors}
       pending={pending}
@@ -316,6 +405,7 @@ export function useTransactionEditor() {
     openAdd,
     openEdit,
     remove,
+    removeMany,
     current,
     store,
     failed,

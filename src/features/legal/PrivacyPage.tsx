@@ -247,6 +247,14 @@ export function PrivacyPage() {
             chose.
           </li>
           <li>
+            <strong>keyworth-portfolio-period</strong> (local storage): the
+            period you last chose on the portfolio page, such as 1M.
+          </li>
+          <li>
+            <strong>keyworth-hide-amounts</strong> (local storage): that you hid
+            the amounts on the portfolio page, so they stay hidden.
+          </li>
+          <li>
             <strong>keyworth-lock-epoch</strong> (local storage): makes Lock
             apply to all your tabs.
           </li>

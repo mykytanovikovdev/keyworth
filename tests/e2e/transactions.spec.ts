@@ -248,6 +248,55 @@ test("edits and deletes a transaction, and Undo brings it back", async ({
     .toBe(1);
 });
 
+test("deletes chosen transactions, then all of them, each with Undo", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { userId } = await openApp(page, context, baseURL);
+  const dialog = await importFile(
+    page,
+    "three.csv",
+    [
+      "Date,Type,Coin,Symbol,Quantity,Price,Currency,Fee,Fee currency,Note",
+      "2025-01-10,Buy,crypto:bitcoin,BTC,1,50000,USD,,,",
+      "2025-01-11,Buy,crypto:bitcoin,BTC,2,50000,USD,,,",
+      "2025-01-12,Buy,crypto:bitcoin,BTC,3,50000,USD,,,",
+    ].join("\r\n"),
+    { empty: true },
+  );
+  await dialog.getByRole("button", { name: "Import 3 transactions" }).click();
+  await expect(page.getByText("3 transactions imported")).toBeVisible();
+  const stored = async () => (await storedTransactions(userId)).length;
+
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Select transactions" }).click();
+  await page.getByRole("button", { name: /^Select .*\+1 BTC/ }).click();
+  await page.getByRole("button", { name: /^Select .*\+2 BTC/ }).click();
+  await expect(page.getByText("2 selected")).toBeVisible();
+  await page.getByRole("button", { name: "Delete", exact: true }).click();
+  await expect(page.getByText("2 transactions deleted")).toBeVisible();
+  expect(await stored()).toBe(1);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect.poll(stored).toBe(3);
+  await expect(visible(page, "+2 BTC")).toBeVisible();
+
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page
+    .getByRole("menuitem", { name: "Delete all transactions…" })
+    .click();
+  const confirm = page.getByRole("alertdialog", {
+    name: "Delete all transactions?",
+  });
+  await expect(confirm.getByText(/all 3 transactions/)).toBeVisible();
+  await confirm.getByRole("button", { name: "Delete all" }).click();
+  await expect(page.getByText("All transactions deleted")).toBeVisible();
+  await expect(page.getByText("No transactions yet")).toBeVisible();
+  expect(await stored()).toBe(0);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect.poll(stored).toBe(3);
+});
+
 test("a note with markup is shown as the text it is, and runs nothing", async ({
   page,
   context,
@@ -298,10 +347,22 @@ test("fits a 320px screen, and the list and the form have no axe violations", as
   ).toEqual([]);
 });
 
-/** Opens "Import transactions" from the menu and picks a file with this text. */
-async function importFile(page: Page, name: string, text: string) {
-  await page.getByRole("button", { name: "Import or export" }).click();
-  await page.getByRole("menuitem", { name: "Import from CSV…" }).click();
+/**
+ * Opens "Import transactions" and picks a file with this text: from the menu,
+ * or, with no transactions yet, from the empty list's own button.
+ */
+async function importFile(
+  page: Page,
+  name: string,
+  text: string,
+  { empty = false } = {},
+) {
+  if (empty) {
+    await page.getByRole("button", { name: "Import from a file" }).click();
+  } else {
+    await page.getByRole("button", { name: "More actions" }).click();
+    await page.getByRole("menuitem", { name: "Import from CSV…" }).click();
+  }
   const dialog = dialogOf(page, "Import transactions");
   const chooser = page.waitForEvent("filechooser");
   // A label around the file input: the tap lands on its text, as a person's.
@@ -374,7 +435,7 @@ test("exports every transaction as a CSV file that imports back as recorded", as
   await add(page, { note: "=1+1" });
   await expect(visible(page, "+0.5 BTC")).toBeVisible();
 
-  await page.getByRole("button", { name: "Import or export" }).click();
+  await page.getByRole("button", { name: "More actions" }).click();
   const downloading = page.waitForEvent("download");
   await page.getByRole("menuitem", { name: "Export to CSV" }).click();
   const download = await downloading;

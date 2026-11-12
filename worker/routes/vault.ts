@@ -1,22 +1,22 @@
-import { and, eq, sql } from "drizzle-orm";
-import { Hono } from "hono";
-import {
-  decodeBase64url,
-  encodeBase64url,
-} from "../../shared/schemas/base64url.ts";
+import { and, eq, inArray, sql } from "drizzle-orm";
+import { type Context, Hono } from "hono";
+import { decodeBase64url } from "../../shared/schemas/base64url.ts";
 import {
   type RecordKind,
   recordIdSchema,
   recordKindSchema,
   VAULT_BATCH,
   VAULT_CURSOR,
+  VAULT_DELETE,
   VAULT_LIMITS,
   VAULT_PAGE,
   type VaultPageJson,
   type VaultRecordJson,
   vaultBatchSchema,
+  vaultDeleteSchema,
   vaultWriteSchema,
 } from "../../shared/schemas/vault.ts";
+import type { Database } from "../db/client.ts";
 import { vaultRecords } from "../db/schema.ts";
 import type { AppEnv } from "../env.ts";
 import { maxBody, rateLimit, readJson } from "../limits.ts";
@@ -43,8 +43,9 @@ interface PageRow extends Record<string, unknown> {
   id: string;
   kind: RecordKind;
   revision: number;
-  iv: Uint8Array;
-  ciphertext: Uint8Array;
+  /** Unpadded base64url, encoded by Postgres (base64url() below). */
+  iv: string;
+  ciphertext: string;
   /** ISO 8601 in UTC: Drizzle has pg leave timestamps as text in raw queries. */
   updated_at: string;
   position: string;
@@ -56,8 +57,16 @@ interface PageRow extends Record<string, unknown> {
  * (VAULT_PAGE). One statement: a window over the user's records counts the
  * ciphertext before each one and whether any comes after, so the Worker never
  * holds more than a page. Records keep their creation time, so a page does not
- * shift when one is edited; one created meanwhile comes on a later page.
+ * shift when one is edited; one created meanwhile comes on a later page, or,
+ * when its write began before a page was read and finished after, with the
+ * next reading (created_at is when its transaction began).
+ *
+ * Postgres encodes the bytes, in C: encoding them here, a byte at a time, cost
+ * more CPU than a Worker on the free plan has for a page of small records.
  */
+const base64url = (column: string) =>
+  sql.raw(`rtrim(translate(encode(${column}, 'base64'), E'+/\\n', '-_'), '=')`);
+
 vault.get("/", async (c) => {
   const kindParam = c.req.query("kind");
   const kind =
@@ -72,7 +81,8 @@ vault.get("/", async (c) => {
   // created_at to the microsecond, as the cursor holds it.
   const position = sql`(extract(epoch from created_at) * 1000000)::bigint`;
   const result = await c.get("db").execute<PageRow>(sql`
-    select id, kind, revision, iv, ciphertext,
+    select id, kind, revision,
+           ${base64url("iv")} as iv, ${base64url("ciphertext")} as ciphertext,
            to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
              as updated_at,
            position::text, has_more
@@ -101,8 +111,8 @@ vault.get("/", async (c) => {
     envelope: {
       v: 1,
       alg: "A256GCM",
-      iv: encodeBase64url(row.iv),
-      ct: encodeBase64url(row.ciphertext),
+      iv: row.iv,
+      ct: row.ciphertext,
     },
     updatedAt: row.updated_at,
   }));
@@ -114,6 +124,37 @@ vault.get("/", async (c) => {
 
 // Namespace for this route's advisory locks (pg_advisory_xact_lock's first key).
 const QUOTA_LOCK = 1;
+
+/**
+ * Takes the user's write lock, waiting at most 2 seconds for it, and bounds
+ * every statement of the transaction to 5 seconds. A burst of writes from one
+ * session (a stolen one, say) queues for the lock while holding database
+ * connections every user shares; past the wait, a write is refused as busy
+ * instead. The limits are set in the lock's own statement (its FROM runs
+ * first), so they cost no extra round trip.
+ */
+const lockUser = (tx: Pick<Database, "execute">, userId: string) =>
+  tx.execute(sql`
+    select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))
+      from (select set_config('lock_timeout', '2s', true),
+                   set_config('statement_timeout', '5s', true)) as limits`);
+
+/** Postgres gave up waiting for the user's lock: lock_not_available. */
+function waitedTooLong(error: unknown): boolean {
+  const code = (value: unknown) =>
+    value && typeof value === "object" && "code" in value
+      ? value.code
+      : undefined;
+  return (
+    code(error) === "55P03" ||
+    (error instanceof Error && code(error.cause) === "55P03")
+  );
+}
+
+const busy = (c: Context<AppEnv>) => {
+  c.header("Retry-After", "2");
+  return c.json({ error: "busy" }, 429);
+};
 
 /**
  * Creates (revision 0) or replaces (the current revision) a record. Each
@@ -136,11 +177,9 @@ vault.put("/:id", limitWrites, envelopeBody, async (c) => {
   const used = sql`(select coalesce(sum(octet_length(ciphertext)), 0)
                       from vault_records where user_id = ${userId})`;
 
-  const written = await db.transaction(async (tx) => {
+  const write = db.transaction(async (tx) => {
     // Held until the transaction ends; other users are never blocked.
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))`,
-    );
+    await lockUser(tx, userId);
     return revision === 0
       ? tx.execute<{ revision: number }>(sql`
             insert into vault_records
@@ -164,6 +203,13 @@ vault.put("/:id", limitWrites, envelopeBody, async (c) => {
                     <= ${VAULT_LIMITS.maxBytes}
             returning revision`);
   });
+  let written: Awaited<typeof write>;
+  try {
+    written = await write;
+  } catch (error) {
+    if (waitedTooLong(error)) return busy(c);
+    throw error;
+  }
 
   const saved = written.rows[0];
   if (saved)
@@ -216,9 +262,7 @@ vault.post("/batch", limitBatches, batchBody, async (c) => {
   let written: boolean;
   try {
     written = await c.get("db").transaction(async (tx) => {
-      await tx.execute(
-        sql`select pg_advisory_xact_lock(${QUOTA_LOCK}, hashtext(${userId}))`,
-      );
+      await lockUser(tx, userId);
       const usage = await tx.execute<{ count: string; bytes: string }>(sql`
         select count(*) as count,
                coalesce(sum(octet_length(ciphertext)), 0) as bytes
@@ -240,10 +284,37 @@ vault.post("/batch", limitBatches, batchBody, async (c) => {
     });
   } catch (error) {
     if (error instanceof IdTaken) return c.json({ error: "conflict" }, 409);
+    if (waitedTooLong(error)) return busy(c);
     throw error;
   }
   if (!written) return c.json({ error: "quota_exceeded" }, 413);
   return c.json({ written: rows.length }, 201);
+});
+
+const limitDeletes = rateLimit("vault-delete", 30);
+const deleteBody = maxBody(VAULT_DELETE.maxBytes);
+
+/**
+ * Deletes several of the user's transactions at once: those selected, or all
+ * of them. Only records of kind `transaction`, so a list of ids cannot take
+ * the settings with it; an id that is not there (deleted on another device
+ * meanwhile) is no error. Answers how many went.
+ */
+vault.post("/delete", limitDeletes, deleteBody, async (c) => {
+  const body = vaultDeleteSchema.safeParse(await readJson(c));
+  if (!body.success) return c.json({ error: "invalid_body" }, 400);
+  const deleted = await c
+    .get("db")
+    .delete(vaultRecords)
+    .where(
+      and(
+        eq(vaultRecords.userId, c.get("user").id),
+        eq(vaultRecords.kind, "transaction"),
+        inArray(vaultRecords.id, body.data.ids),
+      ),
+    )
+    .returning({ id: vaultRecords.id });
+  return c.json({ deleted: deleted.length });
 });
 
 vault.delete("/:id", limitWrites, async (c) => {

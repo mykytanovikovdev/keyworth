@@ -59,12 +59,20 @@ whom, and what it does not protect. The mechanisms are described in
 - When a user writes (the rate-limit window) and, from the requests themselves,
   when they unlock: the vault is loaded at every unlock.
 - Prices: everyone loads the same snapshot of the 250 largest coins, which says
-  nothing about holdings. A coin outside it, a coin's price history and a
-  currency's exchange rates are asked for by name, so at that moment the server
-  sees which coins and currencies the user asks about (in practice, what they
-  hold and their base currency); nothing keeps that, and no log records it.
-  Searches are kept for a day under their text, unlinked to who typed them
+  nothing about holdings. A coin outside it, a coin's price history, a
+  currency's exchange rates and a coin's logo are asked for by name or id, so
+  at that moment the server sees which coins and currencies the user asks about
+  (in practice, what they hold and their base currency); the cache keeps them
+  under the coin or currency, not the user, and no log records the request.
+  Searches are kept for a day under their text, not under who typed them
   ([worker/market/docs/market-data.md](../../../worker/market/docs/market-data.md)).
+  The cache does keep when each was first asked for, and the rate-limit
+  counters when each user last asked for market data: with few users, matching
+  the times can tell whose a coin outside the snapshot or a search is. Coarser
+  times would not help when one person at a time uses the app, so this is
+  accepted.
+  A CSV import looks up by id the coins it names outside the snapshot, before
+  its preview.
 - Token usage (phase 5).
 
 ## In transit through the server
@@ -132,8 +140,9 @@ Anthropic directly and the server sees none of it.
 - **A stolen session cookie.** It reads no plaintext, but it can:
   - download the passphrase slot and try passphrases offline, as with a
     database dump (below);
-  - delete records, or overwrite them with data that no longer decrypts (a CSV
-    export is the defense), and write a deleted record's first version back;
+  - delete records, all the transactions at once too, or overwrite them with
+    data that no longer decrypts (a CSV export is the defense), and write a
+    deleted record's first version back;
   - fill the user's quotas and keep the user's write limit used up.
 
   Signed in within the last 10 minutes (the condition that also allows
@@ -187,4 +196,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-12

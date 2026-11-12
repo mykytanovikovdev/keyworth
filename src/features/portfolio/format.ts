@@ -36,15 +36,25 @@ export function signedPercent(ratio: number): string {
   return `${ratio > 0 ? "+" : "−"}${text}`;
 }
 
+// One format per currency and precision, kept: a chart asks for every tick.
+const compactFormats = new Map<string, Intl.NumberFormat>();
+
 /** "$48.2K": axis ticks, where every digit would crowd the chart. */
 export function compactMoney(amount: number, currency: string): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    currencyDisplay: "narrowSymbol",
-    notation: "compact",
-    maximumFractionDigits: amount !== 0 && Math.abs(amount) < 1000 ? 2 : 1,
-  }).format(amount);
+  const digits = amount !== 0 && Math.abs(amount) < 1000 ? 2 : 1;
+  const key = `${currency} ${String(digits)}`;
+  let format = compactFormats.get(key);
+  if (!format) {
+    format = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency,
+      currencyDisplay: "narrowSymbol",
+      notation: "compact",
+      maximumFractionDigits: digits,
+    });
+    compactFormats.set(key, format);
+  }
+  return format.format(amount);
 }
 
 const MONTH_YEAR = new Intl.DateTimeFormat("en-US", {

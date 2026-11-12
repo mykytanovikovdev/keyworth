@@ -181,7 +181,7 @@ and form controls match.
 | `TextField`               | React Aria `TextField`     | Label, hint, error; ARIA validation; `suffix` (a unit), `action` (an "All" button) |
 | `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill |
 | `Select`                  | React Aria `Menu`          | A list that applies at once, such as a currency; type-ahead; not React Aria's one  |
-| `Checkbox`                | React Aria `CheckboxField` | With `CheckboxButton`; label and an optional description line                      |
+| `Checkbox`                | React Aria `CheckboxField` | Label (or `hideLabel`) and a description line; `isIndeterminate` shows a dash      |
 | `ComboBox`                | React Aria `ComboBox`      | Type to filter or search, pick from a list; a picture and a detail per option      |
 | `DateField`               | React Aria `DateField`     | Day / month / year segments (`en-GB` order), the date repeated in words below      |
 | `SegmentedControl`        | `ToggleButtonGroup`        | A few options, all visible, such as a form's tabs (Buy, Sell, Receive, Send)       |
@@ -212,7 +212,10 @@ background and hover, focus, invalid and disabled states. `PasswordField`,
 encryption screens; `ComboBox`, `DateField`, `SegmentedControl` and `ActionMenu`,
 a `TextField` unit and a toast's action (Undo) on 2026-11-08 for the
 transactions screens (a `TextField` action, "All" beside a sale's quantity, on
-2026-11-09), where `/design/transactions` shows them in every state.
+2026-11-09), where `/design/transactions` shows them in every state. A
+`Checkbox` whose label only screen readers get (`hideLabel`, a row's box) and
+its dash for "some chosen" (`isIndeterminate`) were approved on 2026-11-12 for
+choosing transactions to delete.
 `ComboBox` and `DateField` share the box style of text fields, drawn on their
 group (`data-focus-within`) rather than on the input. `ValueChart` and
 `AllocationBar` come from the phase 1 prototype, and were approved on

@@ -1,10 +1,10 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { utcDate } from "../../../shared/metrics/ledger.ts";
+import { addDays, utcDate } from "../../../shared/metrics/ledger.ts";
 import { Button, Notice } from "../../ui/index.ts";
+import { useNavigate } from "@tanstack/react-router";
 import { useTransactionEditor } from "../transactions/editor.tsx";
 import {
-  dayBefore,
   historyQuery,
   priceSeries,
   quoteLookup,
@@ -36,6 +36,7 @@ export function PortfolioPage() {
     openAdd,
     dialog,
   } = useTransactionEditor();
+  const navigate = useNavigate();
   const [period, setPeriod] = usePeriod();
   const [hidden, setHidden] = useHiddenAmounts();
   const today = new Date().toISOString().slice(0, 10);
@@ -78,9 +79,7 @@ export function PortfolioPage() {
     [baseCurrency, records],
   );
   // A week earlier: a first transaction on a weekend needs Friday's rate.
-  const rates = useQuery(
-    ratesQuery(userId, currencies, dayBefore(firstDay, 7)),
-  );
+  const rates = useQuery(ratesQuery(userId, currencies, addDays(firstDay, -7)));
   const ratesNeeded = currencies.some((code) => code !== "USD");
   const assetIds = useMemo(() => [...firstDays.keys()], [firstDays]);
   // Combined into one stable value: a new array every render would redo the
@@ -194,6 +193,11 @@ export function PortfolioPage() {
         hidden={hidden}
         onHiddenChange={setHidden}
         onAdd={openAdd}
+        // On the transactions page, open at once: its code, CSV import
+        // included, is fetched ahead, while this page would wait for it.
+        onImport={() => {
+          void navigate({ to: "/transactions", search: { import: true } });
+        }}
         notices={
           <PortfolioNotices
             damaged={transactions.data?.damaged.length ?? 0}

@@ -1,4 +1,15 @@
 import { decimal } from "../../../shared/money/decimal.ts";
+import type { Transaction } from "../../../shared/schemas/transaction.ts";
+
+/** A transaction's type as the list and messages name it. */
+export const KIND_LABEL: Record<Transaction["type"], string> = {
+  buy: "Buy",
+  sell: "Sell",
+  transfer_in: "Receive",
+  income: "Income",
+  transfer_out: "Send",
+  split: "Split",
+};
 
 /*
  * How transactions read on screen: dates in words, amounts with every digit
@@ -35,6 +46,25 @@ export function groupDigits(plain: string): string {
 export const quantity = (amount: string, symbol: string) =>
   `${groupDigits(amount)} ${symbol}`;
 
+// A currency's symbol, found once: building a number format for every amount
+// on a list of thousands is what a long list would spend its time on.
+const symbols = new Map<string, string | undefined>();
+function symbolOf(currency: string): string | undefined {
+  if (!symbols.has(currency)) {
+    symbols.set(
+      currency,
+      new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency,
+        currencyDisplay: "narrowSymbol",
+      })
+        .formatToParts(0)
+        .find((part) => part.type === "currency")?.value,
+    );
+  }
+  return symbols.get(currency);
+}
+
 /**
  * An amount in a currency: "$60,000.03", "€1,250.00", "1,000.00 USDT".
  * Two decimals at least, every decimal it has beyond them.
@@ -44,13 +74,7 @@ export function money(amount: string, currency: string): string {
   const decimals = Math.max(2, amount.split(".")[1]?.length ?? 0);
   const plain = value.toFixed(decimals);
   if (currency.length !== 3) return `${groupDigits(plain)} ${currency}`;
-  const symbol = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    currencyDisplay: "narrowSymbol",
-  })
-    .formatToParts(0)
-    .find((part) => part.type === "currency")?.value;
+  const symbol = symbolOf(currency);
   return symbol && symbol !== currency
     ? `${symbol}${groupDigits(plain)}`
     : `${groupDigits(plain)} ${currency}`;

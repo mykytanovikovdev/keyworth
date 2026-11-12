@@ -18,6 +18,7 @@ into values and P&L (that happens in the browser,
 | `series.ts`      | Daily series kept whole in the cache: merge, slice, refresh only the last days |
 | `cache.ts`       | The shared cache in `market_cache`: fresh, stale and expired entries           |
 | `upstream.ts`    | Every call to a source: time and size limits, errors that name no asset        |
+| `budget.ts`      | CoinGecko's calls budgeted for all users together, and per user by the hour    |
 
 What the server learns by serving prices, the cache lifetimes and every decision:
 [docs/market-data.md](docs/market-data.md).

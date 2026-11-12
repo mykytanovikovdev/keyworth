@@ -2,9 +2,11 @@ import { afterEach, describe, expect, it } from "vitest";
 import { VAULT_BATCH } from "../../../shared/schemas/vault.ts";
 import {
   deleteTransaction,
+  deleteTransactions,
   ImportStopped,
   importTransactions,
   inBatches,
+  keepIfUnlocked,
   loadTransactions,
   saveTransaction,
   TransactionError,
@@ -367,6 +369,82 @@ describe("other devices", () => {
       records: [],
       damaged: [],
     });
+  });
+});
+
+describe("deleting several", () => {
+  it("deletes the chosen ones and unreadable ones among them, in one go", async () => {
+    const { b, access } = await unlocked();
+    const list = await saved(
+      access,
+      trade("buy", "2025-01-01", "1"),
+      trade("buy", "2025-01-02", "2"),
+      trade("buy", "2025-01-03", "3"),
+    );
+    const [first, second, third] = list.records;
+    if (!first || !second || !third) throw new Error("Expected three");
+    const withDamaged = { ...list, damaged: ["damaged-one"] };
+
+    const after = await deleteTransactions(access, withDamaged, [
+      first.id,
+      third.id,
+      "damaged-one",
+    ]);
+
+    expect(after.records.map(({ id }) => id)).toEqual([second.id]);
+    expect(after.damaged).toEqual([]);
+    expect(
+      b.server.state.calls.filter((c) => c === "deleteRecords"),
+    ).toHaveLength(1);
+    expect(
+      (await loadTransactions(access)).records.map(({ id }) => id),
+    ).toEqual([second.id]);
+  });
+
+  it("refuses to take a purchase a remaining sale needs, and deletes nothing", async () => {
+    const { access } = await unlocked();
+    const list = await saved(
+      access,
+      trade("buy", "2025-01-01", "1"),
+      trade("sell", "2025-01-02", "1"),
+    );
+    const [buy] = list.records;
+    if (!buy) throw new Error("Expected a purchase");
+
+    await refused(deleteTransactions(access, list, [buy.id]));
+    expect((await loadTransactions(access)).records).toHaveLength(2);
+  });
+
+  it("deletes everything, a sale and its purchase together", async () => {
+    const { access } = await unlocked();
+    const list = await saved(
+      access,
+      trade("buy", "2025-01-01", "1"),
+      trade("sell", "2025-01-02", "1"),
+    );
+
+    const after = await deleteTransactions(
+      access,
+      list,
+      list.records.map(({ id }) => id),
+    );
+
+    expect(after.records).toEqual([]);
+    expect((await loadTransactions(access)).records).toEqual([]);
+  });
+});
+
+describe("the page's copy of the list", () => {
+  it("is kept only while the data key is open, never after a lock", async () => {
+    const { access } = await unlocked();
+    const list = await saved(access, trade("buy", "2025-01-01", "1"));
+    const kept: TransactionList[] = [];
+
+    expect(keepIfUnlocked(access, list, (l) => kept.push(l))).toBe(true);
+    await access.vault.lock("lock");
+    expect(keepIfUnlocked(access, list, (l) => kept.push(l))).toBe(false);
+
+    expect(kept).toEqual([list]);
   });
 });
 

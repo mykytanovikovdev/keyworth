@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  outsideSnapshot,
   priceOnDay,
+  quotesQueries,
   quotesQuery,
   snapshotQuery,
 } from "../../../src/features/transactions/market.ts";
@@ -37,6 +39,31 @@ const quote = {
   price: "75000",
 };
 
+describe("coins asked for by name", () => {
+  it("are none until the snapshot is in, then only those it lacks, once each", () => {
+    const held = ["crypto:bitcoin", "crypto:rare", "crypto:rare", "stock:AAPL"];
+
+    expect(outsideSnapshot(undefined, held)).toEqual([]);
+    expect(
+      outsideSnapshot(
+        { currency: "USD", fetchedAt: "", quotes: [quote] },
+        held,
+      ),
+    ).toEqual(["crypto:rare"]);
+  });
+
+  it("are asked 50 at a time, every one of them", () => {
+    const ids = Array.from({ length: 120 }, (_, i) => `crypto:c${String(i)}`);
+
+    const asked = quotesQueries("user", ids).map(({ queryKey }) =>
+      queryKey.slice(3),
+    );
+
+    expect(asked.map((chunk) => chunk.length)).toEqual([50, 50, 20]);
+    expect(asked.flat().sort()).toEqual([...ids].sort());
+  });
+});
+
 describe("the price on a day", () => {
   it("is today's current price for today", async () => {
     const asked = serve(() => ({
@@ -54,6 +81,21 @@ describe("the price on a day", () => {
 
     expect(price).toEqual({ price: "75000.00", source: "CoinGecko" });
     expect(asked).toEqual(["/api/market/prices?ids=crypto%3Abitcoin"]);
+  });
+
+  it("is today's price the page already has, with no coin asked for by name", async () => {
+    const asked = serve(() => ({ currency: "USD", fetchedAt: "", quotes: [] }));
+
+    const price = await priceOnDay(
+      "crypto:bitcoin",
+      "2026-11-08",
+      "USD",
+      "2026-11-08",
+      (id) => (id === "crypto:bitcoin" ? "75000" : undefined),
+    );
+
+    expect(price).toEqual({ price: "75000.00", source: "CoinGecko" });
+    expect(asked).toEqual([]);
   });
 
   it("is the day's close from the coin's history for an earlier day, with its source", async () => {

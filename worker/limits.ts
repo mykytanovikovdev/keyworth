@@ -10,36 +10,56 @@ import type { AppEnv } from "./env.ts";
  */
 
 /**
- * At most `limit` requests per user per window, counted in Postgres: Workers
- * share no memory between requests, and Cloudflare's rate-limiting binding
- * counts per location and only approximately. One upsert per guarded request,
- * so it guards writes only; reads cost a round trip already.
+ * Counts one more use of `bucket` for the signed-in user, and whether it is
+ * within `limit` per window. Counted in Postgres: Workers share no memory
+ * between requests, and Cloudflare's rate-limiting binding counts per location
+ * and only approximately. One upsert, so it guards writes and the reads that
+ * can reach a market source, not every read.
  */
+export async function consume(
+  c: Context<AppEnv>,
+  bucket: string,
+  limit: number,
+  windowSeconds = 60,
+): Promise<{ allowed: boolean; retryAfter: number }> {
+  const window = sql.raw(`interval '${String(windowSeconds)} seconds'`);
+  const result = await c.get("db").execute<{
+    count: number;
+    retry_after: number;
+  }>(sql`
+    insert into api_rate_limits (user_id, bucket, window_start, count)
+    values (${c.get("user").id}, ${bucket}, now(), 1)
+    on conflict (user_id, bucket) do update set
+      count = case when api_rate_limits.window_start < now() - ${window}
+                   then 1 else api_rate_limits.count + 1 end,
+      window_start = case when api_rate_limits.window_start < now() - ${window}
+                          then now() else api_rate_limits.window_start end
+    returning count,
+      ceil(extract(epoch from window_start + ${window} - now()))::int
+        as retry_after`);
+  const row = result.rows[0];
+  return {
+    allowed: (row?.count ?? 0) <= limit,
+    // Seconds until this window ends, not the window's full length.
+    retryAfter: Math.max(1, row?.retry_after ?? 1),
+  };
+}
+
+/** At most `limit` requests per user per window: 429 with `Retry-After` past it. */
 export function rateLimit(
   bucket: string,
   limit: number,
   windowSeconds = 60,
 ): MiddlewareHandler<AppEnv> {
   return async (c, next) => {
-    const window = sql.raw(`interval '${String(windowSeconds)} seconds'`);
-    const result = await c.get("db").execute<{
-      count: number;
-      retry_after: number;
-    }>(sql`
-      insert into api_rate_limits (user_id, bucket, window_start, count)
-      values (${c.get("user").id}, ${bucket}, now(), 1)
-      on conflict (user_id, bucket) do update set
-        count = case when api_rate_limits.window_start < now() - ${window}
-                     then 1 else api_rate_limits.count + 1 end,
-        window_start = case when api_rate_limits.window_start < now() - ${window}
-                            then now() else api_rate_limits.window_start end
-      returning count,
-        ceil(extract(epoch from window_start + ${window} - now()))::int
-          as retry_after`);
-    const row = result.rows[0];
-    if ((row?.count ?? 0) > limit) {
-      // Seconds until this window ends, not the window's full length.
-      c.header("Retry-After", String(Math.max(1, row?.retry_after ?? 1)));
+    const { allowed, retryAfter } = await consume(
+      c,
+      bucket,
+      limit,
+      windowSeconds,
+    );
+    if (!allowed) {
+      c.header("Retry-After", String(retryAfter));
       return c.json({ error: "rate_limited" }, 429);
     }
     return next();

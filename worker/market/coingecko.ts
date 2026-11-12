@@ -6,7 +6,7 @@ import {
 import { cleanText } from "../../shared/schemas/text.ts";
 import { z } from "../../shared/schemas/zod.ts";
 import { type DailyPoint, DAY_MS } from "./series.ts";
-import { fetchJson, MarketError, plainDigits } from "./upstream.ts";
+import { fetchJson, MarketError, plainDigits, plausible } from "./upstream.ts";
 
 /*
  * CoinGecko's Demo API: the coin list and search, current prices and logos.
@@ -88,7 +88,9 @@ function quotesFrom(body: unknown): StoredQuote[] {
     const coin = coinSchema.safeParse(item);
     if (!coin.success) return [];
     const price = coin.data.current_price;
-    if (price === null || !Number.isFinite(price) || price < 0) return [];
+    if (price === null || !Number.isFinite(price) || !plausible(price)) {
+      return [];
+    }
     return [
       {
         ...asset(coin.data),
@@ -190,7 +192,7 @@ export async function dailyHistory(
       time % DAY_MS !== 0 ||
       typeof price !== "number" ||
       !Number.isFinite(price) ||
-      price < 0
+      !plausible(price)
     ) {
       return [];
     }

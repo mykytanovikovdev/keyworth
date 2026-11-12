@@ -121,38 +121,35 @@ export async function dailySeries(
     requests.map(({ key }) => key),
   );
   const now = Date.now();
-  const results = await Promise.all(
-    requests.map(async ({ key, load }) => {
-      const entry = known.get(key);
-      if (entry && now - entry.fetchedAt.getTime() < freshForMs) {
-        return { key, series: entry.value, changed: false };
+  // One after another, each stored as soon as it is merged: ten whole series
+  // cost about 20 ms of CPU, more than a Worker on the free plan has, and a
+  // request stopped part of the way must not lose what it already did. The
+  // next request finds those cached and goes on from there.
+  const results: DailySeriesJson[] = [];
+  for (const { key, load } of requests) {
+    const entry = known.get(key);
+    if (entry && now - entry.fetchedAt.getTime() < freshForMs) {
+      results.push(entry.value);
+      continue;
+    }
+    const old = entry?.value ?? null;
+    const oldFrom = old && old.values.length > 0 ? dayNumber(old.from) : null;
+    const since =
+      old && oldFrom !== null
+        ? dayString(oldFrom + old.values.length - 1 - OVERLAP_DAYS)
+        : HISTORY_START;
+    let series: DailySeriesJson;
+    try {
+      series = mergeSeries(old, await load(since));
+    } catch (error) {
+      if (error instanceof MarketError && old) {
+        results.push(old);
+        continue;
       }
-      const old = entry?.value ?? null;
-      const oldFrom = old && old.values.length > 0 ? dayNumber(old.from) : null;
-      const since =
-        old && oldFrom !== null
-          ? dayString(oldFrom + old.values.length - 1 - OVERLAP_DAYS)
-          : HISTORY_START;
-      try {
-        return {
-          key,
-          series: mergeSeries(old, await load(since)),
-          changed: true,
-        };
-      } catch (error) {
-        if (error instanceof MarketError && old) {
-          return { key, series: old, changed: false };
-        }
-        throw error;
-      }
-    }),
-  );
-  await storeCached(
-    db,
-    results.flatMap(({ key, series, changed }) =>
-      changed ? [{ key, value: series }] : [],
-    ),
-    keepForMs,
-  );
-  return results.map(({ series }) => series);
+      throw error;
+    }
+    await storeCached(db, [{ key, value: series }], keepForMs);
+    results.push(series);
+  }
+  return results;
 }

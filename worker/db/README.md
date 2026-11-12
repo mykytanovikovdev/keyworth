@@ -37,8 +37,9 @@ local, tests Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Postgres 18 
   run in CI before each deploy and must stay backward compatible.
 - **Tables:** the Google profile and sessions (Better Auth), the invite and
   block lists, rate-limit counters, the encryption tables (wrapped data keys,
-  the data key's check value, encrypted records and remembered devices) and the
-  market data cache, which holds no user data. Every table with user data is
+  the data key's check value, encrypted records and remembered devices), the
+  market data cache and the market sources' call counters, which hold no user
+  data. Every table with user data is
   deleted with the account. Every timestamp is `timestamp with time zone`.
 
 The details live in [`docs/`](docs/):

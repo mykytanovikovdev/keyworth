@@ -326,6 +326,11 @@ function Static({ state }: { state: "loading" | "empty" }) {
         onAdd={() => {
           showToast("The form from /design/transactions opens here");
         }}
+        onImport={() => {
+          showToast(
+            "Import transactions opens here, as on /design/transactions",
+          );
+        }}
       />
     </MockShell>
   );

@@ -104,13 +104,30 @@ export function typedAmount(next: string, previous: string): string {
 
 const decimalsOf = (plain: string) => plain.split(".")[1]?.length ?? 0;
 
+/** "Price that day", offered in the form. */
+export interface PriceOnDay {
+  /** Plain digits, in the price currency. */
+  price: string;
+  /** Whose price it is, said after it: "Coin Metrics", "CoinGecko". */
+  source: string;
+}
+
+/** A day has begun somewhere on Earth once UTC+14 has reached it. */
+const EARLIEST_OFFSET_MS = 14 * 60 * 60 * 1000;
+
 /**
- * When it happened: noon UTC of the picked day, which stays that day for
- * anyone from UTC−11 to UTC+11, but never later than now.
+ * When a day without a time happened, for the form and a file alike: noon UTC,
+ * which stays that day for anyone from UTC−11 to UTC+11, but never later than
+ * now. A day that has begun nowhere yet keeps its noon, which the rules then
+ * refuse as the future, rather than becoming now.
  */
 export function executedAt(day: string, now: number): string {
-  const noon = Date.parse(`${day}T12:00:00Z`);
-  return new Date(Math.min(noon, now)).toISOString().replace(".000Z", "Z");
+  const start = Date.parse(`${day}T00:00:00Z`);
+  const noon = `${day}T12:00:00Z`;
+  if (start - EARLIEST_OFFSET_MS > now) return noon;
+  return new Date(Math.min(Date.parse(noon), now))
+    .toISOString()
+    .replace(".000Z", "Z");
 }
 
 /** What the fields say is missing or malformed, before anything is checked. */

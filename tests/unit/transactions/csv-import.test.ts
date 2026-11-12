@@ -7,7 +7,9 @@ import {
 } from "../../../src/features/transactions/csv-export.ts";
 import {
   type ImportContext,
+  coinsToLookUp,
   IMPORT_MAX_BYTES,
+  IMPORT_MAX_UNKNOWN_COINS,
   planImport,
   readTable,
   readText,
@@ -226,11 +228,78 @@ describe("each row", () => {
     });
   });
 
+  it("takes plain numbers with a point or a lone comma, and spaces between thousands", () => {
+    const amounts = (quantity: string, price: string) =>
+      plan(file(`2025-01-01,Buy,,BTC,"${quantity}","${price}",USD,,,`)).added[0]
+        ?.value;
+    expect(amounts("1.234", "60000")).toMatchObject({
+      quantity: "1.234",
+      price: "60000",
+    });
+    expect(amounts("0,5", "1234,567")).toMatchObject({
+      quantity: "0.5",
+      price: "1234.567",
+    });
+    expect(amounts("0,123", "1 234,50")).toMatchObject({
+      quantity: "0.123",
+      price: "1234.5",
+    });
+    expect(amounts("2", "1\u00a0234\u00a0567.5")).toMatchObject({
+      price: "1234567.5",
+    });
+  });
+
+  it("refuses a number grouped any other way, instead of reading it a thousand times off", () => {
+    const { added, problems } = plan(
+      file(
+        '2025-01-01,Buy,,BTC,"1.234,50",1,USD,,,',
+        '2025-01-01,Buy,,BTC,1,"1,234.50",USD,,,',
+        '2025-01-01,Buy,,BTC,"1,234",1,USD,,,',
+        '2025-01-01,Buy,,BTC,1,"60,000",USD,,,',
+        "2025-01-01,Buy,,BTC,1,1,USD,1'000,,",
+        '2025-01-01,Buy,,BTC,1,"1,000,000",USD,,,',
+      ),
+    );
+    expect(added).toEqual([]);
+    expect(problems.map(({ message }) => message)).toEqual([
+      `"1.234,50" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+      `"1,234.50" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+      `"1,234" could mean 1234 or 1.234: write it without a thousands separator, with a point for decimals.`,
+      `"60,000" could mean 60000 or 60.000: write it without a thousands separator, with a point for decimals.`,
+      `"1'000" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+      `"1,000,000" has a thousands separator: write numbers without one, with a point for decimals, such as 1234.5.`,
+    ]);
+  });
+
   it("gets a note back as text, with the export's formula quote taken off", () => {
     const { added } = plan(
       file(`2025-01-01,Buy,,BTC,1,1,USD,,,"'=HYPERLINK(""x"")"`),
     );
     expect(added[0]?.value.note).toBe('=HYPERLINK("x")');
+  });
+});
+
+describe("refused rows", () => {
+  it("come back as a file to fix, with the reasons, that imports as it was written", () => {
+    const { refusedCsv } = plan(
+      file(
+        "2025-01-01,Buy,,BTC,1,1,USD,,,ok",
+        '2025-01-02,Buy,,BTC,"1,234",1,USD,,,=x',
+        "2025-01-03,Buy,,XYZ,1,1,USD,,,",
+      ),
+    );
+    if (!refusedCsv) throw new Error("Expected refused rows");
+    const read = readTable(refusedCsv.slice(1));
+    if ("problem" in read) throw new Error(read.problem.kind);
+
+    expect(refusedCsv.startsWith("\uFEFF")).toBe(true);
+    expect(read.table.rows.map(({ cells }) => cells.slice(0, 5))).toEqual([
+      ["2025-01-02", "Buy", "", "BTC", "1,234"],
+      ["2025-01-03", "Buy", "", "XYZ", "1"],
+    ]);
+    expect(read.table.rows[0]?.cells.at(-2)).toBe("'=x");
+    expect(read.table.rows[1]?.cells.at(-1)).toMatch(/^"XYZ" isn't among/);
+    expect(plan(file("2025-01-01,Buy,,BTC,1,1,USD,,,")).refusedCsv).toBeNull();
   });
 });
 
@@ -283,7 +352,11 @@ describe("the ledger's rule over the whole file", () => {
     );
     expect(added.map(({ row }) => row)).toEqual([2]);
     expect(problems).toEqual([
-      { row: 3, message: "You held 0.5 BTC on February 1, 2025." },
+      {
+        row: 3,
+        message:
+          "Sells 0.7 BTC, but you held 0.5 BTC on February 1, 2025. Fix the quantity, or add the buy before it.",
+      },
     ]);
   });
 
@@ -301,13 +374,70 @@ describe("the ledger's rule over the whole file", () => {
       {
         row: 2,
         message:
-          "This would leave your 1 BTC going out on March 1, 2025 short.",
+          "This would leave your recorded 1 BTC going out on March 1, 2025 short: fix this row's quantity.",
       },
     ]);
   });
 });
 
+describe("coins looked up by id", () => {
+  const lookUp = (
+    text: string,
+    known: (id: string) => boolean = () => false,
+  ) => {
+    const read = readTable(text);
+    if ("problem" in read) throw new Error(read.problem.kind);
+    return coinsToLookUp(read.table, known);
+  };
+
+  it("are the well-formed ids the snapshot lacks, once each", () => {
+    expect(
+      lookUp(
+        file(
+          "2025-01-01,Buy,crypto:bitcoin,,1,1,USD,,,",
+          "2025-01-01,Buy,crypto:rare,,1,1,USD,,,",
+          "2025-01-01,Buy,crypto:rare,,1,1,USD,,,",
+          "2025-01-01,Buy,Not An Id,,1,1,USD,,,",
+          "2025-01-01,Buy,,BTC,1,1,USD,,,",
+        ),
+        (id) => id === "crypto:bitcoin",
+      ),
+    ).toEqual({ ids: ["crypto:rare"] });
+  });
+
+  it("are refused past a hundred, before any is asked for", () => {
+    const rows = Array.from(
+      { length: IMPORT_MAX_UNKNOWN_COINS + 1 },
+      (_, i) => `2025-01-01,Buy,crypto:coin-${String(i)},,1,1,USD,,,`,
+    );
+    expect(lookUp(file(...rows))).toEqual({
+      problem: {
+        kind: "too-many-coins",
+        coins: IMPORT_MAX_UNKNOWN_COINS + 1,
+        limit: IMPORT_MAX_UNKNOWN_COINS,
+      },
+    });
+    expect(lookUp(file(...rows.slice(1)))).toMatchObject({
+      ids: expect.any(Array) as unknown,
+    });
+  });
+});
+
 describe("room in the account", () => {
+  it("refuses at once a file longer than the room and every recorded row together", () => {
+    const read = readTable(
+      file("2025-01-01,Buy,,BTC,1,1,USD,,,", "2025-01-02,Buy,,BTC,1,1,USD,,,"),
+    );
+    if ("problem" in read) throw new Error(read.problem.kind);
+
+    expect(
+      planImport(
+        read.table,
+        contextOf([], { stored: VAULT_LIMITS.maxRecords - 1 }),
+      ),
+    ).toEqual({ problem: { kind: "over-quota", rows: 2, room: 1 } });
+  });
+
   it("refuses the file when its new rows do not fit", () => {
     const read = readTable(
       file("2025-01-01,Buy,,BTC,1,1,USD,,,", "2025-01-02,Buy,,BTC,1,1,USD,,,"),

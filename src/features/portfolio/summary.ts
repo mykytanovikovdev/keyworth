@@ -4,6 +4,7 @@ import {
   type PriceSeries,
 } from "../../../shared/metrics/history.ts";
 import {
+  addDays,
   inOrder,
   type MoneyContext,
   type TransactionEntry,
@@ -43,14 +44,8 @@ const PERIOD_DAYS: Record<Exclude<Period, "All">, number> = {
 };
 
 /** Five data colors; a sixth asset and beyond share the neutral "Other". */
-export const SERIES_SLOTS = 5;
+const SERIES_SLOTS = 5;
 export type SeriesSlot = 1 | 2 | 3 | 4 | 5;
-
-const DAY_MS = 24 * 60 * 60 * 1000;
-const dayBefore = (date: string, days: number) =>
-  new Date(Date.parse(`${date}T00:00:00Z`) - days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
 
 export interface Holding {
   assetId: string;
@@ -117,7 +112,7 @@ export function periodStart(
   today: string,
 ): string {
   if (period === "All") return firstDate;
-  const start = dayBefore(today, PERIOD_DAYS[period]);
+  const start = addDays(today, -PERIOD_DAYS[period]);
   return start < firstDate ? firstDate : start;
 }
 

@@ -35,14 +35,16 @@ export const VAULT_LIMITS = Object.freeze({
 });
 
 /**
- * One page of `GET /api/vault`. A Worker has 128 MB of memory and a user up
- * to 50 MiB of ciphertext, so the records come in pages; the record that
- * crosses `maxBytes` is still included, so a page always moves forward.
+ * One page of `GET /api/vault`. A user has up to 50 MiB of ciphertext, and a
+ * Worker on the free plan 10 ms of CPU per request: building the JSON of 5,000
+ * small records already took longer, so pages stay small and the browser reads
+ * them one after another. The record that crosses `maxBytes` is still
+ * included, so a page always moves forward.
  */
 export const VAULT_PAGE = Object.freeze({
-  maxRecords: 5000,
+  maxRecords: 1000,
   /** Ciphertext bytes. */
-  maxBytes: 4 * 1024 * 1024,
+  maxBytes: 1024 * 1024,
 });
 
 /**
@@ -89,7 +91,7 @@ export const VAULT_BATCH = Object.freeze({
 });
 
 /** Only kinds that come in numbers; settings stay one record, written alone. */
-export const BATCH_KINDS = ["transaction"] as const satisfies RecordKind[];
+const BATCH_KINDS = ["transaction"] as const satisfies RecordKind[];
 
 export const vaultBatchSchema = z.strictObject({
   records: z
@@ -109,6 +111,27 @@ export const vaultBatchSchema = z.strictObject({
 });
 
 export type VaultBatch = z.infer<typeof vaultBatchSchema>;
+
+/**
+ * `POST /api/vault/delete`: several transactions deleted at once (selected,
+ * or all of them). A thousand ids are about 39 KB of JSON.
+ */
+export const VAULT_DELETE = Object.freeze({
+  maxIds: 1000,
+  maxBytes: 48 * 1024,
+});
+
+export const vaultDeleteSchema = z.strictObject({
+  ids: z
+    .array(recordIdSchema)
+    .min(1)
+    .max(VAULT_DELETE.maxIds)
+    .refine((ids) => new Set(ids).size === ids.length, {
+      message: "Each id once.",
+    }),
+});
+
+export type VaultDelete = z.infer<typeof vaultDeleteSchema>;
 
 /** One record as `GET /api/vault` returns it. */
 export interface VaultRecordJson {

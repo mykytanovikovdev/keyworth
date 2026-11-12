@@ -83,11 +83,14 @@ export function ledgerProblems(
   after: readonly TransactionEntry[],
 ): TransactionProblem[] {
   const was = shortfalls(before);
+  // By id once: a file of thousands of short sales must not search the list
+  // for each of them.
+  const byId = new Map(after.map(({ id, value }) => [id, value]));
   const problems: TransactionProblem[] = [];
   for (const [id, missing] of shortfalls(after)) {
     const earlier = was.get(id);
     if (earlier && !missing.gt(earlier)) continue;
-    const transaction = after.find((entry) => entry.id === id)?.value;
+    const transaction = byId.get(id);
     if (
       !transaction ||
       (transaction.type !== "sell" && transaction.type !== "transfer_out")

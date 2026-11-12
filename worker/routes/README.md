@@ -25,15 +25,16 @@ replace would then refuse.
 | `POST /api/keys/device`                | "Remember this device": store the device-wrapped key for this session, set the device cookie | 20 writes/min, 4 KB body                    |
 | `GET /api/keys/device`                 | The device-wrapped key, only for this session with the device cookie, for 14 days            |                                             |
 | `DELETE /api/keys/device`              | Lock / forget this device                                                                    | 20 writes/min                               |
-| `GET /api/vault[?kind=][&after=]`      | The user's records, oldest first, in pages of 5,000 or 4 MiB of ciphertext; `next` continues |                                             |
+| `GET /api/vault[?kind=][&after=]`      | The user's records, oldest first, in pages of 1,000 or 1 MiB of ciphertext; `next` continues |                                             |
 | `PUT /api/vault/:id`                   | Create (`revision: 0`) or replace (the current revision) a record                            | 120 writes/min, 96 KB body, per-user quotas |
 | `POST /api/vault/batch`                | Create up to 100 new transaction records at once, all or none (a CSV import)                 | 60 batches/min, 128 KB body, quotas         |
+| `POST /api/vault/delete`               | Delete up to 1,000 of the user's transactions at once (selected, or all); never settings     | 30 requests/min, 48 KB body                 |
 | `DELETE /api/vault/:id`                | Delete a record                                                                              | 120 writes/min                              |
-| `GET /api/market/prices[?ids=]`        | Prices in US dollars: the snapshot of the 250 largest coins, or the coins asked for          |
-| `GET /api/market/history?asset=&from=` | A coin's daily closing prices in US dollars from a day: Coin Metrics or CoinGecko            |
-| `GET /api/market/rates?quotes=&from=`  | Units of each currency (at most 10) per US dollar, day by day from a day                     |
-| `GET /api/assets/search?q=`            | Coins matching a search, at most 20                                                          |
-| `GET /api/assets/:id/logo`             | A coin's logo, through the Worker and cached a day                                           |
+| `GET /api/market/prices[?ids=]`        | Prices in US dollars: the snapshot of the 250 largest coins, or the coins asked for          | 120 reads/min                               |
+| `GET /api/market/history?asset=&from=` | A coin's daily closing prices in US dollars from a day: Coin Metrics or CoinGecko            | 120 reads/min                               |
+| `GET /api/market/rates?quotes=&from=`  | Units of each currency (at most 10) per US dollar, day by day from a day                     | 60 reads/min                                |
+| `GET /api/assets/search?q=`            | Coins matching a search, at most 20                                                          | 60 reads/min, 50 characters                 |
+| `GET /api/assets/:id/logo`             | A coin's logo, through the Worker and cached a day                                           | none, on purpose (one per coin shown)       |
 
 Responses use plain error codes: `invalid_body`, `invalid_id`, `already_set_up`
 (409), `not_set_up` (404), `session_not_fresh` (403), `conflict` (409: for a record with the

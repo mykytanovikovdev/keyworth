@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 import type { PriceSeries } from "../../../shared/metrics/history.ts";
-import type { RateLookup } from "../../../shared/metrics/ledger.ts";
+import { DAY_MS, type RateLookup } from "../../../shared/metrics/ledger.ts";
 import type { PriceQuote } from "../../../shared/metrics/valuation.ts";
 import { type Decimal, decimal } from "../../../shared/money/decimal.ts";
 import {
@@ -20,13 +20,7 @@ import { getJson, valueOn } from "../transactions/market.ts";
  */
 
 const THIRTY_MINUTES = 30 * 60 * 1000;
-const DAY_MS = 24 * 60 * 60 * 1000;
 const ONE = decimal("1");
-
-export const dayBefore = (day: string, days: number) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) - days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
 
 /** A coin's daily closes in US dollars from `from`; yesterday is the latest. */
 export const historyQuery = (userId: string, assetId: string, from: string) =>

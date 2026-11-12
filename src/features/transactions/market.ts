@@ -1,7 +1,9 @@
-import { queryOptions } from "@tanstack/react-query";
+import { queryOptions, type UseQueryResult } from "@tanstack/react-query";
+import { addDays, daysBetween } from "../../../shared/metrics/ledger.ts";
 import { type Decimal, decimal } from "../../../shared/money/decimal.ts";
 import {
   type AssetSearchJson,
+  cryptoAssetIdSchema,
   type HistoryJson,
   MARKET_LIMITS,
   type PricesJson,
@@ -9,8 +11,7 @@ import {
   type RatesJson,
 } from "../../../shared/schemas/market.ts";
 import { ApiError } from "../../vault/api.ts";
-import type { AssetChoice } from "./form-values.ts";
-import type { PriceOnDay } from "./TransactionForm.tsx";
+import type { AssetChoice, PriceOnDay } from "./form-values.ts";
 
 /*
  * Market data for the transaction screens, from Keyworth's own server (the
@@ -70,6 +71,59 @@ export const quotesQuery = (userId: string, ids: readonly string[]) => {
   });
 };
 
+/**
+ * The coins to ask for by name: those the snapshot does not have. None until
+ * the snapshot is in: before it, every coin would look outside, and the
+ * server would learn ones it already gives everyone. Only crypto ids the
+ * route takes: another kind would make it refuse the whole request.
+ */
+export function outsideSnapshot(
+  snapshot: PricesJson | undefined,
+  assetIds: Iterable<string>,
+): string[] {
+  if (!snapshot) return [];
+  const inSnapshot = new Set(snapshot.quotes.map(({ id }) => id));
+  return [...new Set(assetIds)].filter(
+    (id) => !inSnapshot.has(id) && cryptoAssetIdSchema.safeParse(id).success,
+  );
+}
+
+/** Coins outside the snapshot as queries of at most 50, all of them asked. */
+export function quotesQueries(userId: string, ids: readonly string[]) {
+  const sorted = [...new Set(ids)].sort();
+  const queries = [];
+  for (let at = 0; at < sorted.length; at += MARKET_LIMITS.idsPerRequest) {
+    queries.push(
+      quotesQuery(userId, sorted.slice(at, at + MARKET_LIMITS.idsPerRequest)),
+    );
+  }
+  return queries;
+}
+
+/**
+ * Those queries read as one answer: the quotes that have come, still loading
+ * while any is, and one refetch for all. For `useQueries`' `combine`; kept
+ * outside components, so the result is recomputed only when results change.
+ */
+export function combineQuotes(results: UseQueryResult<PricesJson>[]) {
+  const answers = results.flatMap(({ data }) => (data ? [data] : []));
+  const data: PricesJson | undefined =
+    answers.length === 0
+      ? undefined
+      : {
+          currency: "USD",
+          fetchedAt: answers
+            .map(({ fetchedAt }) => fetchedAt)
+            .reduce((a, b) => (b < a ? b : a)),
+          quotes: answers.flatMap(({ quotes }) => quotes),
+        };
+  return {
+    data,
+    isLoading: results.some(({ isLoading }) => isLoading),
+    refetch: () => Promise.all(results.map(({ refetch }) => refetch())),
+  };
+}
+
 export const assetsOf = (prices: PricesJson | undefined): AssetChoice[] =>
   prices?.quotes.map(choiceOf) ?? [];
 
@@ -81,12 +135,7 @@ export async function searchCoins(text: string): Promise<AssetChoice[]> {
   return found.assets.map(({ id, symbol, name }) => ({ id, symbol, name }));
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const ONE = decimal("1");
-const dayBefore = (day: string, days: number) =>
-  new Date(Date.parse(`${day}T00:00:00Z`) - days * DAY_MS)
-    .toISOString()
-    .slice(0, 10);
 
 /** The last value of a series on or before a day: a holiday keeps the rate before it. */
 export function valueOn(
@@ -94,8 +143,7 @@ export function valueOn(
   day: string,
 ): string | null {
   if (!series) return null;
-  const start = Date.parse(`${series.from}T00:00:00Z`);
-  const index = Math.round((Date.parse(`${day}T00:00:00Z`) - start) / DAY_MS);
+  const index = daysBetween(series.from, day);
   for (let i = Math.min(index, series.values.length - 1); i >= 0; i--) {
     const value = series.values[i];
     if (value) return value;
@@ -112,21 +160,28 @@ function offered(price: Decimal): string {
 /**
  * A coin's price on a day, in a currency: the day's close from its history,
  * or the current price for today, converted at the day's rate. Null when the
- * sources have none.
+ * sources have none. Today's price comes from what the page already has
+ * (`priceNow`, the snapshot of the 250 largest included) before the coin is
+ * asked for by name, so a coin in the snapshot is never named to the server.
  */
 export async function priceOnDay(
   assetId: string,
   day: string,
   currency: string,
   today: string,
+  priceNow: (assetId: string) => string | undefined = () => undefined,
 ): Promise<PriceOnDay | null> {
   let usd: string | null;
   let source: string;
   if (day >= today) {
-    const prices = await getJson<PricesJson>(
-      `/api/market/prices?ids=${encodeURIComponent(assetId)}`,
-    );
-    usd = prices.quotes[0]?.price ?? null;
+    usd =
+      priceNow(assetId) ??
+      (
+        await getJson<PricesJson>(
+          `/api/market/prices?ids=${encodeURIComponent(assetId)}`,
+        )
+      ).quotes[0]?.price ??
+      null;
     source = "CoinGecko";
   } else {
     const history = await getJson<HistoryJson>(
@@ -140,7 +195,7 @@ export async function priceOnDay(
   if (currency === "USD") return { price: offered(decimal(usd)), source };
   // A week back, so a weekend or a rate not yet published has one before it.
   const rates = await getJson<RatesJson>(
-    `/api/market/rates?quotes=${encodeURIComponent(currency)}&from=${dayBefore(day, 7)}`,
+    `/api/market/rates?quotes=${encodeURIComponent(currency)}&from=${addDays(day, -7)}`,
   );
   const rate = valueOn(rates.rates[currency], day);
   if (rate === null) return null;
