@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { addDays, utcDate } from "../../../shared/metrics/ledger.ts";
 import { Button, Notice } from "../../ui/index.ts";
 import { useTransactionEditor } from "../transactions/editor.tsx";
+import { useImportExport } from "../transactions/import-export.tsx";
 import {
   historyQuery,
   priceSeries,
@@ -33,8 +34,19 @@ export function PortfolioPage() {
     baseCurrency,
     assetOf,
     openAdd,
+    current,
+    store,
+    failed,
     dialog,
   } = useTransactionEditor();
+  // Offered while there is nothing yet, as on the transactions page.
+  const { importDialog, openImport } = useImportExport({
+    userId,
+    current,
+    store,
+    assetOf,
+    failed,
+  });
   const [period, setPeriod] = usePeriod();
   const [hidden, setHidden] = useHiddenAmounts();
   const today = new Date().toISOString().slice(0, 10);
@@ -191,6 +203,7 @@ export function PortfolioPage() {
         hidden={hidden}
         onHiddenChange={setHidden}
         onAdd={openAdd}
+        onImport={openImport}
         notices={
           <PortfolioNotices
             damaged={transactions.data?.damaged.length ?? 0}
@@ -213,6 +226,7 @@ export function PortfolioPage() {
           })}
       />
       {dialog}
+      {importDialog}
     </>
   );
 }

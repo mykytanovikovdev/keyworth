@@ -74,7 +74,9 @@ export function DateField({
           {action}
         </div>
         <Text slot="description" className="text-xs text-fg-muted">
-          {value ? IN_WORDS.format(value.toDate("UTC")) : "Day, month, year"}
+          {value
+            ? IN_WORDS.format(value.toDate("UTC"))
+            : "Day first, then month: 31/12/2025"}
         </Text>
         <FieldError className="text-xs font-medium text-loss">
           {errorMessage}

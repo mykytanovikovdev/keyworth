@@ -3,6 +3,7 @@ import {
   ArrowUpRight,
   Eye,
   EyeOff,
+  FileUp,
   Minus,
   PieChart,
   Plus,
@@ -56,6 +57,8 @@ interface PortfolioViewProps {
   hidden: boolean;
   onHiddenChange?: (hidden: boolean) => void;
   onAdd?: () => void;
+  /** Opens "Import transactions": offered while there is nothing yet. */
+  onImport?: () => void;
   /** Warnings above the figures: prices that failed, unreadable records. */
   notices?: ReactNode;
   /** "2:20 PM": when today's prices were fetched. */
@@ -147,6 +150,7 @@ export function PortfolioView({
   hidden,
   onHiddenChange,
   onAdd,
+  onImport,
   notices,
   pricesAsOf,
   useImages = true,
@@ -186,14 +190,22 @@ export function PortfolioView({
             Add what you bought, sold or received. Keyworth works out what you
             hold, what it&apos;s worth and how it&apos;s doing.
           </p>
-          <Button
-            variant="primary"
-            icon={<Plus aria-hidden="true" />}
-            className="mt-2"
-            {...(onAdd && { onPress: onAdd })}
-          >
-            Add transaction
-          </Button>
+          <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+            <Button
+              variant="primary"
+              icon={<Plus aria-hidden="true" />}
+              {...(onAdd && { onPress: onAdd })}
+            >
+              Add transaction
+            </Button>
+            <Button
+              variant="ghost"
+              icon={<FileUp aria-hidden="true" />}
+              {...(onImport && { onPress: onImport })}
+            >
+              Import from a file
+            </Button>
+          </div>
         </div>
       </div>
     );
@@ -356,7 +368,7 @@ export function PortfolioView({
               percent(summary.period.volatility)
             )
           }
-          note={`Yearly rate, ${words}`}
+          note={`Annualized, ${words}`}
         />
       </section>
 

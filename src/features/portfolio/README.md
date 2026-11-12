@@ -48,7 +48,7 @@ cached under `["vault", …]`, cleared when the vault locks.
 | All-time profit | Realized plus unrealized, every position; income is apart                    |
 | Income          | Staking and rewards, worth when received                                     |
 | Max drawdown    | `maxDrawdown(growthIndex(returns))` over the period                          |
-| Volatility      | `volatility(returns)`, yearly, over the period                               |
+| Volatility      | `volatility(returns)`, annualized, over the period                           |
 | Allocation      | Shares of the known total: five data colors and a grey "Other"               |
 | Holdings        | Quantity, average cost, price, value, share, unrealized profit; wide screens |
 
@@ -84,7 +84,9 @@ builds), from made-up transactions through the real `summarize()`.
   and survives a reload: hiding is for screens others can see.
 - **One editor for transactions.** "Add transaction" opens the form of the
   transactions page through `useTransactionEditor`, so both pages refuse,
-  save and undo in the same way.
+  save and undo in the same way; with nothing yet, "Import from a file" opens
+  the same import (`useImportExport`). The notices link to the transactions
+  page where they ask the user to look.
 
 ## Pitfalls & gotchas
 
