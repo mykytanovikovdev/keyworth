@@ -155,6 +155,23 @@ test("keeps the page until the next one's code arrives, fetched ahead @chromium-
   await expect(appHome(page)).toHaveCount(0);
 });
 
+// Routing, the same in every engine.
+test("offers an empty portfolio the import, open on the transactions page @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await openApp(page, context, baseURL);
+
+  await page.getByRole("button", { name: "Import from a file" }).click();
+
+  await expect(
+    page.getByRole("dialog", { name: "Import transactions" }),
+  ).toBeVisible();
+  // The request left the address: a reload does not open it again.
+  await expect(page).toHaveURL(/\/transactions$/);
+});
+
 test("says when prices couldn't load, and shows no zero for them", async ({
   page,
   context,

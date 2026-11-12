@@ -84,9 +84,12 @@ builds), from made-up transactions through the real `summarize()`.
   and survives a reload: hiding is for screens others can see.
 - **One editor for transactions.** "Add transaction" opens the form of the
   transactions page through `useTransactionEditor`, so both pages refuse,
-  save and undo in the same way; with nothing yet, "Import from a file" opens
-  the same import (`useImportExport`). The notices link to the transactions
-  page where they ask the user to look.
+  save and undo in the same way. With nothing yet, "Import from a file" goes to
+  `/transactions?import=true`, which opens the import at once: that page's
+  code, CSV import included, is fetched ahead, while importing it here made the
+  start page wait for 41 KB more (and loading it lazily moved shared code into
+  the entry chunk, 25 KB more for everyone). The notices link to the
+  transactions page where they ask the user to look.
 
 ## Pitfalls & gotchas
 

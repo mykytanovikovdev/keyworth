@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { Button, Notice, showToast, Skeleton } from "../../ui/index.ts";
 import { useTransactionEditor } from "./editor.tsx";
 import { useImportExport } from "./import-export.tsx";
@@ -14,7 +15,12 @@ import { TransactionList as ListView } from "./TransactionList.tsx";
  * ["vault", …].
  */
 
-export function TransactionsPage() {
+export function TransactionsPage({
+  openImport: importFirst = false,
+}: {
+  /** Opens "Import transactions" at once (the portfolio's empty state). */
+  openImport?: boolean;
+}) {
   const {
     userId,
     transactions,
@@ -34,7 +40,15 @@ export function TransactionsPage() {
     store,
     assetOf,
     failed,
+    startOpen: importFirst,
   });
+  const navigate = useNavigate();
+  // Opened once: the address drops the request, so a reload does not repeat it.
+  useEffect(() => {
+    if (importFirst) {
+      void navigate({ to: "/transactions", search: {}, replace: true });
+    }
+  }, [importFirst, navigate]);
 
   const [deleteAll, setDeleteAll] = useState(false);
   const [deletingAll, setDeletingAll] = useState(false);

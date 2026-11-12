@@ -38,6 +38,8 @@ interface ImportExportOptions {
   store: (list: TransactionList) => boolean;
   assetOf: (assetId: string) => AssetChoice;
   failed: (error: unknown) => void;
+  /** The dialog is open from the first render (loaded on demand). */
+  startOpen?: boolean;
 }
 
 const counted = (n: number, one: string, many: string) =>
@@ -49,13 +51,14 @@ export function useImportExport({
   store,
   assetOf,
   failed,
+  startOpen = false,
 }: ImportExportOptions): {
   importDialog: ReactNode;
   openImport: () => void;
   exportCsv: () => void;
 } {
   const queryClient = useQueryClient();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(startOpen);
 
   const check = async (
     file: File,
