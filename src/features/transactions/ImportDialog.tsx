@@ -1,4 +1,4 @@
-import { Check, CircleX, Equal, FileUp, Minus } from "lucide-react";
+import { Check, CircleX, Download, Equal, FileUp, Minus } from "lucide-react";
 import { type ReactNode, useState } from "react";
 import { cleanText } from "../../../shared/schemas/text.ts";
 import {
@@ -263,6 +263,21 @@ function Preview({
                 <li>and {count(plan.problems.length - LISTED)} more</li>
               )}
             </ul>
+            {plan.refusedCsv && (
+              <Button
+                variant="ghost"
+                size="sm"
+                icon={<Download aria-hidden="true" />}
+                className="ml-4 self-start"
+                onPress={() => {
+                  if (plan.refusedCsv) {
+                    downloadText(plan.refusedCsv, "keyworth-refused-rows.csv");
+                  }
+                }}
+              >
+                Download these rows to fix
+              </Button>
+            )}
           </li>
         )}
       </ul>

@@ -279,6 +279,30 @@ describe("each row", () => {
   });
 });
 
+describe("refused rows", () => {
+  it("come back as a file to fix, with the reasons, that imports as it was written", () => {
+    const { refusedCsv } = plan(
+      file(
+        "2025-01-01,Buy,,BTC,1,1,USD,,,ok",
+        '2025-01-02,Buy,,BTC,"1,234",1,USD,,,=x',
+        "2025-01-03,Buy,,XYZ,1,1,USD,,,",
+      ),
+    );
+    if (!refusedCsv) throw new Error("Expected refused rows");
+    const read = readTable(refusedCsv.slice(1));
+    if ("problem" in read) throw new Error(read.problem.kind);
+
+    expect(refusedCsv.startsWith("\uFEFF")).toBe(true);
+    expect(read.table.rows.map(({ cells }) => cells.slice(0, 5))).toEqual([
+      ["2025-01-02", "Buy", "", "BTC", "1,234"],
+      ["2025-01-03", "Buy", "", "XYZ", "1"],
+    ]);
+    expect(read.table.rows[0]?.cells.at(-2)).toBe("'=x");
+    expect(read.table.rows[1]?.cells.at(-1)).toMatch(/^"XYZ" isn't among/);
+    expect(plan(file("2025-01-01,Buy,,BTC,1,1,USD,,,")).refusedCsv).toBeNull();
+  });
+});
+
 describe("duplicates", () => {
   const recorded = entries(buy("2025-01-01", "0.5", "60000"));
 
@@ -328,7 +352,11 @@ describe("the ledger's rule over the whole file", () => {
     );
     expect(added.map(({ row }) => row)).toEqual([2]);
     expect(problems).toEqual([
-      { row: 3, message: "You held 0.5 BTC on February 1, 2025." },
+      {
+        row: 3,
+        message:
+          "Sells 0.7 BTC, but you held 0.5 BTC on February 1, 2025. Fix the quantity, or add the buy before it.",
+      },
     ]);
   });
 
@@ -346,7 +374,7 @@ describe("the ledger's rule over the whole file", () => {
       {
         row: 2,
         message:
-          "This would leave your 1 BTC going out on March 1, 2025 short.",
+          "This would leave your recorded 1 BTC going out on March 1, 2025 short: fix this row's quantity.",
       },
     ]);
   });

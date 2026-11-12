@@ -11,7 +11,7 @@ import {
 } from "../../../shared/schemas/transaction.ts";
 import { VAULT_LIMITS } from "../../../shared/schemas/vault.ts";
 import { ledgerProblems, parseTransaction } from "./check.ts";
-import { parseCsv, plainCell } from "./csv.ts";
+import { parseCsv, plainCell, safeCell, toCsv } from "./csv.ts";
 import { type AssetChoice, executedAt } from "./form-values.ts";
 import {
   dateInWords,
@@ -248,6 +248,33 @@ export interface ImportPlan {
   duplicates: number[];
   /** Rows skipped, and why, in words. */
   problems: { row: number; message: string }[];
+  /** Those rows as a file to fix and import again; null when there are none. */
+  refusedCsv: string | null;
+}
+
+// Spreadsheets take a file as UTF-8 only with it (written as an escape: the
+// character itself is invisible in the source).
+const BYTE_ORDER_MARK = "\uFEFF";
+
+/**
+ * Refused rows as a file in Keyworth's format, cells as the file had them,
+ * with a Reason column the import ignores: fix the rows, import the file.
+ */
+function refusedRowsCsv(
+  table: CsvTable,
+  problems: readonly { row: number; message: string }[],
+): string {
+  const cellsOf = new Map(table.rows.map(({ row, cells }) => [row, cells]));
+  const records = [
+    [...CSV_COLUMNS, "Reason"],
+    ...problems.map(({ row, message }) => [
+      ...CSV_COLUMNS.map((column) =>
+        cellOf(table, cellsOf.get(row) ?? [], column),
+      ),
+      message,
+    ]),
+  ];
+  return BYTE_ORDER_MARK + toCsv(records.map((record) => record.map(safeCell)));
 }
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -381,7 +408,7 @@ function rowValue(
       message: id
         ? `${quoted(id)} isn't a coin Keyworth knows.`
         : symbol
-          ? `${quoted(symbol)} isn't among the 250 largest coins: put its id from an export in Coin.`
+          ? `${quoted(symbol)} isn't among the 250 largest coins, so the symbol isn't enough: fill in its Coin id. To find it, add the coin once by hand and export.`
           : "No coin: fill in Coin or Symbol.",
     };
   }
@@ -553,7 +580,11 @@ export function planImport(
     const held = quantityText(problem.held, candidate?.asset.symbol ?? "");
     const when = dateInWords(problem.executedAt);
     if (candidate) {
-      short.set(candidate.id, `You held ${held} on ${when}.`);
+      const verb = candidate.value.type === "sell" ? "Sells" : "Sends";
+      short.set(
+        candidate.id,
+        `${verb} ${quantityText(problem.asked, candidate.asset.symbol)}, but you held ${held} on ${when}. Fix the quantity, or add the buy before it.`,
+      );
       continue;
     }
     // A recorded sale would be left short: by the file's earlier ones.
@@ -562,7 +593,7 @@ export function planImport(
       if (Date.parse(c.value.executedAt) <= moment && !short.has(c.id)) {
         short.set(
           c.id,
-          `This would leave your ${quantityText(problem.asked, c.asset.symbol)} going out on ${when} short.`,
+          `This would leave your recorded ${quantityText(problem.asked, c.asset.symbol)} going out on ${when} short: fix this row's quantity.`,
         );
       }
     }
@@ -580,6 +611,12 @@ export function planImport(
     return { problem: { kind: "over-quota", rows: added.length, room } };
   }
   return {
-    plan: { rows: table.rows.length, added, duplicates, problems },
+    plan: {
+      rows: table.rows.length,
+      added,
+      duplicates,
+      problems,
+      refusedCsv: problems.length > 0 ? refusedRowsCsv(table, problems) : null,
+    },
   };
 }
