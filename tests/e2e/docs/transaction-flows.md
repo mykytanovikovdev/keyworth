@@ -23,6 +23,10 @@ the database together, with Argon2 at its production settings.
   `tests/unit/transactions/held.test.ts`.
 - **Editing, deleting, Undo:** an edit is saved and listed; deleting removes the
   record from the database at once; Undo writes it back.
+- **Deleting several, and all:** three imported rows; two chosen in select mode
+  (by pressing their rows) go from the database together, and Undo writes them
+  back; "Delete all transactions…" asks once, naming the count, empties the list
+  and the database, and Undo brings all three back.
 - **Importing a CSV file:** chosen through the file picker, it is checked on
   the device first: the dialog says what it would add and which row it refuses
   and why (a coin outside the 250), with no axe violation, and nothing is
@@ -60,4 +64,4 @@ Sign in with `openApp(page, context, baseURL)` (a user with keys, unlocked on
 and the database (`storedTransactions(userId)`). Rows exist twice in the page,
 for a phone and a wide screen: find text with `visible(page, text)`.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-12

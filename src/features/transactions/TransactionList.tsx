@@ -2,19 +2,23 @@ import {
   ArrowLeftRight,
   Download,
   FileUp,
+  ListChecks,
   Pencil,
   Plus,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
 import { Button as AriaButton } from "react-aria-components";
 import type { Transaction } from "../../../shared/schemas/transaction.ts";
-import { ActionMenu, Button, Notice } from "../../ui/index.ts";
+import { ActionMenu, Button, Checkbox, Notice } from "../../ui/index.ts";
 import { AssetLogo } from "./AssetLogo.tsx";
-import { groupDigits, money, shortDate } from "./format.ts";
+import { groupDigits, KIND_LABEL, money, shortDate } from "./format.ts";
 
 /*
  * Every transaction, newest first: on a wide screen in columns, on a phone in
  * two lines a row. A row opens its transaction to edit; its menu also deletes.
+ * "Select transactions" turns the menus into boxes, to delete several at once;
+ * "Delete all transactions" asks once, on the page.
  */
 
 export interface ListedTransaction {
@@ -37,16 +41,19 @@ interface TransactionListProps {
   onImport?: () => void;
   /** Saves every transaction as a CSV file. */
   onExport?: () => void;
+  /** Deletes the transactions chosen in select mode. */
+  onDeleteSelected?: (ids: readonly string[]) => void;
+  /** Asks to delete every transaction. */
+  onDeleteAll?: () => void;
+  /** Opens in select mode with these chosen (the design page's states). */
+  defaultSelected?: readonly string[];
 }
 
-const KIND_LABEL: Record<Transaction["type"], string> = {
-  buy: "Buy",
-  sell: "Sell",
-  transfer_in: "Receive",
-  income: "Income",
-  transfer_out: "Send",
-  split: "Split",
-};
+// Wide-screen columns: date, type, coin, quantity, price, then the menu; while
+// selecting, the box comes first and the menu goes.
+const COLUMNS = "sm:grid-cols-[7rem_5.5rem_minmax(0,1fr)_9rem_9rem_2.25rem]";
+const COLUMNS_SELECTING =
+  "sm:grid-cols-[2rem_7rem_5.5rem_minmax(0,1fr)_9rem_9rem]";
 
 function amounts(transaction: Transaction, symbol: string) {
   switch (transaction.type) {
@@ -63,9 +70,16 @@ function amounts(transaction: Transaction, symbol: string) {
       if (transaction.type === "transfer_out") {
         return { quantity, price: null };
       }
+      // Received for nothing (an airdrop): "Free" reads as meant, $0.00 as a bug.
+      const free =
+        transaction.type !== "buy" &&
+        transaction.type !== "sell" &&
+        !/[1-9]/.test(transaction.price);
       return {
         quantity,
-        price: money(transaction.price, transaction.priceCurrency),
+        price: free
+          ? "Free"
+          : money(transaction.price, transaction.priceCurrency),
       };
     }
     case "split":
@@ -83,12 +97,27 @@ export function TransactionList({
   onDeleteDamaged,
   onImport,
   onExport,
+  onDeleteSelected,
+  onDeleteAll,
+  defaultSelected,
 }: TransactionListProps) {
+  const [selected, setSelected] = useState<ReadonlySet<string> | null>(
+    defaultSelected ? new Set(defaultSelected) : null,
+  );
+  const selecting = selected !== null && transactions.length > 0;
+  const chosen = transactions.filter(({ id }) => selected?.has(id));
+  const toggle = (id: string) => {
+    setSelected((current) => {
+      const next = new Set(current);
+      if (!next.delete(id)) next.add(id);
+      return next;
+    });
+  };
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-6 px-4 py-8 sm:px-6 sm:py-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight">Transactions</h1>
-        {transactions.length > 0 && (
+        {transactions.length > 0 && !selecting && (
           <div className="flex items-center gap-2">
             <Button
               variant="primary"
@@ -98,7 +127,7 @@ export function TransactionList({
               Add transaction
             </Button>
             <ActionMenu
-              label="Import or export"
+              label="More actions"
               actions={[
                 {
                   id: "import",
@@ -110,15 +139,76 @@ export function TransactionList({
                   label: "Export to CSV",
                   icon: <Download aria-hidden="true" />,
                 },
+                {
+                  id: "select",
+                  label: "Select transactions",
+                  icon: <ListChecks aria-hidden="true" />,
+                },
+                {
+                  id: "delete-all",
+                  label: "Delete all transactions…",
+                  icon: <Trash2 aria-hidden="true" />,
+                },
               ]}
               onAction={(id) => {
                 if (id === "import") onImport?.();
-                else onExport?.();
+                else if (id === "export") onExport?.();
+                else if (id === "select") setSelected(new Set());
+                else onDeleteAll?.();
               }}
             />
           </div>
         )}
       </div>
+      {selecting && (
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-line bg-surface px-3 py-2">
+          <div className="flex items-center gap-3">
+            <Checkbox
+              label="Select all"
+              isSelected={chosen.length === transactions.length}
+              isIndeterminate={
+                chosen.length > 0 && chosen.length < transactions.length
+              }
+              onChange={(all) => {
+                setSelected(
+                  new Set(all ? transactions.map(({ id }) => id) : []),
+                );
+              }}
+            />
+            <span
+              className="text-sm text-fg-muted tabular-nums"
+              aria-live="polite"
+            >
+              {chosen.length === 0
+                ? "None selected"
+                : `${String(chosen.length)} selected`}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={<Trash2 aria-hidden="true" />}
+              isDisabled={chosen.length === 0}
+              onPress={() => {
+                onDeleteSelected?.(chosen.map(({ id }) => id));
+                setSelected(null);
+              }}
+            >
+              Delete
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onPress={() => {
+                setSelected(null);
+              }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      )}
       {damaged > 0 && (
         <Notice tone="warning">
           <span className="flex flex-wrap items-center gap-x-2">
@@ -142,14 +232,15 @@ export function TransactionList({
         <ul className="flex flex-col">
           <li
             aria-hidden="true"
-            className="hidden grid-cols-[7rem_5.5rem_minmax(0,1fr)_9rem_9rem_2.25rem] gap-3 border-b border-line pb-2 text-xs text-fg-muted sm:grid"
+            className={`hidden gap-3 border-b border-line pb-2 text-xs text-fg-muted sm:grid ${selecting ? COLUMNS_SELECTING : COLUMNS}`}
           >
+            {selecting && <span />}
             <span>Date</span>
             <span>Type</span>
             <span>Coin</span>
             <span className="text-right">Quantity</span>
             <span className="text-right">Price</span>
-            <span />
+            {!selecting && <span />}
           </li>
           {transactions.map((entry) => {
             const { value } = entry;
@@ -159,22 +250,45 @@ export function TransactionList({
             return (
               <li
                 key={entry.id}
-                className="grid grid-cols-[2rem_minmax(0,1fr)_auto_2.25rem] items-center gap-x-3 border-b border-line py-3 sm:grid-cols-[7rem_5.5rem_minmax(0,1fr)_9rem_9rem_2.25rem]"
+                className={`grid items-center gap-x-3 border-b border-line py-3 ${selecting ? `grid-cols-[2rem_minmax(0,1fr)_auto] ${COLUMNS_SELECTING}` : `grid-cols-[2rem_minmax(0,1fr)_auto_2.25rem] ${COLUMNS}`}`}
               >
-                {/* Phone: logo, two lines, menu. */}
-                <span className="sm:hidden">
-                  <AssetLogo
-                    assetId={value.assetId}
-                    symbol={entry.symbol}
-                    useImage={useLogos}
-                  />
-                </span>
+                {/* Selecting: the box first, where the eye starts (the logo's place on a phone). */}
+                {selecting ? (
+                  <span className="flex justify-center">
+                    <Checkbox
+                      label={`Select ${kind} ${quantity} on ${date}`}
+                      hideLabel
+                      isSelected={selected.has(entry.id)}
+                      onChange={() => {
+                        toggle(entry.id);
+                      }}
+                    />
+                  </span>
+                ) : (
+                  // Phone: logo, two lines, menu.
+                  <span className="sm:hidden">
+                    <AssetLogo
+                      assetId={value.assetId}
+                      symbol={entry.symbol}
+                      useImage={useLogos}
+                    />
+                  </span>
+                )}
                 <AriaButton
-                  onPress={() => onEdit?.(entry.id)}
+                  onPress={() => {
+                    if (selecting) toggle(entry.id);
+                    else onEdit?.(entry.id);
+                  }}
                   className="col-span-2 -mx-2 grid min-w-0 grid-cols-[minmax(0,1fr)_auto] gap-x-3 rounded-md px-2 py-1 text-left transition-colors duration-(--kw-duration-fast) data-hovered:bg-hover sm:col-span-5 sm:grid-cols-[7rem_5.5rem_minmax(0,1fr)_9rem_9rem] sm:items-center"
                 >
                   {/* The row's own text is its name (WCAG 2.5.3), after what pressing it does. */}
-                  <span className="sr-only">Edit </span>
+                  <span className="sr-only">
+                    {selecting
+                      ? selected.has(entry.id)
+                        ? "Deselect "
+                        : "Select "
+                      : "Edit "}
+                  </span>
                   <span className="truncate text-sm font-medium sm:hidden">
                     {kind} · {entry.name}
                   </span>
@@ -212,25 +326,27 @@ export function TransactionList({
                     {price ?? "—"}
                   </span>
                 </AriaButton>
-                <ActionMenu
-                  label={`Actions for ${kind} ${quantity} on ${date}`}
-                  actions={[
-                    {
-                      id: "edit",
-                      label: "Edit",
-                      icon: <Pencil aria-hidden="true" />,
-                    },
-                    {
-                      id: "delete",
-                      label: "Delete",
-                      icon: <Trash2 aria-hidden="true" />,
-                    },
-                  ]}
-                  onAction={(action) => {
-                    if (action === "edit") onEdit?.(entry.id);
-                    if (action === "delete") onDelete?.(entry.id);
-                  }}
-                />
+                {!selecting && (
+                  <ActionMenu
+                    label={`Actions for ${kind} ${quantity} on ${date}`}
+                    actions={[
+                      {
+                        id: "edit",
+                        label: "Edit",
+                        icon: <Pencil aria-hidden="true" />,
+                      },
+                      {
+                        id: "delete",
+                        label: "Delete",
+                        icon: <Trash2 aria-hidden="true" />,
+                      },
+                    ]}
+                    onAction={(action) => {
+                      if (action === "edit") onEdit?.(entry.id);
+                      if (action === "delete") onDelete?.(entry.id);
+                    }}
+                  />
+                )}
               </li>
             );
           })}

@@ -32,9 +32,13 @@ import {
   snapshotQuery,
 } from "./market.ts";
 import { heldAt, heldNow } from "./check.ts";
+import { KIND_LABEL } from "./format.ts";
 import { access, transactionsQuery } from "./queries.ts";
 import {
   deleteTransaction,
+  deleteTransactions,
+  ImportStopped,
+  importTransactions,
   keepIfUnlocked,
   saveTransaction,
   TransactionError,
@@ -285,7 +289,8 @@ export function useTransactionEditor() {
       return;
     }
     if (!removed) return;
-    showToast("Transaction deleted", {
+    const named = `${KIND_LABEL[removed.value.type]} · ${assetOf(removed.value.assetId).name}`;
+    showToast(`Deleted ${named}`, {
       action: {
         label: "Undo",
         onAction: () => {
@@ -299,6 +304,67 @@ export function useTransactionEditor() {
         },
       },
     });
+  };
+
+  /**
+   * Several at once (selected, or all): one rule check, one Undo that writes
+   * them back under new ids, as a single delete's does. True when they went.
+   */
+  const removeMany = async (
+    ids: readonly string[],
+    { everything = false } = {},
+  ): Promise<boolean> => {
+    const list = current();
+    if (!list) return false;
+    const gone = new Set(ids);
+    const removed = list.records.filter((record) => gone.has(record.id));
+    try {
+      store(await deleteTransactions(access, list, ids));
+    } catch (error) {
+      if (error instanceof TransactionError) {
+        const { form: message, quantity } = problemErrors(error.problems, {
+          isThisOne: () => false,
+          symbolOf: (assetId) => assetOf(assetId).symbol,
+        });
+        showToast("Can't delete these transactions", {
+          tone: "error",
+          description: message ?? quantity ?? "",
+        });
+      } else {
+        failed(error);
+        // Some may have gone before the failure: read the list again.
+        void queryClient.invalidateQueries({ queryKey: key });
+      }
+      return false;
+    }
+    const count = removed.length;
+    showToast(
+      everything
+        ? "All transactions deleted"
+        : count === 1
+          ? "1 transaction deleted"
+          : `${String(count)} transactions deleted`,
+      {
+        ...(count > 0 && {
+          action: {
+            label: "Undo",
+            onAction: () => {
+              const now = current();
+              if (!now) return;
+              importTransactions(
+                access,
+                now,
+                removed.map(({ value }) => value),
+              ).then(store, (error: unknown) => {
+                if (error instanceof ImportStopped) store(error.list);
+                failed(error);
+              });
+            },
+          },
+        }),
+      },
+    );
+    return true;
   };
 
   const dialog: ReactNode = form && (
@@ -339,6 +405,7 @@ export function useTransactionEditor() {
     openAdd,
     openEdit,
     remove,
+    removeMany,
     current,
     store,
     failed,

@@ -1,4 +1,15 @@
 import { decimal } from "../../../shared/money/decimal.ts";
+import type { Transaction } from "../../../shared/schemas/transaction.ts";
+
+/** A transaction's type as the list and messages name it. */
+export const KIND_LABEL: Record<Transaction["type"], string> = {
+  buy: "Buy",
+  sell: "Sell",
+  transfer_in: "Receive",
+  income: "Income",
+  transfer_out: "Send",
+  split: "Split",
+};
 
 /*
  * How transactions read on screen: dates in words, amounts with every digit

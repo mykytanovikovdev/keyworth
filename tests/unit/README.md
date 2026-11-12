@@ -67,7 +67,10 @@ Covered now:
   the whole file, the account's room, and an export that imports back as it
   was. Importing through the service (`service.test.ts`): batches of 100 with
   progress, the lot refused before writing, a 429 waited out, a failure part
-  of the way leaving exactly what is in.
+  of the way leaving exactly what is in. Deleting several: the chosen ones and
+  unreadable ones among them in one request, a purchase a remaining sale needs
+  refused with nothing deleted, everything at once; the page's copy kept only
+  while the key is open (`keepIfUnlocked`).
 - **Privacy policy:** `legal/storage-names.test.ts` — every `keyworth-…` name
   the browser's code stores is listed by name on the privacy page, as
   `src/features/legal/README.md` requires.

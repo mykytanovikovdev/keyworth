@@ -140,8 +140,9 @@ Anthropic directly and the server sees none of it.
 - **A stolen session cookie.** It reads no plaintext, but it can:
   - download the passphrase slot and try passphrases offline, as with a
     database dump (below);
-  - delete records, or overwrite them with data that no longer decrypts (a CSV
-    export is the defense), and write a deleted record's first version back;
+  - delete records, all the transactions at once too, or overwrite them with
+    data that no longer decrypts (a CSV export is the defense), and write a
+    deleted record's first version back;
   - fill the user's quotas and keep the user's write limit used up.
 
   Signed in within the last 10 minutes (the condition that also allows
@@ -195,4 +196,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-12

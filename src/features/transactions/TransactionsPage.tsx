@@ -1,6 +1,8 @@
+import { useState } from "react";
 import { Button, Notice, showToast, Skeleton } from "../../ui/index.ts";
 import { useTransactionEditor } from "./editor.tsx";
 import { useImportExport } from "./import-export.tsx";
+import { DeleteAllDialog } from "./DeleteAllDialog.tsx";
 import { access } from "./queries.ts";
 import { deleteTransaction } from "./service.ts";
 import { TransactionList as ListView } from "./TransactionList.tsx";
@@ -20,6 +22,7 @@ export function TransactionsPage() {
     openAdd,
     openEdit,
     remove,
+    removeMany,
     current,
     store,
     failed,
@@ -32,6 +35,9 @@ export function TransactionsPage() {
     assetOf,
     failed,
   });
+
+  const [deleteAll, setDeleteAll] = useState(false);
+  const [deletingAll, setDeletingAll] = useState(false);
 
   const removeDamaged = async () => {
     let list = current();
@@ -90,6 +96,29 @@ export function TransactionsPage() {
         onDeleteDamaged={() => void removeDamaged()}
         onImport={openImport}
         onExport={exportCsv}
+        onDeleteSelected={(ids) => void removeMany(ids)}
+        onDeleteAll={() => {
+          setDeleteAll(true);
+        }}
+      />
+      <DeleteAllDialog
+        isOpen={deleteAll}
+        onOpenChange={setDeleteAll}
+        count={
+          transactions.data.records.length + transactions.data.damaged.length
+        }
+        pending={deletingAll}
+        onExport={exportCsv}
+        onDelete={() => {
+          const { records, damaged } = transactions.data;
+          setDeletingAll(true);
+          void removeMany([...records.map(({ id }) => id), ...damaged], {
+            everything: true,
+          }).then(() => {
+            setDeletingAll(false);
+            setDeleteAll(false);
+          });
+        }}
       />
       {dialog}
       {importDialog}

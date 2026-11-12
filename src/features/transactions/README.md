@@ -17,13 +17,14 @@ calculations.
 | File                   | Role                                                                                          |
 | ---------------------- | --------------------------------------------------------------------------------------------- |
 | `check.ts`             | The rules, pure: the schema, no date in the future, no sale beyond what was held              |
-| `service.ts`           | Load, save (add or replace) and delete through the vault; `TransactionError`                  |
+| `service.ts`           | Load, save (add or replace), delete one or several through the vault; `TransactionError`      |
 | `form-values.ts`       | The form's fields: four tabs to five kinds, amounts as typed (`typedAmount`), errors in words |
 | `coin-search.ts`       | Finding a coin: the snapshot's 250, then the server's search; on a sale, the coins held       |
-| `format.ts`            | Dates in words, amounts with every digit they have                                            |
+| `format.ts`            | Dates in words, amounts with every digit they have, the types' names                          |
 | `AssetLogo.tsx`        | A coin's logo through the server, or its symbol in a circle                                   |
 | `TransactionForm.tsx`  | The "Add transaction" / "Edit transaction" dialog                                             |
-| `TransactionList.tsx`  | Columns on a wide screen, two lines a row on a phone; the empty state; unreadable records     |
+| `TransactionList.tsx`  | Columns on a wide screen, two lines a row on a phone; select mode; the empty state            |
+| `DeleteAllDialog.tsx`  | "Delete all transactions?": asked once, with Export to CSV beside it                          |
 | `editor.tsx`           | Adding, editing, deleting with Undo, for any page: the form, refusals in words, coin names    |
 | `TransactionsPage.tsx` | `/transactions`: the list, and the editor for each row                                        |
 | `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
@@ -91,6 +92,25 @@ down, and on a failure part of the way stores what is in: importing the file
 again adds the rest. Export writes every readable transaction, oldest first,
 each cell safe to open in a spreadsheet; splits (which nothing creates yet) and
 unreadable records are left out and counted in the message.
+
+**Deleting several** (owner's decisions, 2026-11-12): "Select transactions" in
+the "⋯" turns each row's menu into a box on its left (a phone's logo makes way),
+a bar above the list says how many are chosen, with Select all, Delete and
+Cancel; pressing a row chooses it. Deleting the chosen ones asks nothing and
+offers Undo, like deleting one. "Delete all transactions…" asks once, with the
+count and Export to CSV beside it, and also offers Undo. Both go through
+`deleteTransactions`: the ledger's rule once for all of them (a remaining sale
+keeps the purchase it needs), unreadable records among the ids too, a thousand
+ids a request (`POST /api/vault/delete`, transactions only). Undo writes the
+removed ones back as new records through `importTransactions`, under new ids,
+while the page is open. A request that fails part of the way makes the list be
+read again, since some may have gone.
+
+**Imports that go wrong** say what to do: a sale beyond what was held names
+what it sold, what was held and what to change; a coin given only by a symbol
+outside the 250 largest asks for its id, and how to find it. The preview offers
+the refused rows as a file in the same format with a Reason column the import
+ignores (`refusedCsv`): fix them, import that file.
 
 Each transaction is its own encrypted record of kind `transaction` with a random
 id. `loadTransactions` reads every page of them and splits them into

@@ -2,7 +2,11 @@ import {
   type Transaction,
   transactionSchema,
 } from "../../../shared/schemas/transaction.ts";
-import { VAULT_BATCH, type VaultBatch } from "../../../shared/schemas/vault.ts";
+import {
+  VAULT_BATCH,
+  VAULT_DELETE,
+  type VaultBatch,
+} from "../../../shared/schemas/vault.ts";
 import { ApiError, type VaultApi } from "../../vault/api.ts";
 import { newRecord, readRecords, writeRecord } from "../../vault/records.ts";
 import type { Vault } from "../../vault/vault.ts";
@@ -168,6 +172,30 @@ export async function deleteTransaction(
   return {
     records: after,
     damaged: list.damaged.filter((damaged) => damaged !== id),
+  };
+}
+
+/**
+ * Deletes several transactions at once, those selected or all of them: the
+ * ledger's rule checked once for them all (a remaining sale may not lose the
+ * purchase it needs), unreadable records among the ids deleted too. The server
+ * takes a thousand ids a request.
+ */
+export async function deleteTransactions(
+  access: VaultAccess,
+  list: TransactionList,
+  ids: readonly string[],
+): Promise<TransactionList> {
+  const gone = new Set(ids);
+  const after = list.records.filter((record) => !gone.has(record.id));
+  const problems = ledgerProblems(list.records, after);
+  if (problems.length > 0) throw new TransactionError(problems);
+  for (let at = 0; at < ids.length; at += VAULT_DELETE.maxIds) {
+    await access.api.deleteRecords(ids.slice(at, at + VAULT_DELETE.maxIds));
+  }
+  return {
+    records: after,
+    damaged: list.damaged.filter((id) => !gone.has(id)),
   };
 }
 
