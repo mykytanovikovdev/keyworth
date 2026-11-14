@@ -1,4 +1,3 @@
-import { Settings } from "lucide-react";
 import { Fragment, type ReactNode, useMemo, useState } from "react";
 import {
   FIAT_CURRENCIES,
@@ -49,14 +48,8 @@ import { DeleteAllDialog } from "../features/transactions/DeleteAllDialog.tsx";
 import { KIND_LABEL } from "../features/transactions/format.ts";
 import { TransactionForm } from "../features/transactions/TransactionForm.tsx";
 import { Section } from "../features/settings/Section.tsx";
-import {
-  ButtonLink,
-  ComboBox,
-  type ComboBoxOption,
-  KeyworthMark,
-  showToast,
-  ThemeToggle,
-} from "../ui/index.ts";
+import { ComboBox, type ComboBoxOption, showToast } from "../ui/index.ts";
+import { MockFrame } from "./MockFrame.tsx";
 
 /*
  * Mockups of the 4.3b screens, for review before they are wired up (dev and
@@ -601,31 +594,14 @@ function Demo({
   );
 }
 
-function MockShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-line">
-        <div className="mx-auto flex h-14 w-full max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-          <span className="flex items-center gap-2 text-sm font-semibold">
-            <KeyworthMark />
-            <span className="max-[359px]:sr-only">Keyworth</span>
-          </span>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-            <ButtonLink
-              href="/design/transactions?screen=settings-currency"
-              variant="ghost"
-              size="sm"
-              icon={<Settings aria-hidden="true" />}
-            >
-              Settings
-            </ButtonLink>
-          </div>
-        </div>
-      </header>
-      <main className="flex flex-1 flex-col">{children}</main>
-    </div>
-  );
+function MockShell({
+  children,
+  section = "transactions",
+}: {
+  children: ReactNode;
+  section?: "transactions" | "settings";
+}) {
+  return <MockFrame section={section}>{children}</MockFrame>;
 }
 
 function SettingsCurrency() {
@@ -634,7 +610,7 @@ function SettingsCurrency() {
   const [stored, setStored] = useState("GEL");
   const [saving, setSaving] = useState<string | null>(null);
   return (
-    <MockShell>
+    <MockShell section="settings">
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 px-4 py-10 sm:px-6">
         <h1 className="text-xl font-semibold tracking-tight">Settings</h1>
         <Section

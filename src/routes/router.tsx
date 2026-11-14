@@ -195,6 +195,16 @@ const portfolioMockupsRoute =
       })
     : null;
 
+// Same condition: mockups of the phase 5 chat and the new app frame, for review.
+const chatMockupsRoute =
+  import.meta.env.DEV || import.meta.env.MODE === "design"
+    ? createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/design/chat",
+        component: lazyRouteComponent(() => import("./ChatMockupsPage.tsx")),
+      })
+    : null;
+
 const routeTree = rootRoute.addChildren([
   sessionRoute.addChildren([
     appRoute.addChildren([homeRoute, transactionsRoute, settingsRoute]),
@@ -208,6 +218,7 @@ const routeTree = rootRoute.addChildren([
   ...(encryptionMockupsRoute ? [encryptionMockupsRoute] : []),
   ...(transactionsMockupsRoute ? [transactionsMockupsRoute] : []),
   ...(portfolioMockupsRoute ? [portfolioMockupsRoute] : []),
+  ...(chatMockupsRoute ? [chatMockupsRoute] : []),
 ]);
 
 export function createAppRouter(queryClient: QueryClient) {

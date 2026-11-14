@@ -1,4 +1,3 @@
-import { Settings } from "lucide-react";
 import { Fragment, type ReactNode, useMemo, useState } from "react";
 import type { PriceSeries } from "../../shared/metrics/history.ts";
 import type { TransactionEntry } from "../../shared/metrics/ledger.ts";
@@ -10,13 +9,8 @@ import {
   PortfolioView,
 } from "../features/portfolio/PortfolioView.tsx";
 import { type Period, summarize } from "../features/portfolio/summary.ts";
-import {
-  ButtonLink,
-  KeyworthMark,
-  showToast,
-  ThemeToggle,
-} from "../ui/index.ts";
-import { AppNav } from "./AppNav.tsx";
+import { showToast } from "../ui/index.ts";
+import { MockFrame } from "./MockFrame.tsx";
 
 /*
  * Mockups of the 4.4 portfolio page, for review before it is wired up (dev and
@@ -276,42 +270,7 @@ function Demo({
 }
 
 function MockShell({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-line">
-        <div className="mx-auto flex min-h-14 w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 px-4 sm:flex-nowrap sm:px-6">
-          <div className="flex h-14 items-center gap-6">
-            <span className="flex items-center gap-2 text-sm font-semibold">
-              <KeyworthMark />
-              <span className="max-[359px]:sr-only">Keyworth</span>
-            </span>
-          </div>
-          <AppNav
-            items={[
-              { href: "/design/portfolio", label: "Portfolio", current: true },
-              {
-                href: "/design/transactions",
-                label: "Transactions",
-                current: false,
-              },
-            ]}
-          />
-          <div className="flex h-14 items-center gap-2 sm:ml-auto">
-            <ThemeToggle />
-            <ButtonLink
-              href="/design/transactions?screen=settings-currency"
-              variant="ghost"
-              size="sm"
-              icon={<Settings aria-hidden="true" />}
-            >
-              Settings
-            </ButtonLink>
-          </div>
-        </div>
-      </header>
-      <main className="flex flex-1 flex-col">{children}</main>
-    </div>
-  );
+  return <MockFrame section="portfolio">{children}</MockFrame>;
 }
 
 function Static({ state }: { state: "loading" | "empty" }) {
