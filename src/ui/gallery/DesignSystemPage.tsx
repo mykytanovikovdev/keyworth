@@ -27,6 +27,7 @@ import {
   Dialog,
   DialogActions,
   DialogTrigger,
+  Drawer,
   IconButton,
   KeyworthMark,
   Notice,
@@ -522,6 +523,21 @@ function Dialogs() {
             </>
           )}
         </Dialog>
+      </DialogTrigger>
+      <DialogTrigger>
+        <Button>Open menu panel</Button>
+        <Drawer label="Menu">
+          {(close) => (
+            <div className="flex flex-col gap-3 p-4">
+              <p className="text-base font-semibold">Menu</p>
+              <p className="text-sm text-fg-muted">
+                The app's menu on narrow screens: in from the left, over the
+                page. Escape or a tap outside closes it.
+              </p>
+              <Button onPress={close}>Close</Button>
+            </div>
+          )}
+        </Drawer>
       </DialogTrigger>
     </Row>
   );

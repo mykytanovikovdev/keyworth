@@ -13,6 +13,7 @@ export { Checkbox } from "./components/Checkbox.tsx";
 export { ComboBox, type ComboBoxOption } from "./components/ComboBox.tsx";
 export { DateField } from "./components/DateField.tsx";
 export { Dialog, DialogActions, DialogTrigger } from "./components/Dialog.tsx";
+export { Drawer } from "./components/Drawer.tsx";
 export { fieldBoxClassName } from "./components/field-styles.ts";
 export { KeyworthMark } from "./components/KeyworthMark.tsx";
 export { guardLiveAnnouncer } from "./live-announcer.ts";
