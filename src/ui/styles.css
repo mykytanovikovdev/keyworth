@@ -98,6 +98,9 @@
   --animate-step: kw-fade var(--kw-duration-step) ease-out both;
   /* A refused passphrase: side to side, settling. */
   --animate-shake: kw-shake var(--kw-duration-shake) ease-in-out;
+  /* The menu panel on phones: in from the left edge, back out faster. */
+  --animate-slide-in: kw-slide var(--kw-duration-base) var(--kw-ease-out) both;
+  --animate-slide-out: kw-slide var(--kw-duration-fast) ease-in reverse both;
 }
 
 @keyframes kw-enter {
@@ -125,6 +128,12 @@
   }
   80% {
     transform: translateX(2px);
+  }
+}
+
+@keyframes kw-slide {
+  from {
+    transform: translateX(-100%);
   }
 }
 

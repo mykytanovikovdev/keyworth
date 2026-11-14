@@ -70,8 +70,9 @@ Covered now:
   - every component used for real (dialog, confirmation, toast, tooltip) with
     **zero CSP violations or errors**, and React Aria's two hashed runtime styles
     actually applied, on desktop and on iOS;
-  - keyboard and focus: focus moves into a dialog, Escape closes it and focus
-    returns to its button; a confirmation ignores Escape;
+  - keyboard and focus: focus moves into a dialog (and into the menu panel),
+    Escape closes it and focus returns to its button; a confirmation ignores
+    Escape;
   - **axe** finds no WCAG 2.2 A/AA violations, on the page and with a dialog open;
   - themes: set by `theme-init.js` before the app's JavaScript runs (the bundle
     is blocked in that test), a choice survives a reload, "System" clears it, and

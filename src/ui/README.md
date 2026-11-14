@@ -135,7 +135,8 @@ in their final state without extra code.
 CSS covers entrances (`animate-enter`, `animate-fade-in`, `animate-pop-in`, and
 the matching `-out` exits), streamed words (`animate-word`), agent steps
 (`animate-step`), a refusal (`animate-shake`) and height changes
-(`collapsible`). anime.js, through
+(`collapsible`), and the menu panel sliding in from the left
+(`animate-slide-in`, `animate-slide-out`). anime.js, through
 `motion.ts`, covers what CSS expresses poorly: drawing a chart line with its
 fill opening exactly to the pen tip, filling a bar left to right, staggered
 reveals. Exits are faster than entrances. To wait for a CSS transition in
@@ -190,6 +191,7 @@ and form controls match.
 | `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller            |
 | `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon               |
 | `Dialog`, `DialogActions` | React Aria `Modal`         | Focus trap and return, scroll lock; `alertdialog` ignores Escape                   |
+| `Drawer`                  | React Aria `Modal`         | The menu on narrow screens: in from the left; Escape or a tap outside closes it    |
 | `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds; one `action`     |
 | `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                                |
 | `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                            |
@@ -215,7 +217,9 @@ transactions screens (a `TextField` action, "All" beside a sale's quantity, on
 2026-11-09), where `/design/transactions` shows them in every state. A
 `Checkbox` whose label only screen readers get (`hideLabel`, a row's box) and
 its dash for "some chosen" (`isIndeterminate`) were approved on 2026-11-12 for
-choosing transactions to delete.
+choosing transactions to delete. `Drawer`, the app's menu on narrow screens,
+was approved on 2026-11-14 with the app frame and the chat screens
+(`/design/chat`).
 `ComboBox` and `DateField` share the box style of text fields, drawn on their
 group (`data-focus-within`) rather than on the input. `ValueChart` and
 `AllocationBar` come from the phase 1 prototype, and were approved on

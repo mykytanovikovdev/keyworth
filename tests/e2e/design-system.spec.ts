@@ -55,6 +55,16 @@ for (const theme of ["light", "dark"] as const) {
       await confirmation.getByRole("button", { name: "Keep editing" }).click();
       await expect(confirmation).toBeHidden();
 
+      // The menu panel is a modal too: focus in, Escape out, focus back.
+      const openMenu = page.getByRole("button", { name: "Open menu panel" });
+      await openMenu.click();
+      const menu = page.getByRole("dialog", { name: "Menu" });
+      await expect(menu).toBeVisible();
+      await expect(menu).toBeFocused();
+      await page.keyboard.press("Escape");
+      await expect(menu).toBeHidden();
+      await expect(openMenu).toBeFocused();
+
       // A toast appears, and its close button dismisses it.
       await page.getByRole("button", { name: "Show error" }).click();
       const toast = page.getByRole("alertdialog", {
