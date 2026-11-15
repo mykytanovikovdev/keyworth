@@ -21,6 +21,7 @@ not listed here, it should not exist. Schema: `schema.ts` and the generated
 | `device_unlocks`  | per session: SHA-256 of the device cookie's token, IV, **data key wrapped by a device-only key**, date (unused after 14 days)    | Only the hash and date                                           | session and user; cleanup after 14 days                    |
 | `api_rate_limits` | per user and bucket: window start and count                                                                                      | Yes                                                              | user; cleanup after an hour                                |
 | `upstream_calls`  | per market source: calls this minute and this day (UTC), for all users together                                                  | Yes; nothing in it belongs to a user                             | kept: one row per source, reset by each new minute and day |
+| `model_usage`     | per chat model: what it used today (UTC), in its own unit (Workers AI: neurons), for all users together                          | Yes; nothing in it belongs to a user                             | kept: one row per model, reset by each new day             |
 | `market_cache`    | answers of market data sources by request: the snapshot, a coin, a search (with its text), a coin's or a currency's daily series | Yes; nothing in it belongs to a user                             | cleanup once expired (a day; Frankfurter's series 90 days) |
 
 `allowed_emails` and `blocked_emails` are keyed by email, not by user, so they
@@ -104,4 +105,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-15

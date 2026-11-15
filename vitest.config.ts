@@ -56,6 +56,7 @@ export default defineConfig({
                 GOOGLE_CLIENT_ID: "test-client-id.apps.googleusercontent.com",
                 GOOGLE_CLIENT_SECRET: "test-client-secret",
                 COINGECKO_API_KEY: "test-coingecko-key",
+                WORKERS_AI_TOKEN: "test-workers-ai-token",
               },
             },
           }),

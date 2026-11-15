@@ -4,6 +4,7 @@ import type { MeJson } from "../shared/schemas/me.ts";
 import { createAuth } from "./auth.ts";
 import { deleteExpiredData } from "./cleanup.ts";
 import { describeError } from "./describe-error.ts";
+import { chat } from "./chat/route.ts";
 import { connect } from "./db/client.ts";
 import type { AppEnv } from "./env.ts";
 import { freshForSeconds, requireSameOrigin } from "./limits.ts";
@@ -63,6 +64,8 @@ api.route("/vault", vault);
 // Market data (phase 4): the same for everyone, behind the session all the same.
 api.route("/market", market);
 api.route("/assets", assets);
+// The chat (phase 5): the conversation in transit to the model, never kept.
+api.route("/chat", chat);
 
 const app = new Hono<AppEnv>();
 

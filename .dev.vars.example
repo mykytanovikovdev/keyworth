@@ -12,3 +12,7 @@ GOOGLE_CLIENT_SECRET=
 # CoinGecko's Demo API key (its Developer Dashboard). Needed only to load
 # prices locally; automated tests replace CoinGecko's answers.
 COINGECKO_API_KEY=
+# A Cloudflare API token allowed only to run Workers AI models (the chat's
+# model while the app is being built). Needed only to chat locally; automated
+# tests replace Workers AI's answers.
+WORKERS_AI_TOKEN=

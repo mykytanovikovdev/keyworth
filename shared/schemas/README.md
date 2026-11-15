@@ -24,6 +24,8 @@ lengths, so a malformed value is rejected before anything decodes it.
 | `text.ts`        | Free text: `typedText` (a field's filter), `cleanText` (what is kept), `plainTextSchema`, hidden characters   |
 | `currencies.ts`  | The 161 fiat currencies with a central bank's rate; a price currency is one of them, USDT or USDC             |
 | `transaction.ts` | The plaintext inside a `transaction` record, by type; amounts as strings of plain digits; loose               |
+| `chat.ts`        | `POST /api/chat`: limits, the question's rules, which parts a message may hold; the refusals' shape           |
+| `chat-tools.ts`  | The chat's tools as the model sees them: names, descriptions, input schemas; `includeAmounts` for amounts     |
 | `settings.ts`    | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save  |
 
 The envelope schema accepts only what `src/crypto/envelope.ts` can produce: a

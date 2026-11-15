@@ -222,6 +222,17 @@ export const upstreamCalls = pgTable("upstream_calls", {
 });
 
 /**
+ * What the chat's model has used today (UTC) for all of Keyworth together, in
+ * the model's own unit (Workers AI: neurons), so a day's budget is not spent
+ * past (worker/chat/budget.ts). One row per model; no user data.
+ */
+export const modelUsage = pgTable("model_usage", {
+  model: text("model").primaryKey(),
+  dayStart: timestamp("day_start", { withTimezone: true }).notNull(),
+  daySpent: integer("day_spent").notNull(),
+});
+
+/**
  * Market data shared by every user: answers of price sources, by request (the
  * snapshot, a coin, a search). It holds no user id; a search is kept with its
  * text, unlinked to who typed it. Rows go once they expire (worker/cleanup.ts).

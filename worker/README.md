@@ -8,8 +8,9 @@ share one origin.
 
 The Worker only ever sees encrypted envelopes, wrapped keys and service data
 (profile, dates, usage counters, the public asset catalog): it stores what the
-browser's encryption produces and cannot open it. The single planned exception
-is `/api/chat`, a pass-through to the model that never stores or logs bodies.
+browser's encryption produces and cannot open it. The single exception is
+`/api/chat`, a pass-through to the model that never stores or logs bodies
+([chat/README.md](chat/README.md)).
 
 It also owns sign-in: Google through [Better Auth](https://www.better-auth.com),
 an invite list for the closed beta, database sessions in an httpOnly cookie, and
@@ -40,22 +41,24 @@ Inside the Worker:
                  writes also need the app's own Origin (403 otherwise)
 /api/keys        wrapped data keys and remembered devices   (routes/)
 /api/vault       encrypted records                          (routes/)
+/api/chat        the conversation in transit to the model   (chat/)
 ```
 
-| File                           | Role                                                                                         |
-| ------------------------------ | -------------------------------------------------------------------------------------------- |
-| `index.ts`                     | Hono app: headers, per-request database and auth, session check                              |
-| `env.ts`                       | Types of the bindings and per-request values every route sees                                |
-| `limits.ts`                    | Rate limits, body size, fresh-session and same-origin checks                                 |
-| `cleanup.ts`                   | Daily deletion of expired sessions, old counters and market data                             |
-| `market/`                      | Prices, history, rates, search and logos, cached for every user ([README](market/README.md)) |
-| `routes/`                      | `/api/keys`, `/api/vault`, `/api/market`, `/api/assets` ([README](routes/README.md))         |
-| `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits                             |
-| `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))                               |
-| `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)                               |
-| `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP                          |
-| `../wrangler.jsonc`            | Worker config: assets routing, observability, cron, compatibility date                       |
-| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)                                       |
+| File                           | Role                                                                                           |
+| ------------------------------ | ---------------------------------------------------------------------------------------------- |
+| `index.ts`                     | Hono app: headers, per-request database and auth, session check                                |
+| `env.ts`                       | Types of the bindings and per-request values every route sees                                  |
+| `limits.ts`                    | Rate limits, body size, fresh-session and same-origin checks                                   |
+| `cleanup.ts`                   | Daily deletion of expired sessions, old counters and market data                               |
+| `market/`                      | Prices, history, rates, search and logos, cached for every user ([README](market/README.md))   |
+| `chat/`                        | `POST /api/chat`: checks, the model's daily budget, the stream back ([README](chat/README.md)) |
+| `routes/`                      | `/api/keys`, `/api/vault`, `/api/market`, `/api/assets` ([README](routes/README.md))           |
+| `auth.ts`                      | Better Auth configuration: Google, invite list, sessions, limits                               |
+| `db/`                          | Schema, connection, migrations, roles ([README](db/README.md))                                 |
+| `security-headers.ts`          | Headers for every Worker response (CSP, `no-store`, HSTS, ...)                                 |
+| `../public/_headers`           | Headers for static assets and the SPA shell, including the page CSP                            |
+| `../wrangler.jsonc`            | Worker config: assets routing, observability, cron, compatibility date                         |
+| `../worker-configuration.d.ts` | Generated runtime and `Env` types (`npm run cf:types`)                                         |
 
 Production runs at **https://keyworth.app**, a Custom Domain declared in
 `wrangler.jsonc` (`routes` with `custom_domain: true`): each deploy keeps its DNS
