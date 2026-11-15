@@ -90,4 +90,7 @@ export const CHAT_TOOLS = {
 
 export type ChatToolName = keyof typeof CHAT_TOOLS;
 
-export const CHAT_TOOL_NAMES = Object.keys(CHAT_TOOLS) as ChatToolName[];
+export const CHAT_TOOL_NAMES = Object.keys(CHAT_TOOLS) as [
+  ChatToolName,
+  ...ChatToolName[],
+];

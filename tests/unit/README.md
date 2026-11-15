@@ -14,6 +14,10 @@ Covered now:
   exact-once replacement; source map decoding and per-package sizes; splitting
   `wrangler tail`'s output, grouping requests by route (ids as `:id`) and
   keeping nothing but timings, location and placement.
+- `tests/unit/chat/` — the chat's cost read from the tail of a model's
+  stream (`worker/chat/usage.ts`), and the browser's model client
+  (`@ai-sdk/openai-compatible`) reading streams recorded from Workers AI, as
+  the server passes them on: an answer, its usage, a tool call.
 - `src/ui/tokens.css` — both themes define every semantic color and data
   series, and every text/background pair meets WCAG AA (4.5:1 for text, 3:1 for
   field borders and focus). The test parses the CSS, so a token change that

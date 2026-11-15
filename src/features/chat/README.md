@@ -9,11 +9,11 @@ steps line and the answer's formatting, and the "Delete all chats" dialog.
 
 **Today these are presentational components shown by the mockups**
 (`/design/chat`, [src/routes/ChatMockupsPage.tsx](../../routes/ChatMockupsPage.tsx)),
-approved on 2026-11-14. Wiring them to `/api/chat`, the tools that run in the
+approved on 2026-11-14. Wiring them to `/api/chat/completions`, the tools that run in the
 browser and the encrypted history comes in the next steps of phase 5.
 
 Not here: the model, the system prompt and the limits (the server's
-`/api/chat`), the calculations the tools return
+`/api/chat/completions`), the calculations the tools return
 ([shared/metrics/](../../../shared/metrics/README.md)), and the frame with the
 menu ([src/routes/AppFrame.tsx](../../routes/AppFrame.tsx)).
 

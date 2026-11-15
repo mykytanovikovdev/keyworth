@@ -78,11 +78,12 @@ whom, and what it does not protect. The mechanisms are described in
 ## In transit through the server
 
 To answer a question, the needed data is decrypted in the browser and sent
-through `/api/chat` to the chat's model: while the app is being built,
+through `/api/chat/completions` to the chat's model: while the app is being built,
 GLM-4.7-Flash on Cloudflare Workers AI (Cloudflare does not keep the prompts or
 train on them), then Anthropic's Claude Haiku. The server does not store or log
 it — a promise, not a cryptographic guarantee; the route's tests check that
-nothing of a conversation reaches the logs, even when the model fails
+nothing of a conversation reaches the logs, even when the model fails, and
+the server, not the browser, writes the model's instructions and limits
 ([worker/chat/docs/chat-transit.md](../../../worker/chat/docs/chat-transit.md)).
 By default the model gets shares and percentages, not amounts. Cloudflare terminates TLS and technically
 sees that traffic. With a user's own API key (phase 13) the browser talks to

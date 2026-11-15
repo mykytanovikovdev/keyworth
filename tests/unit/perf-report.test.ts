@@ -75,7 +75,7 @@ describe("routeOf", () => {
 });
 
 describe("sampleOf", () => {
-  it("keeps timings, location and placement, nothing else", () => {
+  it("keeps timings and the entry location, nothing else", () => {
     const sample = sampleOf(
       event({
         method: "POST",
@@ -93,7 +93,6 @@ describe("sampleOf", () => {
       cpuMs: 3,
       wallMs: 900,
       colo: "FRA",
-      placement: "remote-FRA",
     });
     expect(JSON.stringify(sample)).not.toContain("secret-session");
   });
@@ -116,7 +115,6 @@ describe("summarize", () => {
     cpuMs,
     wallMs,
     colo: "FRA",
-    placement: null,
   });
 
   it("gives each route its count, medians, maxima and failures, slowest first", () => {
@@ -153,8 +151,7 @@ describe("summarize", () => {
     const report = formatReport([sample("GET /api/me", 1, 50)]);
 
     expect(report).toContain("GET /api/me");
-    expect(report).toContain("Ran in: FRA ×1");
-    expect(report).toContain("Placement: none ×1");
+    expect(report).toContain("Entered Cloudflare at: FRA ×1");
     expect(formatReport([])).toBe("No requests seen.");
   });
 });

@@ -1,95 +1,106 @@
-# The chat's transit: `/api/chat`
+# The chat's transit: `/api/chat/completions`
 
 ## Purpose and scope
 
 Keyworth's server stores only encrypted envelopes, with one exception: to answer
 a question, the browser decrypts what the question needs and sends it, with the
-conversation, through `POST /api/chat` to the model. This document describes
-that path: what passes, what is checked, what is kept (a number) and what is
-never written anywhere (everything else).
+conversation, through `POST /api/chat/completions` to the model. This document
+describes that path: what passes, what is checked, what is kept (a number) and
+what is never written anywhere (everything else).
 
 Out of scope: what the tools return and when amounts are included (the tools,
-in the browser), the encrypted history (the vault), the model's answers'
-quality (the eval set).
+in the browser), the agent's loop (the browser's AI SDK), the encrypted history
+(the vault), the answers' quality (the eval set).
 
 ## How it works
 
 1. **Guards** ([api-guards.md](../../routes/docs/api-guards.md)): a session,
-   the app's own `Origin`, at most 128 KB of body, 20 requests per user per
-   minute.
-2. **The conversation is checked** (`shared/schemas/chat.ts`): 1–40 messages,
-   the first a question; roles only `user` and `assistant` (a `system` message
-   from the browser is refused); a question is text only, not blank, at most
-   2,000 characters, with no hidden characters but line breaks; parts only
-   text, steps and calls of the chat's own tools. Then the AI SDK checks each
-   part's shape and each tool call's input against its schema
-   (`safeValidateUIMessages`). Anything else: 400 `invalid_request`, before
+   the app's own `Origin`, at most 128 KB of body.
+2. **The conversation is checked** (`shared/schemas/chat.ts`, then
+   `toolCallsValid`): only `messages` is read; 1–40 messages, the first a
+   question; roles only `user`, `assistant` and `tool` (a `system` message is
+   refused); a question is a string, not blank, at most 2,000 characters, with
+   no hidden characters but line breaks; an assistant's tool calls name the
+   chat's own tools, with input each tool's schema accepts; each tool result
+   answers a call made before it. Anything else: 400 `invalid_request`, before
    the model is asked.
-3. **The day's budget** (`model_usage`): if today's count has reached 9,000
-   neurons, 429 `budget` with `resetsAt` (next midnight UTC), before the model
-   is asked.
-4. **One step**: the system prompt, the latest 20 messages (starting at a
-   question) and the tools' definitions, to Workers AI over its REST API. The
-   answer streams back to the browser as the AI SDK's UI message chunks,
-   without the model's reasoning.
-5. **The cost** is counted after the step, from the tokens Workers AI reports,
-   in the background (`waitUntil`), so the answer is not delayed.
+3. **Admission**, one SQL statement: the user's 20 requests a minute (429
+   `rate_limited` with `Retry-After`) and today's spending for everyone (429
+   `budget` with `resetsAt`, next midnight UTC, at 9,000 neurons).
+4. **The model's request is written by the server**: the model, the system
+   prompt, the latest 20 messages starting at a question, the tools'
+   definitions, `tool_choice` (`none` on a question's last step), the token
+   limit, streaming with usage, thinking off. Everything else the browser sent
+   is dropped.
+5. **The answer streams back untouched**: Workers AI's events go to the browser
+   as they come. A copy of the stream is read afterwards, in the background
+   (`waitUntil`), for the step's `neurons`, which are added to the day's count.
 
 ## Invariants
 
 - **Nothing of a conversation is stored or logged.** No request body, answer,
-  tool call or error object is written to the database or to `console`. The
-  only row the route writes is the day's count of neurons, which holds no user
-  id.
+  model error body or error object is written to the database or to `console`.
+  The only row the route writes is the day's count of neurons, which holds no
+  user id.
 - **The user's identity never reaches the model.** The user comes from the
   session; neither the email nor the name is in the system prompt or the
   messages.
-- **The model's instructions come only from the server.** A `system` message in
-  the conversation is refused (and the AI SDK refuses it again by default).
-- **The model cannot run anything on the server.** Its tools have no `execute`:
-  a call is handed to the browser.
+- **The model's instructions, tools and limits come only from the server.** A
+  `system` message is refused; the browser's model, tools, `tool_choice`,
+  token limit or other fields are ignored.
+- **The model cannot run anything on the server.** Its tool calls go to the
+  browser; the server only checks them when they come back.
 - **A question is bounded.** At most `maxSteps` (6) model steps: on the last,
-  the model must answer without tools (`toolChoice: "none"`). Each step has at
-  most 1,500 output tokens and 60 seconds.
+  the model must answer without tools. Each step has at most 1,500 output
+  tokens and 60 seconds.
 - **The day's spending is bounded** for all users together, below Workers AI's
   free allowance.
+- **The chat stays on its subject.** The system prompt limits it to the user's
+  portfolio, the markets and financial ideas; anything else gets a one-sentence
+  refusal (checked by a set of off-topic questions with the eval set).
 
 ## Decisions and alternatives
 
-- **REST instead of the AI binding**: see [the README](../README.md#why-this-way).
-- **No per-user quota yet.** While the development model is free and only the
-  budget for everyone is spent, the per-minute rate limit is the per-user
-  guard. A daily quota per user comes with the paid model (PLAN, phase 5).
-- **The browser sends the whole conversation each time** (as the AI SDK's chat
-  does) and the server cuts it to the latest 20 messages. Keeping history on
-  the server would mean storing plaintext.
-- **Reasoning stays on the server**: it is not part of the answer.
+- **A thin proxy instead of the AI SDK on the server**: see
+  [the README](../README.md#why-this-way) (about 200 ms of CPU per answer
+  against the Free plan's 10 ms).
+- **No per-user quota yet.** While the development model costs nothing within
+  the day's budget, the per-minute rate is the per-user guard. A daily quota
+  per user comes with the paid model (PLAN, phase 5).
+- **The browser sends the whole conversation each time**, and the server cuts
+  it to the latest 20 messages. Keeping history on the server would mean
+  storing plaintext.
+- **No topic filter in front of the model yet**: the system prompt and the
+  off-topic set come first; a small classifying model would add latency and
+  cost, and is added only if the prompt does not hold.
 
 ## Edge cases
 
-| Case                                  | What happens                                                                                     |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| The user stops the answer, or leaves  | The step is aborted; it is charged at its most (no usage was reported)                           |
-| Workers AI fails or times out         | One retry; then the stream ends with "The answer stopped: …"; the log gets the error's type only |
-| A broken event in Workers AI's stream | The provider's message about it (with the event) is dropped                                      |
-| Budget reached during a question      | The next step is refused with 429 `budget`; the browser says when it resets                      |
-| Today's row is from yesterday         | The first step of the day starts the count from its own cost                                     |
+| Case                                    | What happens                                                                       |
+| --------------------------------------- | ---------------------------------------------------------------------------------- |
+| The user stops the answer, or leaves    | The model's request is aborted with the browser's; the step is charged at its most |
+| Workers AI refuses or cannot be reached | 502 `model_unavailable`; the log gets the status or the error's type only          |
+| The stream breaks off                   | The browser's client sees the end; the step is charged at its most                 |
+| Budget reached during a question        | The next step is refused with 429 `budget`; the browser says when it resets        |
+| Today's row is from yesterday           | The first step of the day starts the count from its own cost                       |
 
 ## How it is tested
 
 `tests/integration/chat.test.ts`, through the real Worker and the test database,
-with Workers AI replaced at `fetch` ([tests/integration/docs/chat.md](../../../tests/integration/docs/chat.md)).
-Each invariant above is checked, and `npm run mutate` confirmed that breaking
-any of the route's guards fails a test.
+with Workers AI replaced at `fetch` by recorded streams
+([tests/integration/docs/chat.md](../../../tests/integration/docs/chat.md));
+`tests/unit/chat/` checks the count and that the browser's client reads the
+same streams. `npm run mutate` confirmed that breaking any of the route's
+guards fails a test.
 
 ## How to change it safely
 
-- A new tool: its schema in `shared/schemas/chat-tools.ts` (the server's
-  definitions follow), its part type is then allowed in a conversation.
-- A new model: `model.ts` and `budget.ts`, then the cost test. Check the
-  provider's console messages and errors for content before relying on the
-  route's `onError`.
-- Never log inside the route beyond `describeError`; never add a route that
-  echoes a request.
+- A new tool: its schema in `shared/schemas/chat-tools.ts`; the server's
+  definitions and checks follow.
+- A new model: `model.ts` and `budget.ts`; record its streams and check the
+  browser's client reads them; check its error bodies before relying on the
+  route dropping them.
+- Never log inside the route beyond `describeError` and a status; never pass
+  the browser's body on, only `messages`.
 
 Last reviewed: 2026-11-15

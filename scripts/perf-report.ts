@@ -2,8 +2,11 @@
  * How the production Worker spends its time, per route: what `npm run perf`
  * prints from the events `wrangler tail` streams. Pure parsing and arithmetic;
  * `perf.ts` runs the tail. Only each request's method, path, outcome, CPU and
- * wall time, location and placement are read: never headers beyond
- * `cf-placement`, query strings or bodies.
+ * wall time and where it entered Cloudflare are read: never headers, query
+ * strings or bodies. Wall time is the time inside the Worker; with placement
+ * (wrangler.jsonc), the hop from the entry location to the Worker comes on
+ * top, and the tail does not show it (the response's `cf-placement` header
+ * says where the Worker ran).
  */
 
 export interface Sample {
@@ -11,10 +14,8 @@ export interface Sample {
   outcome: string;
   cpuMs: number;
   wallMs: number;
-  /** The Cloudflare location that ran the Worker, such as FRA. */
+  /** The Cloudflare location the request entered at, such as TBS. */
   colo: string | null;
-  /** `cf-placement`: where placement sent the request, when it is on. */
-  placement: string | null;
 }
 
 /**
@@ -80,16 +81,13 @@ export function sampleOf(event: unknown): Sample | null {
     ?.request;
   if (!request || typeof request.url !== "string") return null;
   const method = typeof request.method === "string" ? request.method : "GET";
-  const headers = (request.headers ?? {}) as Record<string, unknown>;
   const cf = (request.cf ?? {}) as Record<string, unknown>;
-  const placement = headers["cf-placement"];
   return {
     route: routeOf(method, request.url),
     outcome: typeof record.outcome === "string" ? record.outcome : "unknown",
     cpuMs: Number(record.cpuTime ?? 0),
     wallMs: Number(record.wallTime ?? 0),
     colo: typeof cf.colo === "string" ? cf.colo : null,
-    placement: typeof placement === "string" ? placement : null,
   };
 }
 
@@ -171,7 +169,7 @@ export function formatReport(samples: readonly Sample[]): string {
     line(widths.map((width) => "-".repeat(width))),
     ...rows.map(line),
     "",
-    `Ran in: ${tally(samples.map(({ colo }) => colo))}`,
-    `Placement: ${tally(samples.map(({ placement }) => placement))}`,
+    `Entered Cloudflare at: ${tally(samples.map(({ colo }) => colo))}`,
+    "Time is inside the Worker; the hop to where it runs comes on top.",
   ].join("\n");
 }

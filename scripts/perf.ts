@@ -53,8 +53,11 @@ const report = () => {
   if (reported) return;
   reported = true;
   tail.kill("SIGINT");
-  console.log(`\n\n${formatReport(samples)}`);
-  process.exit(0);
+  // Exit once the report is out: to a pipe, a write finishes later, and
+  // exiting at once loses it.
+  process.stdout.write(`\n\n${formatReport(samples)}\n`, () => {
+    process.exit(0);
+  });
 };
 
 process.on("SIGINT", report);
