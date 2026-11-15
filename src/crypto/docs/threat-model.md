@@ -78,9 +78,13 @@ whom, and what it does not protect. The mechanisms are described in
 ## In transit through the server
 
 To answer a question, the needed data is decrypted in the browser and sent
-through `/api/chat` to Anthropic's model (phase 5). The server does not store or
-log it — a promise, not a cryptographic guarantee. By default the model gets
-shares and percentages, not amounts. Cloudflare terminates TLS and technically
+through `/api/chat` to the chat's model: while the app is being built,
+GLM-4.7-Flash on Cloudflare Workers AI (Cloudflare does not keep the prompts or
+train on them), then Anthropic's Claude Haiku. The server does not store or log
+it — a promise, not a cryptographic guarantee; the route's tests check that
+nothing of a conversation reaches the logs, even when the model fails
+([worker/chat/docs/chat-transit.md](../../../worker/chat/docs/chat-transit.md)).
+By default the model gets shares and percentages, not amounts. Cloudflare terminates TLS and technically
 sees that traffic. With a user's own API key (phase 13) the browser talks to
 Anthropic directly and the server sees none of it.
 
@@ -196,4 +200,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-12
+Last reviewed: 2026-11-15

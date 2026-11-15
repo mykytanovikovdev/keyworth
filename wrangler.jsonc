@@ -27,6 +27,9 @@
   "vars": {
     // Overridden locally by .dev.vars.
     "BETTER_AUTH_URL": "https://keyworth.app",
+    // The Cloudflare account whose Workers AI answers the chat (phase 5):
+    // an identifier, not a credential. The token is WORKERS_AI_TOKEN.
+    "WORKERS_AI_ACCOUNT_ID": "e4ff06cb4b01a174e810ba3218da9f20",
   },
   // Set with `npx wrangler secret put <NAME>`; locally in .dev.vars.
   "secrets": {
@@ -35,6 +38,8 @@
       "GOOGLE_CLIENT_ID",
       "GOOGLE_CLIENT_SECRET",
       "COINGECKO_API_KEY",
+      // A Cloudflare API token allowed only to run Workers AI models.
+      "WORKERS_AI_TOKEN",
     ],
   },
   // Once a day: deletes expired sessions and old counters (worker/cleanup.ts).
