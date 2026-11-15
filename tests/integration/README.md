@@ -50,15 +50,16 @@ Covered now:
   real `src/crypto`: every guard (origin, size, rate, freshness, revisions,
   quotas), **no plaintext anywhere in the database**, and
   **isolation** between users.
-- **`chat.test.ts`**: `POST /api/chat` with Workers AI replaced at `fetch`, in
-  its own stream format: the answer streams back without the model's
-  reasoning; the model gets the question, the tools and no one's name or email;
-  a tool call goes to the browser, its result back to the model; past the last
+- **`chat.test.ts`**: `POST /api/chat/completions`, the thin proxy, with
+  Workers AI replaced at `fetch` by streams recorded from it: the stream
+  reaches the browser byte for byte; the server writes the model's request
+  (model, prompt, tools, limits, thinking off) whatever the browser sends, and
+  sends no one's name or email; tool calls and results pass on; on the last
   step the model must answer without tools; malformed conversations, oversized
   bodies, missing session or origin and the rate limit are refused before the
-  model is asked; the day's budget is counted and enforced; and **nothing of a
-  conversation reaches the logs**, even when the model fails. What each test
-  proves: [docs/chat.md](docs/chat.md).
+  model is asked; the day's budget is counted from the stream's own count and
+  enforced; and **nothing of a conversation reaches the logs**, even when the
+  model fails. What each test proves: [docs/chat.md](docs/chat.md).
 - **`isolation.test.ts`**: the same guards with well-formed but meaningless
   bytes (the server cannot tell them from ciphertext), aimed at each guard's
   exact condition: user scope, the device token, Origin on every method,

@@ -42,7 +42,7 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
    ├── /api/vault   encrypted records
    ├── /api/market  prices, history, exchange rates: shared cache for everyone
    ├── /api/assets  coin search and logos, through the Worker
-   └── /api/chat    pass-through to the model, never stored or logged
+   └── /api/chat/completions  the model's stream passed through, never stored or logged
    │
    ├──► PostgreSQL (Neon, via Hyperdrive) — envelopes and service data only
    ├──► CoinGecko, Frankfurter — market data, asked by the server, never by the browser
@@ -50,18 +50,18 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat
         then Anthropic API (Claude Haiku)
 ```
 
-| Layer    | Choice                                                                                                           |
-| -------- | ---------------------------------------------------------------------------------------------------------------- |
-| Frontend | React 19, Vite 8, TypeScript (strict), TanStack Router and Query                                                 |
-| UI       | Tailwind CSS 4 on semantic tokens, React Aria Components, Lucide icons, anime.js, the Onest font                 |
-| API      | Hono on Cloudflare Workers; static files via Workers Assets                                                      |
-| Chat     | AI SDK 7 with tools that run in the browser; GLM-4.7-Flash on Workers AI while in development, Claude Haiku next |
-| Auth     | Better Auth: Google sign-in, database sessions, invite list                                                      |
-| Data     | PostgreSQL 18 (Neon in production, Docker locally) through Hyperdrive, Drizzle ORM and migrations                |
-| Tests    | Vitest (Node and workerd + Postgres), Playwright (Chromium, Firefox, WebKit), axe, screenshots                   |
-| Crypto   | WebCrypto (AES-256-GCM, HKDF), Argon2id from @noble/hashes (plain JavaScript), zod schemas                       |
-| Money    | big.js decimals, pure calculations in `shared/metrics`; prices and rates through the Worker                      |
-| Planned  | AI SDK with Claude Haiku                                                                                         |
+| Layer    | Choice                                                                                                                                                 |
+| -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Frontend | React 19, Vite 8, TypeScript (strict), TanStack Router and Query                                                                                       |
+| UI       | Tailwind CSS 4 on semantic tokens, React Aria Components, Lucide icons, anime.js, the Onest font                                                       |
+| API      | Hono on Cloudflare Workers; static files via Workers Assets                                                                                            |
+| Chat     | AI SDK 7 in the browser (the agent's loop and its tools); the Worker a thin proxy; GLM-4.7-Flash on Workers AI while in development, Claude Haiku next |
+| Auth     | Better Auth: Google sign-in, database sessions, invite list                                                                                            |
+| Data     | PostgreSQL 18 (Neon in production, Docker locally) through Hyperdrive, Drizzle ORM and migrations                                                      |
+| Tests    | Vitest (Node and workerd + Postgres), Playwright (Chromium, Firefox, WebKit), axe, screenshots                                                         |
+| Crypto   | WebCrypto (AES-256-GCM, HKDF), Argon2id from @noble/hashes (plain JavaScript), zod schemas                                                             |
+| Money    | big.js decimals, pure calculations in `shared/metrics`; prices and rates through the Worker                                                            |
+| Planned  | Claude Haiku for the chat                                                                                                                              |
 
 ## Getting started
 
