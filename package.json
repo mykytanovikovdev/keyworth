@@ -31,6 +31,7 @@
     "licenses": "node scripts/check-licenses.ts",
     "docs:check": "node scripts/check-docs.ts",
     "mutate": "node scripts/mutate.ts",
+    "perf": "node scripts/perf.ts",
     "bundle:size": "node scripts/bundle-size.ts",
     "cf:types:check": "wrangler types --check",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run cf:types:check && npm test && npm run licenses && npm run docs:check && npm run build",

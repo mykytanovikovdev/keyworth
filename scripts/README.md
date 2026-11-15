@@ -24,6 +24,8 @@ the SPA or the Worker.
 | `mutation-plan.ts`        | The plan's format, its validation and the exact-once replacement          |
 | `bundle-size.ts`          | `npm run bundle:size`: script chunks, and the largest one by package      |
 | `bundle-map.ts`           | Sizes per source and package from a source map (its own VLQ decoder)      |
+| `perf.ts`                 | `npm run perf`: CPU and time per route on production, live                |
+| `perf-report.ts`          | Parses `wrangler tail`'s events and builds the per-route table, purely    |
 
 The check walks every entry in `package-lock.json` (lockfile v3 records each
 package's `license` field and whether it is a dev-only dependency), parses the
@@ -77,6 +79,17 @@ every script chunk with its gzip size, and splits the largest chunk by package
 (`react-aria`, `zod`) and project folder (`src/features`). The real `dist/` is
 not touched, and the deploy target that every build rewrites
 (`.wrangler/deploy/config.json`) is put back.
+
+### Production timings
+
+`npm run perf` streams the production Worker's events (`wrangler tail`, with
+your wrangler login) while you use the app, and on Ctrl+C (or after
+`-- --seconds N`) prints each route's request count, CPU time and total time
+(median and maximum), how many did not end "ok" (an exceeded CPU limit, an
+exception), where the Worker ran and the placement header. Only those fields
+are kept, in memory: no headers, query strings or bodies, and nothing is
+written to disk. Run it after each deploy and compare with the last run; the
+Free plan allows 10 ms of CPU per request.
 
 ## Why this way
 

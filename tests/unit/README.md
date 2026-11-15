@@ -8,10 +8,12 @@ Covered now:
 
 - `scripts/license-policy.ts` — SPDX parsing (precedence, parentheses, `WITH`,
   malformed input), allowlist evaluation, runtime vs dev-only rules, exceptions.
-- `scripts/docs-policy.ts`, `mutation-plan.ts`, `bundle-map.ts` — the project
-  tooling's rules: broken links, review dates and forbidden content in docs; a
-  mutation plan's validation and its exact-once replacement; source map
-  decoding and per-package sizes.
+- `scripts/docs-policy.ts`, `mutation-plan.ts`, `bundle-map.ts`,
+  `perf-report.ts` — the project tooling's rules: broken links, review dates
+  and forbidden content in docs; a mutation plan's validation and its
+  exact-once replacement; source map decoding and per-package sizes; splitting
+  `wrangler tail`'s output, grouping requests by route (ids as `:id`) and
+  keeping nothing but timings, location and placement.
 - `src/ui/tokens.css` — both themes define every semantic color and data
   series, and every text/background pair meets WCAG AA (4.5:1 for text, 3:1 for
   field borders and focus). The test parses the CSS, so a token change that
