@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 import type { Context, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { FRESH_SESSION_SECONDS } from "./auth.ts";
@@ -22,13 +22,27 @@ export async function consume(
   limit: number,
   windowSeconds = 60,
 ): Promise<{ allowed: boolean; retryAfter: number }> {
-  const window = sql.raw(`interval '${String(windowSeconds)} seconds'`);
   const result = await c.get("db").execute<{
     count: number;
     retry_after: number;
-  }>(sql`
+  }>(countUse(c.get("user").id, bucket, windowSeconds));
+  return verdict(result.rows[0], limit);
+}
+
+/**
+ * The statement behind `consume`, for a route that runs it together with its
+ * own check in one round trip (the chat's budget): one more use of `bucket`,
+ * returning `count` and `retry_after`.
+ */
+export function countUse(
+  userId: string,
+  bucket: string,
+  windowSeconds: number,
+): SQL {
+  const window = sql.raw(`interval '${String(windowSeconds)} seconds'`);
+  return sql`
     insert into api_rate_limits (user_id, bucket, window_start, count)
-    values (${c.get("user").id}, ${bucket}, now(), 1)
+    values (${userId}, ${bucket}, now(), 1)
     on conflict (user_id, bucket) do update set
       count = case when api_rate_limits.window_start < now() - ${window}
                    then 1 else api_rate_limits.count + 1 end,
@@ -36,8 +50,14 @@ export async function consume(
                           then now() else api_rate_limits.window_start end
     returning count,
       ceil(extract(epoch from window_start + ${window} - now()))::int
-        as retry_after`);
-  const row = result.rows[0];
+        as retry_after`;
+}
+
+/** Whether a counted use is within `limit`, and how long until it would be. */
+export function verdict(
+  row: { count: number; retry_after: number } | undefined,
+  limit: number,
+): { allowed: boolean; retryAfter: number } {
   return {
     allowed: (row?.count ?? 0) <= limit,
     // Seconds until this window ends, not the window's full length.
