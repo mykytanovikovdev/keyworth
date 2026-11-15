@@ -86,7 +86,10 @@ not touched, and the deploy target that every build rewrites
 your wrangler login) while you use the app, and on Ctrl+C (or after
 `-- --seconds N`) prints each route's request count, CPU time and total time
 (median and maximum), how many did not end "ok" (an exceeded CPU limit, an
-exception), where the Worker ran and the placement header. Only those fields
+exception) and where requests entered Cloudflare. The times are inside the
+Worker: with placement next to the database, the hop from that entry point to
+the Worker comes on top (the response's `cf-placement` header shows where it
+ran; the tail does not). Only those fields
 are kept, in memory: no headers, query strings or bodies, and nothing is
 written to disk. Run it after each deploy and compare with the last run; the
 Free plan allows 10 ms of CPU per request.
