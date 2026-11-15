@@ -89,6 +89,14 @@ the same runtime, assets and headers as production.
 
 ## Why this way
 
+- **The Worker runs next to the database, not next to the user**
+  (`placement.region` in `wrangler.jsonc`: AWS Frankfurt, where Neon is). A
+  request makes two to four queries in turn (session, rate limit, the data);
+  run near the user, each is a round trip to Frankfurt (60–250 ms from the
+  users' regions), so a request took 200–400 ms. Placed in Frankfurt, only the
+  user's one round trip remains. Static files are still served from the
+  nearest location. Measured with `npm run perf`
+  ([scripts/README.md](../scripts/README.md#production-timings)).
 - **One Worker, one origin.** The session cookie (phase 2) works without CORS or
   `SameSite=None`, and there is a single CSP to reason about.
 - **Hono.** Tiny, built on Web-standard `Request`/`Response`, typed routes, and

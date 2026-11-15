@@ -53,6 +53,10 @@
   "workers_dev": false,
   // Per-version preview URLs are public; we don't use them.
   "preview_urls": false,
+  // Run next to the database (Neon, AWS Frankfurt), not next to the user: a
+  // request makes two to four queries in turn, each a round trip from wherever
+  // the Worker runs. Static files are still served from the nearest location.
+  "placement": { "region": "aws:eu-central-1" },
   "upload_source_maps": true,
   "observability": {
     "enabled": true,
