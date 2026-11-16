@@ -83,6 +83,11 @@ const RATE_CODES: ReadonlySet<string> = new Set([
   ...STABLECOINS,
 ]);
 
+/** Work that may finish after the answer, such as refreshing a stale series. */
+const later = (c: Context<AppEnv>) => (work: Promise<void>) => {
+  c.executionCtx.waitUntil(work);
+};
+
 /** A source's failure is a 502 and one log line, which names neither assets nor searches. */
 function onMarketError(error: Error, c: Context<AppEnv>) {
   if (!(error instanceof MarketError)) throw error;
@@ -241,10 +246,12 @@ market.get("/history", limitHistory, async (c) => {
       [
         {
           key: coinMetricsKey(code),
-          load: (since) => coinMetricsPricesSince(code, since),
+          from,
+          load: (since, until) => coinMetricsPricesSince(code, since, until),
         },
       ],
       SERIES,
+      later(c),
     );
     return c.json<HistoryJson>({
       asset,
@@ -289,9 +296,11 @@ market.get("/rates", limitRates, async (c) => {
     c.get("db"),
     quotes.map((code) => ({
       key: rateKey(code),
-      load: (since: string) => ratesSince(code, since),
+      from,
+      load: (since: string, until?: string) => ratesSince(code, since, until),
     })),
     SERIES,
+    later(c),
   );
   return c.json<RatesJson>({
     base: "USD",

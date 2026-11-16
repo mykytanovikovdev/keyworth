@@ -633,6 +633,16 @@ describe("what the cache keeps", () => {
 const fxRows = (base: string, quote: string, points: [string, unknown][]) =>
   points.map(([date, rate]) => ({ date, base, quote, rate }));
 
+/** A day (YYYY-MM-DD, UTC) `days` after `day`. */
+const addDays = (day: string, days: number) =>
+  new Date(Date.parse(`${day}T00:00:00Z`) + days * 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
+/** A day relative to today (UTC). */
+const daysFromToday = (days: number) =>
+  addDays(new Date().toISOString().slice(0, 10), days);
+
 const history = async (cookie: string, asset: string, from: string) => {
   const response = await api(
     `/api/market/history?asset=${asset}&from=${from}`,
@@ -688,7 +698,7 @@ describe("history from Coin Metrics", () => {
       base: "BTC",
       quotes: "USD",
       providers: "CM",
-      from: "2010-07-18",
+      from: "2026-02-23",
     });
   });
 
@@ -719,14 +729,18 @@ describe("history from Coin Metrics", () => {
     });
   });
 
-  it("asks once for everyone, then only for the last week, keeping the rest", async () => {
+  it("asks once for everyone; once stale, serves it at once and asks for the last week after the answer", async () => {
     const alice = await signedIn("history-cm-a");
     const bob = await signedIn("history-cm-b");
-    let answer = BTC;
+    const recent = fxRows("BTC", "USD", [
+      [daysFromToday(-3), 61000],
+      [daysFromToday(-2), 62000],
+    ]);
+    let answer = recent;
     const { calls } = mockSources(() => json(answer));
 
-    await history(alice.cookie, "crypto:bitcoin", "2026-03-01");
-    await history(bob.cookie, "crypto:bitcoin", "2026-03-01");
+    await history(alice.cookie, "crypto:bitcoin", daysFromToday(-3));
+    await history(bob.cookie, "crypto:bitcoin", daysFromToday(-3));
     expect(frankfurter(calls)).toHaveLength(1);
 
     await query(
@@ -734,22 +748,55 @@ describe("history from Coin Metrics", () => {
     );
     // A revised last day and a new one.
     answer = fxRows("BTC", "USD", [
-      ["2026-03-04", 63001],
-      ["2026-03-05", 64000],
+      [daysFromToday(-2), 62001],
+      [daysFromToday(-1), 63000],
     ]);
+    const stale = await history(
+      alice.cookie,
+      "crypto:bitcoin",
+      daysFromToday(-3),
+    );
+
+    expect(stale.body?.prices.values).toEqual(["61000", "62000"]);
+    await vi.waitFor(async () => {
+      const [row] = await query<{ fresh: boolean }>(
+        "select fetched_at > now() - interval '1 hour' as fresh from market_cache where key = 'frankfurter:price:BTC'",
+      );
+      expect(row?.fresh).toBe(true);
+    });
+    expect(frankfurter(calls)[1]?.url.searchParams.get("from")).toBe(
+      daysFromToday(-9),
+    );
     const { body } = await history(
       alice.cookie,
       "crypto:bitcoin",
-      "2026-03-01",
-    );
-
-    expect(frankfurter(calls)[1]?.url.searchParams.get("from")).toBe(
-      "2026-02-25",
+      daysFromToday(-3),
     );
     expect(body?.prices).toEqual({
-      from: "2026-03-01",
-      values: ["61000.5", "0.000000355", null, "63001", "64000"],
+      from: daysFromToday(-3),
+      values: ["61000", "62001", "63000"],
     });
+    expect(frankfurter(calls)).toHaveLength(2);
+  });
+
+  it("asks a source silent for months again for the last month only", async () => {
+    const { cookie } = await signedIn("history-cm-silent");
+    const { calls } = mockSources(() => json(BTC));
+    await history(cookie, "crypto:bitcoin", "2026-03-01");
+    await query(
+      "update market_cache set fetched_at = now() - interval '7 hours' where key = 'frankfurter:price:BTC'",
+    );
+
+    await history(cookie, "crypto:bitcoin", "2026-03-01");
+
+    await vi.waitFor(() => {
+      expect(frankfurter(calls)).toHaveLength(2);
+    });
+    const since = frankfurter(calls)[1]?.url.searchParams.get("from") ?? "";
+    const fetchedDay = new Date(Date.now() - 7 * 60 * 60 * 1000)
+      .toISOString()
+      .slice(0, 10);
+    expect(since).toBe(addDays(fetchedDay, -31));
   });
 
   it("keeps serving what it has while Frankfurter fails, and answers 502 when it has nothing", async () => {
@@ -768,10 +815,14 @@ describe("history from Coin Metrics", () => {
 
     expect(stale.body?.prices).toEqual(first.body?.prices);
     expect(missing.status).toBe(502);
-    expect(log).toHaveBeenCalledOnce();
-    expect(String(log.mock.calls[0]?.[0])).toBe(
+    // One line for the refresh after the stale answer, one for the 502.
+    await vi.waitFor(() => {
+      expect(log).toHaveBeenCalledTimes(2);
+    });
+    expect(log.mock.calls.map(([line]) => String(line))).toEqual([
       "Market data unavailable: frankfurter: status 503",
-    );
+      "Market data unavailable: frankfurter: status 503",
+    ]);
   });
 });
 
@@ -878,9 +929,86 @@ describe("exchange rates", () => {
     expect(
       frankfurter(calls).map(({ url }) => Object.fromEntries(url.searchParams)),
     ).toEqual([
-      { base: "USD", quotes: "EUR", from: "2010-07-18" },
-      { base: "USD", quotes: "USDT", from: "2010-07-18", providers: "CM" },
+      { base: "USD", quotes: "EUR", from: "2026-02-23" },
+      { base: "USD", quotes: "USDT", from: "2026-02-23", providers: "CM" },
     ]);
+  });
+
+  it("adds the days before the cached ones when someone asks for them, and only those", async () => {
+    const { cookie } = await signedIn("rates-earlier");
+    const { calls } = mockSources(answer);
+
+    await rates(cookie, "EUR", "2026-03-01");
+    await rates(cookie, "EUR", "2026-03-01");
+    await rates(cookie, "EUR", "2026-01-10");
+
+    expect(
+      frankfurter(calls).map(({ url }) => Object.fromEntries(url.searchParams)),
+    ).toEqual([
+      { base: "USD", quotes: "EUR", from: "2026-02-22" },
+      { base: "USD", quotes: "EUR", from: "2026-01-03", to: "2026-02-21" },
+    ]);
+  });
+
+  it("serves what it has when the source fails while adding earlier days", async () => {
+    let up = true;
+    const { cookie } = await signedIn("rates-earlier-down");
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mockSources((url) =>
+      up ? answer(url) : new Response("down", { status: 503 }),
+    );
+    const cached = await rates(cookie, "EUR", "2026-03-01");
+    up = false;
+
+    const earlier = await rates(cookie, "EUR", "2026-01-10");
+
+    expect(earlier.status).toBe(200);
+    expect(earlier.body?.rates).toEqual(cached.body?.rates);
+  });
+
+  it("asks for a long range in pieces of a year, newest first, the newest open", async () => {
+    const { cookie } = await signedIn("rates-pieces");
+    const { calls } = mockSources(answer);
+    const asked = daysFromToday(-800);
+
+    const { status } = await rates(cookie, "EUR", asked);
+
+    expect(status).toBe(200);
+    expect(
+      frankfurter(calls).map(({ url }) => [
+        url.searchParams.get("from"),
+        url.searchParams.get("to"),
+      ]),
+    ).toEqual([
+      [daysFromToday(-364), null],
+      [daysFromToday(-730), daysFromToday(-365)],
+      [addDays(asked, -7), daysFromToday(-731)],
+    ]);
+  });
+
+  it("makes at most 30 calls a request, shared between the currencies; the next request goes on", async () => {
+    const { cookie } = await signedIn("rates-share");
+    const { calls } = mockSources(answer);
+    const ten = "AUD,CAD,CHF,CNY,EUR,GBP,GEL,JPY,PLN,SEK";
+
+    await rates(cookie, ten, "2012-01-01");
+    const first = frankfurter(calls).length;
+    const perCurrency = Map.groupBy(frankfurter(calls), ({ url }) =>
+      url.searchParams.get("quotes"),
+    );
+    await rates(cookie, "EUR", "2012-01-01");
+
+    expect(first).toBe(30);
+    expect([...perCurrency.values()].map((list) => list.length)).toEqual(
+      Array.from({ length: 10 }, () => 3),
+    );
+    // The fourth year back, for EUR only: the newest three are cached.
+    expect(frankfurter(calls)[first]?.url.searchParams.get("to")).toBe(
+      addDays(
+        perCurrency.get("EUR")?.[2]?.url.searchParams.get("from") ?? "",
+        -1,
+      ),
+    );
   });
 
   it("asks only for the currencies it does not have yet", async () => {
