@@ -11,7 +11,7 @@ import { fetchJson, MarketError, plainDigits, plausible } from "./upstream.ts";
 
 export const FRANKFURTER = "frankfurter";
 const API = "https://api.frankfurter.dev/v2";
-/** A whole series since 2010 is about 400 KB. */
+/** A whole series since 2010 is about 400 KB; a year's piece, about 25 KB. */
 const MAX_JSON_BYTES = 1024 * 1024;
 /** Frankfurter's key for Coin Metrics. Its blend mixes in exchanges' rates. */
 const COIN_METRICS = "CM";
@@ -62,7 +62,7 @@ export const COIN_METRICS_CODES: ReadonlyMap<string, string> = new Map([
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
- * One pair, day by day from `since`. Rows are checked by hand rather than with
+ * One pair, day by day from `since` to `until` (or the latest). Rows are checked by hand rather than with
  * zod: a series has thousands, and zod's jitless parsing costs too much CPU per
  * row for a Worker. A row that does not fit is left out.
  */
@@ -70,12 +70,14 @@ async function pair(
   base: string,
   quote: string,
   since: string,
+  until: string | undefined,
   provider?: string,
 ): Promise<DailyPoint[]> {
   const url = new URL(`${API}/rates`);
   url.searchParams.set("base", base);
   url.searchParams.set("quotes", quote);
   url.searchParams.set("from", since);
+  if (until) url.searchParams.set("to", until);
   if (provider) url.searchParams.set("providers", provider);
   const body = await fetchJson(FRANKFURTER, url, {}, MAX_JSON_BYTES);
   if (!Array.isArray(body)) {
@@ -111,11 +113,12 @@ const isStablecoin = (code: string) =>
  * five significant digits, plenty for converting a portfolio. A stablecoin's
  * rate is Coin Metrics' only.
  */
-export function ratesSince(code: string, since: string) {
+export function ratesSince(code: string, since: string, until?: string) {
   return pair(
     "USD",
     code,
     since,
+    until,
     isStablecoin(code) ? COIN_METRICS : undefined,
   );
 }
@@ -125,6 +128,10 @@ export function ratesSince(code: string, since: string) {
  * Metrics. Asked as the coin's rate to the dollar, it keeps every digit; the
  * other way round has five.
  */
-export function coinMetricsPricesSince(code: string, since: string) {
-  return pair(code, "USD", since, COIN_METRICS);
+export function coinMetricsPricesSince(
+  code: string,
+  since: string,
+  until?: string,
+) {
+  return pair(code, "USD", since, until, COIN_METRICS);
 }

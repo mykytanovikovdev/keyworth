@@ -22,7 +22,7 @@ browser ── /api/market/prices ──────────┐
 | `routes/market.ts`      | The six routes, their limits, the 502 for a failed source                     |
 | `market/coingecko.ts`   | CoinGecko's API: what is asked, how its answers are checked and reduced       |
 | `market/frankfurter.ts` | Frankfurter's API: exchange rates, Coin Metrics' prices, the coin-to-code map |
-| `market/series.ts`      | Daily series kept whole: merge, slice, refresh only the last days             |
+| `market/series.ts`      | Daily series from the earliest day asked: pieces of a year, merge, refresh    |
 | `market/cache.ts`       | `cached`, `readCached`, `storeCached` over the `market_cache` table           |
 | `market/upstream.ts`    | Time and size limits, `MarketError`, plain digits, raster images only         |
 
@@ -31,7 +31,7 @@ browser ── /api/market/prices ──────────┐
 | `GET /api/market/prices`               | CoinGecko: 250 largest coins, one call                              | 10 minutes                                  | a day                      |
 | `GET /api/market/prices?ids=`          | CoinGecko: the coins not in the snapshot, one call                  | 10 minutes                                  | a day                      |
 | `GET /api/market/history?asset=&from=` | Frankfurter (Coin Metrics) for 35 coins, else CoinGecko's past year | 6 hours; CoinGecko's 12 hours               | 90 days; CoinGecko's a day |
-| `GET /api/market/rates?quotes=&from=`  | Frankfurter: one call per currency                                  | 6 hours                                     | 90 days                    |
+| `GET /api/market/rates?quotes=&from=`  | Frankfurter: a call per currency and year                           | 6 hours                                     | 90 days                    |
 | `GET /api/assets/search?q=`            | CoinGecko: one call per distinct search                             | a day                                       | a day                      |
 | `GET /api/assets/:id/logo`             | CoinGecko's image host                                              | a day (Cloudflare's cache, per data center) | a day                      |
 
@@ -45,7 +45,8 @@ CoinGecko's `precision=full` asks for every digit it has.
 A series is one value per UTC day, sent as `{ from, values }`: `values[i]` is
 for `from` plus i days, `null` where the source has nothing. Half the size of
 dated points, and nothing to parse per point. The request's `from` (a day, the
-user's first trade) cuts the series; the server keeps it whole.
+user's first trade) cuts the series; the server keeps it from the earliest day
+anyone has asked for.
 
 - **A coin's price** is its closing price: the value at 00:00 UTC that ends the
   day. Coin Metrics dates a close by the day it ends; CoinGecko stamps it at
@@ -63,10 +64,21 @@ user's first trade) cuts the series; the server keeps it whole.
   Frankfurter across the banks that publish each, five significant digits.
   USDT and USDC, which a trade's price can be in, take Coin Metrics' rate, so a
   stablecoin that slips off the dollar is valued as it was.
-- **Kept whole, extended at the end.** A series starts at its source's first
-  day (never before 2010-07-18) and is stored as one cache entry. A stale one
-  asks the source only from a week before its last day: late publications and
-  revised blends replace what was there, and the rest stays.
+- **Kept from the earliest day asked, in pieces of a year.** A series is one
+  cache entry, which remembers the first day its source was asked from
+  (`askedFrom`). The first request asks from a week before its `from` (so a
+  weekend at the start has the Friday before it), never before 2010-07-18; a
+  later request for earlier days asks for those days only and adds them. A
+  range is asked for in pieces of a year, newest first, four at a time:
+  Frankfurter takes about a second per year of days, so a whole series since
+  2010 at once (about 15 s) never fit the 8-second limit. A request makes at
+  most 30 calls, shared equally between its series; one that needs more keeps
+  the newest days, and the next request goes on from there.
+- **Stale is served, then refreshed.** A stale series that covers the days
+  asked is answered at once; after the answer (`waitUntil`) the source is asked
+  from a week before its last day, or before the last refresh when it has been
+  silent since, never more than a month back: late publications and revised
+  blends replace what was there, and the rest stays.
 
 ## What the server learns
 
@@ -107,8 +119,9 @@ user's first trade) cuts the series; the server keeps it whole.
    [input-validation.md](../../../shared/schemas/docs/input-validation.md).
 4. A logo comes only from CoinGecko's image host, only as PNG, JPEG, WebP or GIF,
    at most 100 KB. An SVG is a document that can carry script, so it is refused.
-5. A source gets at most 8 seconds per answer, and 2 MB (CoinGecko) or 1 MB
-   (Frankfurter, whose longest series is about 400 KB). A redirect is a failure,
+5. A source gets at most 8 seconds per answer, its body included, and 2 MB
+   (CoinGecko) or 1 MB (Frankfurter, whose longest series is about 400 KB). An
+   answer cut off while it is read is a failure like any other. A redirect is a failure,
    never followed: it would carry the key's header, or an image request, to
    another host.
 6. A price or rate is kept only if it can be real: 0, or between 1e-18 and 1e15.
@@ -142,7 +155,8 @@ user's first trade) cuts the series; the server keeps it whole.
   table serves every user everywhere. Every request reaches the database for
   the session anyway. KV was not needed for this.
 - **Refresh only while someone uses the app.** No schedule spends calls while
-  nobody looks: a stale entry is replaced by the next request.
+  nobody looks: a stale entry is replaced by the next request (after its
+  answer, for a series).
 - **A stale price beats none.** When a source fails, an entry that has not
   expired is served (prices with their real `fetchedAt`, so the screen can say
   how old they are). With nothing usable: 502 `market_unavailable`.
@@ -150,36 +164,43 @@ user's first trade) cuts the series; the server keeps it whole.
   rows; zod's jitless parsing costs too much CPU per row for a Worker on the
   free plan (10 ms a request). Parsing and merging a whole series takes about
   3 ms the first time, once for everyone; a refresh takes under 1 ms. Several
-  series in one request (`/rates` takes up to 10) are loaded one after another,
-  each stored as soon as it is merged: ten new ones at once would pass 10 ms,
-  and a request stopped part of the way keeps what it did for the next. Days are
+  series in one request (`/rates` takes up to 10) are asked for together but
+  merged one after another, each stored as soon as it is merged: ten new ones
+  at once would pass 10 ms, and a request stopped part of the way keeps what it
+  did for the next. Days are
   counted as numbers, because `Date.parse` is slow per point and takes
   `2026-02-30` for March 2.
-- **The whole series from its start, not from the first request's day.** One
-  entry per coin or currency, extended only at its end, is simpler than filling
-  gaps at both ends; the cost is one larger first load.
+- **From the day asked, not from the source's start.** Series used to be
+  loaded whole from 2010 in one call, which was simpler (extended only at the
+  end), until the source slowed to about a second per year of days and a first
+  load could no longer finish. Users' trades rarely reach that far back, so
+  asking from the day needed keeps first loads short; the cost is a second,
+  smaller load when someone asks for earlier days.
 - **No rate limit on logos.** Each limited request writes a counter; a page of
   holdings would write one per logo. Logos come from Cloudflare's cache, the
   image host spends no API calls, and only coins already known have a logo URL.
 
 ## Edge cases
 
-| Case                                                                           | Result                                                         |
-| ------------------------------------------------------------------------------ | -------------------------------------------------------------- |
-| A coin with no price, a negative one, or a malformed id                        | Left out of the answer                                         |
-| A coin CoinGecko does not know                                                 | No price, no history; cached as unknown, so no new call        |
-| A row of a series that does not fit (wrong pair, not a number, not a real day) | Left out; the day stays `null`                                 |
-| A gap in a series (a holiday, a missed publication)                            | `null` for that day; the browser uses the last value before it |
-| `from` before a series starts                                                  | The whole series, with its own `from`                          |
-| A source down, unexpired entry                                                 | Served as it is                                                |
-| A source down, nothing usable                                                  | 502 `market_unavailable`, one log line                         |
-| Answer too large, not JSON, unexpected shape, timeout                          | Same as down                                                   |
-| More than 50 ids, an id without `crypto:`                                      | 400 `invalid_ids`                                              |
-| A history asset that is not a `crypto:` id                                     | 400 `invalid_asset`                                            |
-| `from` missing, not a real day, or with a time                                 | 400 `invalid_from`                                             |
-| A rate for USD, a code not in the list, more than 10                           | 400 `invalid_quotes`                                           |
-| An empty search, or over 50 characters                                         | 400 `invalid_query`                                            |
-| A logo nobody has seen, or on another host                                     | 404 `unknown_asset`                                            |
+| Case                                                                           | Result                                                           |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| A coin with no price, a negative one, or a malformed id                        | Left out of the answer                                           |
+| A coin CoinGecko does not know                                                 | No price, no history; cached as unknown, so no new call          |
+| A row of a series that does not fit (wrong pair, not a number, not a real day) | Left out; the day stays `null`                                   |
+| A gap in a series (a holiday, a missed publication)                            | `null` for that day; the browser uses the last value before it   |
+| `from` before a series starts                                                  | The whole series, with its own `from`                            |
+| `from` before the days asked so far                                            | Those days asked for and added; the source failing: what is kept |
+| A first load needing more than its share of 30 calls                           | The newest days; the next request asks for the rest              |
+| A stale series                                                                 | Served at once, refreshed after the answer; a failure is logged  |
+| A source down, unexpired entry                                                 | Served as it is                                                  |
+| A source down, nothing usable                                                  | 502 `market_unavailable`, one log line                           |
+| Answer too large, not JSON, unexpected shape, timeout, cut off mid-answer      | Same as down                                                     |
+| More than 50 ids, an id without `crypto:`                                      | 400 `invalid_ids`                                                |
+| A history asset that is not a `crypto:` id                                     | 400 `invalid_asset`                                              |
+| `from` missing, not a real day, or with a time                                 | 400 `invalid_from`                                               |
+| A rate for USD, a code not in the list, more than 10                           | 400 `invalid_quotes`                                             |
+| An empty search, or over 50 characters                                         | 400 `invalid_query`                                              |
+| A logo nobody has seen, or on another host                                     | 404 `unknown_asset`                                              |
 
 ## How it is tested
 
@@ -187,13 +208,17 @@ user's first trade) cuts the series; the server keeps it whole.
 the Worker tests have no real network at all (`outboundService` in
 `vitest.config.ts`), so a request that slips past the mock fails loudly instead
 of reaching a source. It covers which source each coin uses and how it is asked,
-the day a close belongs to, the rows a series drops, a refresh that asks for the
-last week only, stale entries while a source fails, each 400, each read's
+the day a close belongs to, the rows a series drops, a first load from a week
+before the day asked, earlier days added on their own, pieces of a year newest
+first, the 30-call share, a stale series served at once and refreshed after the
+answer from a week before its last day (a month at most for a silent source),
+stale entries while a source fails, each 400, each read's
 limit a minute (429 before any call), a redirect refused, a logo over 100 KB or
 in SVG refused, prices that cannot be real dropped, an unexpected error logged
 by route and not by coin, and how long each source's data is kept. The 8-second
-limit is not tested: the runner cannot wait that long or fake the clock under
-`AbortSignal.timeout`. What it proves about storage:
+limit itself is not tested: the runner cannot wait that long or fake the clock
+under `AbortSignal.timeout`; what it does to an answer being read (the body's
+stream errors) is. What it proves about storage:
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).
 
 ## How to change it safely
@@ -205,4 +230,4 @@ ids, currencies or search text into an error message or a log line. A new
 entry in `COIN_METRICS_CODES` is checked first by comparing the two sources'
 prices for the coin.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-16

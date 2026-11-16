@@ -3,6 +3,7 @@ import {
   HISTORY_START,
 } from "../../shared/schemas/market.ts";
 import type { Database } from "../db/client.ts";
+import { describeError } from "../describe-error.ts";
 import { type CacheTimes, readCached, storeCached } from "./cache.ts";
 import { MarketError } from "./upstream.ts";
 
@@ -102,54 +103,230 @@ export function sliceSeries(
 
 export interface SeriesRequest {
   key: string;
-  /** The source's points from `since` (a day) to its latest. */
-  load: (since: string) => Promise<DailyPoint[]>;
+  /** The first day the caller needs. */
+  from: string;
+  /** The source's points from `since` to `until` (days), or to its latest. */
+  load: (since: string, until?: string) => Promise<DailyPoint[]>;
+}
+
+/** What the cache keeps for a series. */
+interface StoredSeries extends DailySeriesJson {
+  /**
+   * The first day the source was asked from: every day from here on is known,
+   * as a value or as none. Absent in entries written before series began at
+   * the day asked for; those were asked from HISTORY_START.
+   */
+  askedFrom?: string;
+}
+
+/** Frankfurter takes about a second per year of days: one piece, one call. */
+const PIECE_DAYS = 366;
+/** Calls at once: a request has six connections, and the database holds one. */
+const CALLS_AT_ONCE = 4;
+/** Calls one request may make: the Free plan allows 50 subrequests. */
+const CALLS_PER_REQUEST = 30;
+/** A refresh never asks for more than this, even after a long silence. */
+const REFRESH_DAYS_AT_MOST = 31;
+
+/** What the routes send: never the cache's own bookkeeping. */
+const shown = ({ from, values }: DailySeriesJson): DailySeriesJson => ({
+  from,
+  values,
+});
+
+/** Runs at most `size` tasks at once, in the order given. */
+function limiter(size: number) {
+  let running = 0;
+  const waiting: (() => void)[] = [];
+  return async <T>(task: () => Promise<T>): Promise<T> => {
+    if (running >= size) {
+      await new Promise<void>((resolve) => waiting.push(resolve));
+    }
+    running += 1;
+    try {
+      return await task();
+    } finally {
+      running -= 1;
+      waiting.shift()?.();
+    }
+  };
+}
+
+/** Days `first` to `last` (null: the latest) in pieces of a year, newest first. */
+function pieces(
+  first: number,
+  last: number | null,
+  latest: number,
+): [since: string, until: string | undefined][] {
+  const result: [string, string | undefined][] = [];
+  let end = last ?? latest;
+  let open = last === null;
+  while (end >= first) {
+    const start = Math.max(first, end - PIECE_DAYS + 1);
+    // The newest piece stays open: a bank east of UTC may already have tomorrow.
+    result.push([dayString(start), open ? undefined : dayString(end)]);
+    open = false;
+    end = start - 1;
+  }
+  return result;
+}
+
+interface Plan {
+  request: SeriesRequest;
+  old: StoredSeries | null;
+  /** Newest first; the series can then be kept even if older pieces were cut. */
+  ranges: [since: string, until: string | undefined][];
+  /** Served now and refreshed after the answer. */
+  later: boolean;
 }
 
 /**
- * The series, in the order asked for. A fresh one comes from the cache; a stale
- * one is extended from the source; a source that fails leaves an unexpired one
- * as it is. The sources are asked together; the cache is written once.
+ * The series, in the order asked for, each from the day asked (a week earlier,
+ * so a weekend at the start has the Friday before it). The cache keeps each
+ * series from the earliest day anyone asked for:
+ * - none cached: the source is asked from that day, in pieces of a year;
+ * - asked for days before the cached ones: those days are asked for and added;
+ * - cached but stale: served as it is, and the last days are asked again after
+ *   the answer (`defer`; without it, before);
+ * - a source that fails leaves an unexpired series as it is.
+ * The calls run a few at a time; each series is stored as soon as it is
+ * merged, so a request stopped part of the way keeps what it did.
  */
 export async function dailySeries(
   db: Database,
   requests: readonly SeriesRequest[],
   { freshForMs, keepForMs }: CacheTimes,
+  defer?: (work: Promise<void>) => void,
 ): Promise<DailySeriesJson[]> {
-  const known = await readCached<DailySeriesJson>(
+  const known = await readCached<StoredSeries>(
     db,
     requests.map(({ key }) => key),
   );
   const now = Date.now();
-  // One after another, each stored as soon as it is merged: ten whole series
-  // cost about 20 ms of CPU, more than a Worker on the free plan has, and a
-  // request stopped part of the way must not lose what it already did. The
-  // next request finds those cached and goes on from there.
-  const results: DailySeriesJson[] = [];
-  for (const { key, load } of requests) {
-    const entry = known.get(key);
-    if (entry && now - entry.fetchedAt.getTime() < freshForMs) {
-      results.push(entry.value);
-      continue;
-    }
+  const latest = Math.floor(now / DAY_MS) + 1;
+  const plans: Plan[] = requests.map((request) => {
+    const entry = known.get(request.key);
     const old = entry?.value ?? null;
-    const oldFrom = old && old.values.length > 0 ? dayNumber(old.from) : null;
-    const since =
-      old && oldFrom !== null
-        ? dayString(oldFrom + old.values.length - 1 - OVERLAP_DAYS)
-        : HISTORY_START;
-    let series: DailySeriesJson;
-    try {
-      series = mergeSeries(old, await load(since));
-    } catch (error) {
-      if (error instanceof MarketError && old) {
-        results.push(old);
-        continue;
-      }
-      throw error;
+    const asked = dayNumber(request.from) ?? FIRST_DAY;
+    const want = Math.max(FIRST_DAY, asked - OVERLAP_DAYS);
+    if (!entry || !old) {
+      return { request, old, ranges: pieces(want, null, latest), later: false };
     }
-    await storeCached(db, [{ key, value: series }], keepForMs);
-    results.push(series);
+    const askedFrom = dayNumber(old.askedFrom ?? HISTORY_START) ?? FIRST_DAY;
+    const ranges: [string, string | undefined][] = [];
+    const stale = now - entry.fetchedAt.getTime() >= freshForMs;
+    if (stale) {
+      // From the last week before the last day known, or before the last
+      // refresh when the source has been silent since.
+      const fetched = Math.floor(entry.fetchedAt.getTime() / DAY_MS);
+      const oldFrom = old.values.length > 0 ? dayNumber(old.from) : null;
+      const lastDay =
+        oldFrom === null ? fetched : oldFrom + old.values.length - 1;
+      const since = Math.max(
+        askedFrom,
+        Math.min(lastDay, fetched) - OVERLAP_DAYS,
+        fetched - REFRESH_DAYS_AT_MOST,
+      );
+      ranges.push(...pieces(since, null, latest));
+    }
+    if (want < askedFrom) ranges.push(...pieces(want, askedFrom - 1, latest));
+    // Only a refresh can wait: days asked for and not cached cannot.
+    const later = stale && want >= askedFrom && defer !== undefined;
+    return { request, old, ranges, later };
+  });
+
+  // Each series that needs calls gets an equal share of the request's calls,
+  // newest days first; the next request goes on from where this one stopped.
+  const needing = plans.filter(({ ranges }) => ranges.length > 0).length;
+  const share = Math.max(
+    1,
+    Math.floor(CALLS_PER_REQUEST / Math.max(1, needing)),
+  );
+  const limit = limiter(CALLS_AT_ONCE);
+  const update = (plan: Plan): Update => {
+    const ranges = plan.ranges.slice(0, share);
+    // Started now, all of them, so the calls of every series overlap.
+    const loads = Promise.allSettled(
+      ranges.map(([since, until]) =>
+        limit(() => plan.request.load(since, until)),
+      ),
+    );
+    const firstAsked = Math.min(
+      ...ranges.map(([since]) => dayNumber(since) ?? FIRST_DAY),
+    );
+    return { plan, loads, firstAsked };
+  };
+
+  const asking = plans.filter(({ ranges }) => ranges.length > 0);
+  const immediate = asking.filter(({ later }) => !later).map(update);
+  const afterwards = asking.filter(({ later }) => later);
+  const results = new Map<SeriesRequest, DailySeriesJson>();
+  for (const update of immediate) {
+    results.set(update.plan.request, await store(db, update, keepForMs));
   }
-  return results;
+  if (afterwards.length > 0 && defer) {
+    defer(refresh(db, afterwards.map(update), keepForMs));
+  }
+  return plans.map(({ request, old }) =>
+    shown(results.get(request) ?? old ?? emptySeries()),
+  );
+}
+
+interface Update {
+  plan: Plan;
+  loads: Promise<PromiseSettledResult<DailyPoint[]>[]>;
+  /** The earliest day this update asks for. */
+  firstAsked: number;
+}
+
+/**
+ * Merges a series' answers into what was cached and stores it. When a call
+ * failed, an unexpired old series stands in, unless `fallBack` is off.
+ */
+async function store(
+  db: Database,
+  { plan: { request, old }, loads, firstAsked }: Update,
+  keepForMs: number,
+  fallBack = true,
+): Promise<DailySeriesJson> {
+  const answers = await loads;
+  const failed = answers.find(
+    (answer): answer is PromiseRejectedResult => answer.status === "rejected",
+  );
+  if (failed) {
+    if (fallBack && failed.reason instanceof MarketError && old) return old;
+    throw failed.reason;
+  }
+  const points = answers.flatMap((answer) =>
+    answer.status === "fulfilled" ? answer.value : [],
+  );
+  const merged = mergeSeries(old, points);
+  const oldAsked = old
+    ? (dayNumber(old.askedFrom ?? HISTORY_START) ?? FIRST_DAY)
+    : Infinity;
+  const series: StoredSeries = {
+    ...merged,
+    askedFrom: dayString(Math.min(oldAsked, firstAsked)),
+  };
+  await storeCached(db, [{ key: request.key, value: series }], keepForMs);
+  return series;
+}
+
+/** Refreshes after the answer; a failure is logged, as a route would. */
+async function refresh(
+  db: Database,
+  updates: Update[],
+  keepForMs: number,
+): Promise<void> {
+  for (const update of updates) {
+    try {
+      await store(db, update, keepForMs, false);
+    } catch (error) {
+      console.error(
+        error instanceof MarketError
+          ? `Market data unavailable: ${error.message}`
+          : `Market data refresh failed\n${describeError(error)}`,
+      );
+    }
+  }
 }

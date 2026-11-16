@@ -13,6 +13,7 @@ const event = (fields: {
   method?: string;
   url: string;
   outcome?: string;
+  status?: number;
   cpuTime?: number;
   wallTime?: number;
   colo?: string;
@@ -31,6 +32,7 @@ const event = (fields: {
       },
       cf: fields.colo ? { colo: fields.colo } : {},
     },
+    response: { status: fields.status ?? 200 },
   },
 });
 
@@ -90,6 +92,7 @@ describe("sampleOf", () => {
     expect(sample).toEqual({
       route: "POST /api/chat",
       outcome: "ok",
+      status: 200,
       cpuMs: 3,
       wallMs: 900,
       colo: "FRA",
@@ -109,9 +112,11 @@ describe("summarize", () => {
     cpuMs: number,
     wallMs: number,
     outcome = "ok",
+    status = 200,
   ): Sample => ({
     route,
     outcome,
+    status,
     cpuMs,
     wallMs,
     colo: "FRA",
@@ -123,9 +128,20 @@ describe("summarize", () => {
       sample("POST /api/chat", 2, 5000),
       sample("GET /api/vault", 6, 300),
       sample("GET /api/vault", 5, 220, "exceededCpu"),
+      sample("GET /api/market/rates", 9, 8000, "ok", 500),
+      sample("GET /api/market/rates", 9, 7000, "ok", 502),
     ]);
 
     expect(rows).toEqual([
+      {
+        route: "GET /api/market/rates",
+        count: 2,
+        cpuMedian: 9,
+        cpuMax: 9,
+        wallMedian: 7500,
+        wallMax: 8000,
+        failed: 2,
+      },
       {
         route: "POST /api/chat",
         count: 1,

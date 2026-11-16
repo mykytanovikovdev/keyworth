@@ -38,16 +38,23 @@ through the real Google flow (only Google's token endpoint is replaced).
 - Logos: the small variant, cached a day with `private, max-age=86400`, from
   the snapshot or a search; none for an unseen coin or another host; SVG refused.
 - History: the 35 coins Coin Metrics covers take its series through Frankfurter
-  (`base=<coin>&quotes=USD&providers=CM`, from 2010-07-18), any other coin
+  (`base=<coin>&quotes=USD&providers=CM`, from a week before the asked day), any other coin
   CoinGecko's past year; a CoinGecko point closes the day before it and its
   current price is left out; one value per day from the asked day, `null` in a
   gap; rows of another pair, not a number, negative or not a real day (including
   9999-12-31 and before 2010-07-18) are left out; an unknown coin has an empty
   history, cached.
-- Series refresh: one call serves every user; a stale series asks only from a
-  week before its last day and keeps the rest; a failing source leaves an
-  unexpired series as it is, and with nothing usable answers 502 with one log
-  line naming only the source.
+- Series loading: earlier days than those cached are asked for on their own
+  and added; a long range goes in pieces of a year, newest first, the newest
+  open-ended; a request makes at most 30 calls, shared equally between its
+  currencies, and the next one goes on from there.
+- Series refresh: one call serves every user; a stale series is served at once
+  and refreshed after the answer, from a week before its last day (a month back
+  at most for a source silent since), keeping the rest; a failing source leaves
+  an unexpired series as it is (also when adding earlier days), and with
+  nothing usable answers 502 with one log line naming only the source; a
+  failed refresh after the answer logs the same line. An answer cut off while
+  read counts as a failing source.
 - Rates: units per dollar for each currency asked, USDT and USDC from Coin
   Metrics; only the currencies not cached cost a call; USD, unknown or
   lower-case codes, coins and more than 10 are refused, as are a malformed asset
@@ -214,4 +221,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-12
+Last reviewed: 2026-11-16

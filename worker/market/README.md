@@ -11,14 +11,14 @@ into values and P&L (that happens in the browser,
 
 ## How it works
 
-| File             | Role                                                                           |
-| ---------------- | ------------------------------------------------------------------------------ |
-| `coingecko.ts`   | CoinGecko's Demo API: the snapshot, coins by id, search, a year of history     |
-| `frankfurter.ts` | Frankfurter: central banks' rates, Coin Metrics' long history for 35 coins     |
-| `series.ts`      | Daily series kept whole in the cache: merge, slice, refresh only the last days |
-| `cache.ts`       | The shared cache in `market_cache`: fresh, stale and expired entries           |
-| `upstream.ts`    | Every call to a source: time and size limits, errors that name no asset        |
-| `budget.ts`      | CoinGecko's calls budgeted for all users together, and per user by the hour    |
+| File             | Role                                                                        |
+| ---------------- | --------------------------------------------------------------------------- |
+| `coingecko.ts`   | CoinGecko's Demo API: the snapshot, coins by id, search, a year of history  |
+| `frankfurter.ts` | Frankfurter: central banks' rates, Coin Metrics' long history for 35 coins  |
+| `series.ts`      | Daily series from the earliest day asked: pieces of a year, merge, refresh  |
+| `cache.ts`       | The shared cache in `market_cache`: fresh, stale and expired entries        |
+| `upstream.ts`    | Every call to a source: time and size limits, errors that name no asset     |
+| `budget.ts`      | CoinGecko's calls budgeted for all users together, and per user by the hour |
 
 What the server learns by serving prices, the cache lifetimes and every decision:
 [docs/market-data.md](docs/market-data.md).

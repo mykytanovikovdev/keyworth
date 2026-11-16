@@ -83,7 +83,14 @@ async function readCapped(
   const chunks: Uint8Array[] = [];
   let size = 0;
   for (;;) {
-    const { done, value } = await reader.read();
+    let next: ReadableStreamReadResult<Uint8Array>;
+    try {
+      // The time limit covers the body too: a slow answer is cut off here.
+      next = await reader.read();
+    } catch {
+      throw new MarketError(source, "answer cut off");
+    }
+    const { done, value } = next;
     if (done) break;
     size += value.byteLength;
     if (size > maxBytes) {
