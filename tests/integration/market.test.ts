@@ -216,6 +216,18 @@ describe("prices", () => {
     ],
     ["answers something else", () => json({ error: "nope" })],
     ["is unreachable", () => Promise.reject(new TypeError("network"))],
+    [
+      "runs out of time mid-answer",
+      () =>
+        new Response(
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue(new TextEncoder().encode("[{"));
+              controller.error(new DOMException("timed out", "TimeoutError"));
+            },
+          }),
+        ),
+    ],
   ])(
     "answers 502 when the source %s and nothing is cached, and logs no request",
     async (_, answer) => {

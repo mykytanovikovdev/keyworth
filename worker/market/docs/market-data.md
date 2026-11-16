@@ -107,8 +107,9 @@ user's first trade) cuts the series; the server keeps it whole.
    [input-validation.md](../../../shared/schemas/docs/input-validation.md).
 4. A logo comes only from CoinGecko's image host, only as PNG, JPEG, WebP or GIF,
    at most 100 KB. An SVG is a document that can carry script, so it is refused.
-5. A source gets at most 8 seconds per answer, and 2 MB (CoinGecko) or 1 MB
-   (Frankfurter, whose longest series is about 400 KB). A redirect is a failure,
+5. A source gets at most 8 seconds per answer, its body included, and 2 MB
+   (CoinGecko) or 1 MB (Frankfurter, whose longest series is about 400 KB). An
+   answer cut off while it is read is a failure like any other. A redirect is a failure,
    never followed: it would carry the key's header, or an image request, to
    another host.
 6. A price or rate is kept only if it can be real: 0, or between 1e-18 and 1e15.
@@ -173,7 +174,7 @@ user's first trade) cuts the series; the server keeps it whole.
 | `from` before a series starts                                                  | The whole series, with its own `from`                          |
 | A source down, unexpired entry                                                 | Served as it is                                                |
 | A source down, nothing usable                                                  | 502 `market_unavailable`, one log line                         |
-| Answer too large, not JSON, unexpected shape, timeout                          | Same as down                                                   |
+| Answer too large, not JSON, unexpected shape, timeout, cut off mid-answer      | Same as down                                                   |
 | More than 50 ids, an id without `crypto:`                                      | 400 `invalid_ids`                                              |
 | A history asset that is not a `crypto:` id                                     | 400 `invalid_asset`                                            |
 | `from` missing, not a real day, or with a time                                 | 400 `invalid_from`                                             |
@@ -192,8 +193,9 @@ last week only, stale entries while a source fails, each 400, each read's
 limit a minute (429 before any call), a redirect refused, a logo over 100 KB or
 in SVG refused, prices that cannot be real dropped, an unexpected error logged
 by route and not by coin, and how long each source's data is kept. The 8-second
-limit is not tested: the runner cannot wait that long or fake the clock under
-`AbortSignal.timeout`. What it proves about storage:
+limit itself is not tested: the runner cannot wait that long or fake the clock
+under `AbortSignal.timeout`; what it does to an answer being read (the body's
+stream errors) is. What it proves about storage:
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).
 
 ## How to change it safely
@@ -205,4 +207,4 @@ ids, currencies or search text into an error message or a log line. A new
 entry in `COIN_METRICS_CODES` is checked first by comparing the two sources'
 prices for the coin.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-16
