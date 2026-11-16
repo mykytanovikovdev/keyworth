@@ -35,7 +35,7 @@ never has: the operator stores only ciphertext.
 Browser (React SPA) — keys, decrypted data, calculations and agent tools live here
    │  one origin, httpOnly session cookie
    ▼
-Cloudflare Worker (Hono) — sees encrypted envelopes only, except the /api/chat transit
+Cloudflare Worker (Hono) — sees encrypted envelopes only, except the chat's transit to the model
    ├── /            static SPA (Workers Assets)
    ├── /api/auth    sign-in with Google, invite-only beta
    ├── /api/keys    wrapped data keys (never the keys themselves)
