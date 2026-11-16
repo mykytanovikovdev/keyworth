@@ -1,8 +1,8 @@
 /**
  * How the production Worker spends its time, per route: what `npm run perf`
  * prints from the events `wrangler tail` streams. Pure parsing and arithmetic;
- * `perf.ts` runs the tail. Only each request's method, path, outcome, CPU and
- * wall time and where it entered Cloudflare are read: never headers, query
+ * `perf.ts` runs the tail. Only each request's method, path, outcome, status,
+ * CPU and wall time and where it entered Cloudflare are read: never headers, query
  * strings or bodies. Wall time is the time inside the Worker; with placement
  * (wrangler.jsonc), the hop from the entry location to the Worker comes on
  * top, and the tail does not show it (the response's `cf-placement` header
@@ -12,6 +12,8 @@
 export interface Sample {
   route: string;
   outcome: string;
+  /** The response's HTTP status; null when the Worker gave none. */
+  status: number | null;
   cpuMs: number;
   wallMs: number;
   /** The Cloudflare location the request entered at, such as TBS. */
@@ -82,9 +84,12 @@ export function sampleOf(event: unknown): Sample | null {
   if (!request || typeof request.url !== "string") return null;
   const method = typeof request.method === "string" ? request.method : "GET";
   const cf = (request.cf ?? {}) as Record<string, unknown>;
+  const status = (record.event as { response?: { status?: unknown } }).response
+    ?.status;
   return {
     route: routeOf(method, request.url),
     outcome: typeof record.outcome === "string" ? record.outcome : "unknown",
+    status: typeof status === "number" ? status : null,
     cpuMs: Number(record.cpuTime ?? 0),
     wallMs: Number(record.wallTime ?? 0),
     colo: typeof cf.colo === "string" ? cf.colo : null,
@@ -106,7 +111,10 @@ export interface RouteSummary {
   cpuMax: number;
   wallMedian: number;
   wallMax: number;
-  /** Requests whose outcome was not "ok": exceeded limits, exceptions. */
+  /**
+   * Requests that failed: an outcome other than "ok" (exceeded limits, an
+   * exception the runtime caught) or a 5xx our own error handler answered.
+   */
   failed: number;
 }
 
@@ -124,7 +132,9 @@ export function summarize(samples: readonly Sample[]): RouteSummary[] {
       cpuMax: Math.max(...list.map(({ cpuMs }) => cpuMs)),
       wallMedian: median(list.map(({ wallMs }) => wallMs)),
       wallMax: Math.max(...list.map(({ wallMs }) => wallMs)),
-      failed: list.filter(({ outcome }) => outcome !== "ok").length,
+      failed: list.filter(
+        ({ outcome, status }) => outcome !== "ok" || (status ?? 0) >= 500,
+      ).length,
     }))
     .sort((a, b) => b.wallMedian - a.wallMedian);
 }
