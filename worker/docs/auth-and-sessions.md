@@ -62,6 +62,10 @@ never recorded and a date made up afterwards would prove nothing.
 **Rate limits:** Better Auth's own, stored in Postgres (`rate_limit`), per
 client IP from `cf-connecting-ip` (set by Cloudflare, not spoofable by the
 client): 100 requests per 10 seconds, and 3 per 10 seconds on `/sign-in*`.
+Reading the session (`GET /api/auth/get-session`, on every start of the app)
+is not counted: it only reads, a forged cookie fails its signature before any
+query, and the app's own routes check the session without a limit too.
+Counting it cost a read and a write of the counter each time.
 The app's own routes have their limits in
 [routes/docs/api-guards.md](../routes/docs/api-guards.md).
 
@@ -124,7 +128,8 @@ uninvite` or `block` also ends open sessions.
 
 `tests/integration/auth.test.ts` (real OAuth flow with Google's token endpoint
 replaced; invite list, unverified emails, cookie flags, no tokens stored,
-sign-out, CSRF, deletion and freshness, sign-in rate limit),
+sign-out, CSRF, deletion and freshness, sign-in rate limit, session reads not
+counted),
 `tests/integration/users.test.ts` (block, revoke, uninvite, delete) and
 `tests/e2e/auth.spec.ts` (the pages). See
 [tests/integration/docs/storage-and-isolation.md](../../tests/integration/docs/storage-and-isolation.md).

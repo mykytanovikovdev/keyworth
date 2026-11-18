@@ -169,9 +169,10 @@ label-based locators: they double as a basic accessibility check.
 - **The test database must be running** (`npm run db:up`); the global setup
   fails with that hint otherwise.
 - **Each test is its own visitor** (`ownAddress` in `signed-in.ts`, called by
-  every sign-in helper and by `auth.spec.ts`). Better Auth limits requests per
-  client address; locally every test shares one, so a long run would end in
-  429s on `/api/auth/get-session` and a "Something went wrong" page. The
+  every sign-in helper and by `auth.spec.ts`). Better Auth limits its routes
+  per client address (all but `get-session`); locally every test shares one,
+  so a long run could end in 429s from them and a "Something went wrong"
+  page. The
   address is a random IPv6 documentation-range network (Better Auth counts
   IPv6 by /64, so the random part comes first), sent as `cf-connecting-ip`,
   which only Cloudflare's edge sets in production.
