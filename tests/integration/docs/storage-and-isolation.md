@@ -90,6 +90,8 @@ uninviting, deleting and listing, as described in
 
 - Setup stores both slots and the check value once (409 after), and what comes
   back still opens the data key with the passphrase and passes the check.
+  Without the check value, both slots still read as no keys: the slots and
+  the check come in one query, joined on the user.
 - Setup is all or nothing: over a leftover slot it writes nothing (409, no check
   value, no second slot); of three setups sent at once exactly one wins, and
   its slots and check value are the ones stored together.
@@ -221,4 +223,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-18

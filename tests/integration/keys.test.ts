@@ -96,6 +96,16 @@ describe("/api/keys", () => {
     await verifyKeyCheck(dataKey, user.userId, keyCheckFromJson(stored?.check));
   });
 
+  it("shows no keys when the check value is missing, even with both slots", async () => {
+    const { user, body } = await setUp("no-check");
+    await api("/api/keys", { cookie: user.cookie, method: "POST", body });
+    await query("delete from user_key_checks where user_id = $1", [
+      user.userId,
+    ]);
+
+    expect(await storedKeys(user.cookie)).toBeNull();
+  });
+
   it("sets up all three or nothing: over a leftover slot it writes nothing", async () => {
     const { user, body } = await setUp("partial");
     await query(
