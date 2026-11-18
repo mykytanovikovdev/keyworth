@@ -29,7 +29,9 @@ and `scripts/user-admin.ts`.
 4. Every other `/api/*` request goes through `requireSession`: the session is
    read from the cookie **and the database** (no cookie cache), and the user id
    comes only from there — never from a body, URL or model output. No session:
-   401, even for paths that do not exist.
+   401, even for paths that do not exist. The session row and its user come in
+   one query (`advanced.database.joins`, through the relations in
+   `db/auth-schema.ts`).
 5. Writes to the app's own routes also need the app's `Origin` (403
    otherwise); Better Auth checks `Origin` on its own routes.
 
@@ -92,7 +94,9 @@ The app's own routes have their limits in
   passwords to manage; emails are personal data and never in code.
 - **Database sessions, no cookie cache:** revocation (sign-out, deletion,
   `npm run users -- revoke`) takes effect on the next request, at the cost of
-  one query per request.
+  one query per request. That query joins the user to the session: without
+  joins, Better Auth reads them in two queries one after the other, a second
+  round trip to the database on every request.
 - **A fresh auth instance per request** (`createAuth(db, env)`): bindings and
   secrets arrive with each request in Workers.
 - **Blocked emails see "not invited":** nothing confirms to that person that
@@ -132,4 +136,4 @@ Any new route goes after `requireSession` unless it is deliberately public
 callback. Changing session lifetime or freshness changes the threat model:
 update [src/crypto/docs/threat-model.md](../../src/crypto/docs/threat-model.md).
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-18

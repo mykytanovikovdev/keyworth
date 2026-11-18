@@ -103,6 +103,10 @@ export function authOptions(db: Database, env: AuthEnv) {
     // Workers have no shared memory between requests, so limits live in Postgres.
     rateLimit: { enabled: true, storage: "database" },
     advanced: {
+      // The session and its user in one query (a join through the relations
+      // in db/auth-schema.ts) instead of two in turn: one round trip less on
+      // every request that checks the session.
+      database: { joins: true },
       // Set by Cloudflare's edge; the client cannot spoof it.
       ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
     },
