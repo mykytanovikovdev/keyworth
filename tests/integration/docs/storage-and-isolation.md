@@ -36,7 +36,9 @@ through the real Google flow (only Google's token endpoint is replaced).
   results; empty or over-long searches, and searches with a hidden character or
   a line break, are refused.
 - Logos: the small variant, cached a day with `private, max-age=86400`, from
-  the snapshot or a search; none for an unseen coin or another host; SVG refused.
+  the snapshot or a search; none for an unseen coin or another host; SVG refused;
+  a cached logo is served with nothing about it left in the database, and its
+  image is fetched once.
 - History: the 35 coins Coin Metrics covers take its series through Frankfurter
   (`base=<coin>&quotes=USD&providers=CM`, from a week before the asked day), any other coin
   CoinGecko's past year; a CoinGecko point closes the day before it and its

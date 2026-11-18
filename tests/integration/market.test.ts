@@ -404,6 +404,28 @@ describe("logos", () => {
     ]);
   });
 
+  it("serves a cached logo without the database", async () => {
+    const { cookie } = await signedIn("logo-cached");
+    const { calls } = mockSources(images("image/png"));
+    await query(
+      `insert into market_cache (key, value, fetched_at, expires_at)
+       values ('coingecko:logo:crypto:cached-coin',
+               '{"image": "${IMAGES}/5/small/cached.png"}',
+               now(), now() + interval '1 day')`,
+    );
+    const first = await api("/api/assets/crypto:cached-coin/logo", { cookie });
+    expect(first.status).toBe(200);
+
+    // Nothing left to say where the logo is: only the cache can answer.
+    await query("delete from market_cache where key like 'coingecko:logo:%'");
+    const again = await api("/api/assets/crypto:cached-coin/logo", { cookie });
+
+    expect(again.status).toBe(200);
+    expect(again.headers.get("content-type")).toBe("image/png");
+    expect(new Uint8Array(await again.arrayBuffer())).toEqual(PNG);
+    expect(calls).toHaveLength(1);
+  });
+
   it("knows a logo from a search too", async () => {
     const { cookie } = await signedIn("logo-search");
     mockSources((url) =>

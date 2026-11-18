@@ -345,13 +345,19 @@ assets.get("/search", limitSearch, async (c) => {
 /**
  * A coin's logo, through Keyworth: the page's CSP allows images from its own
  * origin only, and fetching from CoinGecko directly would tell it what the user
- * owns. Kept in Cloudflare's cache for a day.
+ * owns. Kept in Cloudflare's cache for a day, under this route's own address:
+ * a portfolio asks for dozens at once, and a cached one needs no database.
  */
 assets.get("/:id/logo", async (c) => {
   const id = c.req.param("id");
   if (!cryptoAssetIdSchema.safeParse(id).success) {
     return c.json({ error: "invalid_id" }, 400);
   }
+  // The same for everyone; the address names the coin only, never the user.
+  const cacheKey = new Request(new URL(`/api/assets/${id}/logo`, c.req.url));
+  const cached = await caches.default.match(cacheKey);
+  if (cached) return logoResponse(c, cached);
+
   // Where its logo is: in the snapshot, its own quote, or a search result.
   const known = await readCached<unknown>(c.get("db"), [
     TOP,
@@ -369,21 +375,21 @@ assets.get("/:id/logo", async (c) => {
     null;
   if (!image) return c.json({ error: "unknown_asset" }, 404);
 
-  const cacheKey = new Request(image);
-  let stored = await caches.default.match(cacheKey);
-  if (!stored) {
-    const logo = await fetchImage(COINGECKO, new URL(image), LOGO_MAX_BYTES);
-    stored = new Response(logo.body, {
-      headers: {
-        "Content-Type": logo.type,
-        "Cache-Control": `max-age=${String(DAY / 1000)}`,
-      },
-    });
-    await caches.default.put(cacheKey, stored.clone());
-  }
+  const logo = await fetchImage(COINGECKO, new URL(image), LOGO_MAX_BYTES);
+  const stored = new Response(logo.body, {
+    headers: {
+      "Content-Type": logo.type,
+      "Cache-Control": `max-age=${String(DAY / 1000)}`,
+    },
+  });
+  await caches.default.put(cacheKey, stored.clone());
+  return logoResponse(c, stored);
+});
+
+async function logoResponse(c: Context<AppEnv>, stored: Response) {
   return c.body(await stored.arrayBuffer(), 200, {
     "Content-Type": stored.headers.get("Content-Type") ?? "image/png",
     // Not user data, and the same for everyone: the browser may keep it.
     "Cache-Control": `private, max-age=${String(DAY / 1000)}`,
   });
-});
+}
