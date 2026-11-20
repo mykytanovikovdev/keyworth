@@ -35,7 +35,9 @@ Covered now:
   - **isolation**: deleting Alice's account removes Alice and her sessions,
     while Bob's account and session keep working;
   - account deletion needs a sign-in from the last 10 minutes;
-  - sign-in attempts are limited to three per 10 seconds per address.
+  - sign-in attempts are limited to three per 10 seconds per address;
+    reading the session (`get-session`) is not counted, while sign-in and the
+    callback from the same address are.
 - **`users.test.ts`**: the operations behind `npm run users`
   (`scripts/user-admin.ts`), run as the Worker's role next to real sign-ins:
   `block` ends sessions at once and keeps the email out (also from `invite`);

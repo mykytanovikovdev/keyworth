@@ -314,4 +314,25 @@ describe("rate limiting", () => {
 
     expect(statuses).toEqual([200, 200, 200, 429]);
   });
+
+  it("does not count reading the session, but counts the address elsewhere", async () => {
+    const user = uniqueUser("reads");
+    await invite(user.email);
+    const { cookie } = await signInWithGoogle(user);
+    for (let i = 0; i < 3; i += 1) {
+      const session = await fetchWorker("/api/auth/get-session", {
+        headers: { cookie, "cf-connecting-ip": user.ip },
+      });
+      expect(session.status).toBe(200);
+    }
+
+    const counted = await query<{ key: string }>(
+      "select key from rate_limit where key like $1 order by key",
+      [`${user.ip}|%`],
+    );
+    expect(counted.map((row) => row.key)).toEqual([
+      `${user.ip}|/callback/google`,
+      `${user.ip}|/sign-in/social`,
+    ]);
+  });
 });

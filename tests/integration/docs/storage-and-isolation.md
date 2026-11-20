@@ -36,7 +36,9 @@ through the real Google flow (only Google's token endpoint is replaced).
   results; empty or over-long searches, and searches with a hidden character or
   a line break, are refused.
 - Logos: the small variant, cached a day with `private, max-age=86400`, from
-  the snapshot or a search; none for an unseen coin or another host; SVG refused.
+  the snapshot or a search; none for an unseen coin or another host; SVG refused;
+  a cached logo is served with nothing about it left in the database, and its
+  image is fetched once.
 - History: the 35 coins Coin Metrics covers take its series through Frankfurter
   (`base=<coin>&quotes=USD&providers=CM`, from a week before the asked day), any other coin
   CoinGecko's past year; a CoinGecko point closes the day before it and its
@@ -90,6 +92,8 @@ uninviting, deleting and listing, as described in
 
 - Setup stores both slots and the check value once (409 after), and what comes
   back still opens the data key with the passphrase and passes the check.
+  Without the check value, both slots still read as no keys: the slots and
+  the check come in one query, joined on the user.
 - Setup is all or nothing: over a leftover slot it writes nothing (409, no check
   value, no second slot); of three setups sent at once exactly one wins, and
   its slots and check value are the ones stored together.
@@ -221,4 +225,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-18

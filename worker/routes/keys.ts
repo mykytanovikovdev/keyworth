@@ -53,12 +53,17 @@ const wrapped = (row: { iv: Uint8Array; wrappedKey: Uint8Array }) => ({
 keys.get("/", async (c) => {
   const db = c.get("db");
   const userId = c.get("user").id;
-  const [rows, [check]] = await Promise.all([
-    db.select().from(userKeySlots).where(eq(userKeySlots.userId, userId)),
-    db.select().from(userKeyChecks).where(eq(userKeyChecks.userId, userId)),
-  ]);
-  const passphrase = rows.find((row) => row.kind === "passphrase");
-  const recovery = rows.find((row) => row.kind === "recovery");
+  // One query, so one connection: two queries at once would each open their
+  // own, and every connection costs a handshake with the database.
+  const rows = await db
+    .select({ slot: userKeySlots, check: userKeyChecks })
+    .from(userKeySlots)
+    .leftJoin(userKeyChecks, eq(userKeyChecks.userId, userKeySlots.userId))
+    .where(eq(userKeySlots.userId, userId));
+  const slot = (kind: string) => rows.find((row) => row.slot.kind === kind);
+  const passphrase = slot("passphrase")?.slot;
+  const recovery = slot("recovery")?.slot;
+  const check = rows[0]?.check;
   if (!passphrase?.kdf || !recovery || !check) {
     return c.json<KeysJson>({ keys: null });
   }

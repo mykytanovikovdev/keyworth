@@ -98,7 +98,10 @@ anyone has asked for.
   coins in a user's list, the results of a search), so the server sees those
   ids too, whether or not the coin is in the snapshot. Nothing about a logo
   request is kept per user or logged; the image itself is cached by Cloudflare
-  under the coin.
+  under the route's own address for the coin (`/api/assets/<id>/logo`), and
+  that cache is asked first: a portfolio asks for dozens of logos at once, and
+  a cached one is served without reading the database (the snapshot of 250
+  coins that says where each logo is).
 - **The sources see only Keyworth's server,** never a user's address: every call,
   logos included, goes through the Worker. Logos also have to, because the page's
   CSP allows images from its own origin only.
@@ -230,4 +233,4 @@ ids, currencies or search text into an error message or a log line. A new
 entry in `COIN_METRICS_CODES` is checked first by comparing the two sources'
 prices for the coin.
 
-Last reviewed: 2026-11-16
+Last reviewed: 2026-11-18

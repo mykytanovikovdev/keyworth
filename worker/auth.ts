@@ -101,8 +101,20 @@ export function authOptions(db: Database, env: AuthEnv) {
     },
     account: { updateAccountOnSignIn: false },
     // Workers have no shared memory between requests, so limits live in Postgres.
-    rateLimit: { enabled: true, storage: "database" },
+    rateLimit: {
+      enabled: true,
+      storage: "database",
+      // Reading the session only reads: a forged cookie fails its signature
+      // before the database, and the app's own routes check the session with
+      // no limit either. Counted, it cost a read and a write of the counter on
+      // every start of the app, on top of the session itself.
+      customRules: { "/get-session": false },
+    },
     advanced: {
+      // The session and its user in one query (a join through the relations
+      // in db/auth-schema.ts) instead of two in turn: one round trip less on
+      // every request that checks the session.
+      database: { joins: true },
       // Set by Cloudflare's edge; the client cannot spoof it.
       ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
     },

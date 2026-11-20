@@ -29,7 +29,9 @@ and `scripts/user-admin.ts`.
 4. Every other `/api/*` request goes through `requireSession`: the session is
    read from the cookie **and the database** (no cookie cache), and the user id
    comes only from there — never from a body, URL or model output. No session:
-   401, even for paths that do not exist.
+   401, even for paths that do not exist. The session row and its user come in
+   one query (`advanced.database.joins`, through the relations in
+   `db/auth-schema.ts`).
 5. Writes to the app's own routes also need the app's `Origin` (403
    otherwise); Better Auth checks `Origin` on its own routes.
 
@@ -60,6 +62,10 @@ never recorded and a date made up afterwards would prove nothing.
 **Rate limits:** Better Auth's own, stored in Postgres (`rate_limit`), per
 client IP from `cf-connecting-ip` (set by Cloudflare, not spoofable by the
 client): 100 requests per 10 seconds, and 3 per 10 seconds on `/sign-in*`.
+Reading the session (`GET /api/auth/get-session`, on every start of the app)
+is not counted: it only reads, a forged cookie fails its signature before any
+query, and the app's own routes check the session without a limit too.
+Counting it cost a read and a write of the counter each time.
 The app's own routes have their limits in
 [routes/docs/api-guards.md](../routes/docs/api-guards.md).
 
@@ -92,7 +98,9 @@ The app's own routes have their limits in
   passwords to manage; emails are personal data and never in code.
 - **Database sessions, no cookie cache:** revocation (sign-out, deletion,
   `npm run users -- revoke`) takes effect on the next request, at the cost of
-  one query per request.
+  one query per request. That query joins the user to the session: without
+  joins, Better Auth reads them in two queries one after the other, a second
+  round trip to the database on every request.
 - **A fresh auth instance per request** (`createAuth(db, env)`): bindings and
   secrets arrive with each request in Workers.
 - **Blocked emails see "not invited":** nothing confirms to that person that
@@ -120,7 +128,8 @@ uninvite` or `block` also ends open sessions.
 
 `tests/integration/auth.test.ts` (real OAuth flow with Google's token endpoint
 replaced; invite list, unverified emails, cookie flags, no tokens stored,
-sign-out, CSRF, deletion and freshness, sign-in rate limit),
+sign-out, CSRF, deletion and freshness, sign-in rate limit, session reads not
+counted),
 `tests/integration/users.test.ts` (block, revoke, uninvite, delete) and
 `tests/e2e/auth.spec.ts` (the pages). See
 [tests/integration/docs/storage-and-isolation.md](../../tests/integration/docs/storage-and-isolation.md).
@@ -132,4 +141,4 @@ Any new route goes after `requireSession` unless it is deliberately public
 callback. Changing session lifetime or freshness changes the threat model:
 update [src/crypto/docs/threat-model.md](../../src/crypto/docs/threat-model.md).
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-18
