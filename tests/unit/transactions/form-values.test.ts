@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   executedAt,
+  heldWithout,
+  kindChangeHint,
   parseAmount,
+  problemErrors,
   typedAmount,
 } from "../../../src/features/transactions/form-values.ts";
 
@@ -91,5 +94,58 @@ describe("reading an amount", () => {
 
   it.each([[""], ["0."], [","]])("finds no amount in %j", (typed) => {
     expect(parseAmount(typed)).toBeNull();
+  });
+});
+
+describe("an edit that changes the kind", () => {
+  it("says what the transaction turns into, and how to add one instead", () => {
+    expect(kindChangeHint("buy", "sell")).toBe(
+      "This turns the purchase into a sale. To sell some of it, add a new transaction.",
+    );
+    expect(kindChangeHint("receive", "send")).toBe(
+      "This turns the coins received into coins sent. To send some of them, add a new transaction.",
+    );
+    expect(kindChangeHint("sell", "buy")).toBe(
+      "This turns the sale into a purchase. To buy more, add a new transaction.",
+    );
+    expect(kindChangeHint("buy", "receive")).toBe(
+      "This turns the purchase into coins received. To receive more, add a new transaction.",
+    );
+  });
+
+  it("says nothing while the kind stays", () => {
+    for (const kind of ["buy", "sell", "receive", "send"] as const) {
+      expect(kindChangeHint(kind, kind)).toBeNull();
+    }
+  });
+
+  it("names what the holdings leave out only when coins in become coins out", () => {
+    expect(heldWithout("buy", "sell")).toBe("this purchase");
+    expect(heldWithout("receive", "send")).toBe("these received coins");
+    expect(heldWithout("sell", "sell")).toBeUndefined();
+    expect(heldWithout("buy", "receive")).toBeUndefined();
+    expect(heldWithout("sell", "buy")).toBeUndefined();
+  });
+
+  it("puts it into the refusal of this transaction's quantity", () => {
+    const oversold = {
+      kind: "oversold",
+      transactionId: "this-one",
+      assetId: "crypto:cardano",
+      executedAt: "2026-11-20T12:00:00.000Z",
+      held: "0",
+      asked: "3423434",
+    } as const;
+    const words = (without?: string) =>
+      problemErrors([oversold], {
+        isThisOne: (id) => id === "this-one",
+        symbolOf: () => "ADA",
+        without,
+      }).quantity;
+
+    expect(words("this purchase")).toBe(
+      "Without this purchase, you held 0 ADA on November 20, 2026.",
+    );
+    expect(words()).toBe("You held 0 ADA on November 20, 2026.");
   });
 });

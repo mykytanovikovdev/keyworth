@@ -53,8 +53,15 @@ portfolio; typing filters them in the browser, with no server search. Nothing
 is lost: with none of a coin left today, taking some out on any earlier day
 leaves a later sale short, which the ledger refuses anyway. A coin picked on Buy
 stays picked when the kind changes, and "Held on …: 0" says there is nothing to
-sell. Every screen and state is on `/design/transactions` (dev and design
-builds).
+sell. An edit that changes the kind says what it does under the kinds
+(`kindChangeHint` in `form-values.ts`, an `info` notice; owner's decision,
+2026-11-20): "This turns the purchase into a sale. To sell some of it, add a
+new transaction." Turning the only purchase of a coin into a sale is then
+refused, and the refusal names what the count left out: "Without this
+purchase, you held 0 ADA on …" (`heldWithout`). Without both, the edit read as
+selling what was bought, and "You held 0" as a bug. Every screen and state is
+on `/design/transactions` (dev and design builds); the hint shows on "12. Edit"
+once another kind is chosen.
 
 **Wiring.** `useTransactionEditor()` (`editor.tsx`) is the one way a page changes a
 transaction: the transactions page and the portfolio page both render its

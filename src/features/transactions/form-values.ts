@@ -241,16 +241,60 @@ export function fromTransaction(
   }
 }
 
+const bringsIn = (kind: FormKind) => kind === "buy" || kind === "receive";
+
+/** What an edited transaction was, and what an edit can make it. */
+const WAS: Record<FormKind, string> = {
+  buy: "the purchase",
+  sell: "the sale",
+  receive: "the coins received",
+  send: "the coins sent",
+};
+const BECOMES: Record<FormKind, string> = {
+  buy: "a purchase",
+  sell: "a sale",
+  receive: "coins received",
+  send: "coins sent",
+};
+
+/**
+ * Said under the kinds when an edit changes one: the edit turns this
+ * transaction into another, it adds nothing. Without it, turning a purchase
+ * into a sale reads as selling what was bought, and the refusal that follows
+ * ("You held 0 ADA") looks like a bug.
+ */
+export function kindChangeHint(was: FormKind, now: FormKind): string | null {
+  if (was === now) return null;
+  const what =
+    bringsIn(was) && !bringsIn(now)
+      ? `some of ${was === "buy" ? "it" : "them"}`
+      : "more";
+  return `This turns ${WAS[was]} into ${BECOMES[now]}. To ${now} ${what}, add a new transaction.`;
+}
+
+/**
+ * How a refusal names what the holdings were counted without, when an edit
+ * turns coins coming in into coins going out: the edited transaction no
+ * longer adds them, so "You held 0" alone reads as wrong.
+ */
+export function heldWithout(was: FormKind, now: FormKind): string | undefined {
+  if (!bringsIn(was) || bringsIn(now)) return undefined;
+  return was === "buy" ? "this purchase" : "these received coins";
+}
+
 /** The service's refusals in words, next to the field they concern. */
 export function problemErrors(
   problems: readonly TransactionProblem[],
   {
     isThisOne,
     symbolOf,
+    without,
   }: {
     /** Whether a problem concerns the transaction in the form, not a later one. */
     isThisOne: (transactionId: string) => boolean;
     symbolOf: (assetId: string) => string;
+    /** What the form's own holdings leave out (`heldWithout`), if worth saying. */
+    without?: string | undefined;
   },
 ): FieldErrors {
   const errors: FieldErrors = {};
@@ -271,7 +315,9 @@ export function problemErrors(
         const held = formatQuantity(problem.held, symbol);
         const when = dateInWords(problem.executedAt);
         if (isThisOne(problem.transactionId)) {
-          errors.quantity = `You held ${held} on ${when}.`;
+          errors.quantity = without
+            ? `Without ${without}, you held ${held} on ${when}.`
+            : `You held ${held} on ${when}.`;
         } else {
           errors.form = `This would leave your ${formatQuantity(problem.asked, symbol)} going out on ${when} short: only ${held} would be left by then.`;
         }

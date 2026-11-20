@@ -16,6 +16,12 @@ the database together, with Argon2 at its production settings.
   under Trusted Types, [src/ui/README.md](../../../src/ui/README.md)).
 - **The ledger's rule at the form:** selling more than was held shows "You held
   0.5 BTC on …" at the quantity, and the database keeps only the purchase.
+- **Turning the only purchase into a sale (Chromium only, text):** editing it
+  and choosing Sell shows "This turns the purchase into a sale…"; saving is
+  refused with "Without this purchase, you held 0 BTC on …"; back on Buy the
+  hint is gone, and the database still holds one record. Adding a sale shows no
+  such hint. Every pair of kinds and both refusal texts are unit-tested in
+  `tests/unit/transactions/form-values.test.ts`.
 - **A sale picks among the coins held; All:** on Sell the coin list offers only
   the coin held, with its quantity (none of the snapshot's other coins); "Held
   on …: 0.53124 BTC" is shown and **All** fills in exactly that, which is then
@@ -64,4 +70,4 @@ Sign in with `openApp(page, context, baseURL)` (a user with keys, unlocked on
 and the database (`storedTransactions(userId)`). Rows exist twice in the page,
 for a phone and a wide screen: find text with `visible(page, text)`.
 
-Last reviewed: 2026-11-12
+Last reviewed: 2026-11-20

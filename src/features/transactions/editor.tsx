@@ -19,6 +19,7 @@ import {
   type FieldErrors,
   type FormValues,
   fromTransaction,
+  heldWithout,
   problemErrors,
   toTransaction,
 } from "./form-values.ts";
@@ -241,6 +242,10 @@ export function useTransactionEditor() {
           isThisOne: (id) =>
             id === form.id || !list.records.some((r) => r.id === id),
           symbolOf: (assetId) => assetOf(assetId).symbol,
+          without:
+            form.mode === "edit"
+              ? heldWithout(form.values.kind, values.kind)
+              : undefined,
         }),
       );
       if (error.latest) {

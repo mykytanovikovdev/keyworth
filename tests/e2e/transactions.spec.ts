@@ -179,6 +179,8 @@ test("a sale offers the coins held, and All sells what was held that day", async
   // A sale offers only the coins held, each with how much is left.
   const form = dialogOf(page, "Add transaction");
   await form.getByRole("radio", { name: "Sell" }).click();
+  // A new transaction turns nothing into anything: no hint about the kind.
+  await expect(form.getByText(/^This turns /)).toHaveCount(0);
   await form
     .getByRole("button", { name: "Show coin options" })
     .click(LIKE_A_PERSON);
@@ -216,6 +218,33 @@ test("refuses a sale of more than was held, and stores nothing", async ({
   });
 
   await expect(dialog.getByText(/^You held 0\.5 BTC on /)).toBeVisible();
+  expect(await storedTransactions(userId)).toHaveLength(1);
+});
+
+test("turning the only purchase into a sale says what that does, and is refused @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { userId } = await openApp(page, context, baseURL);
+  await add(page);
+  await expect(visible(page, "+0.5 BTC")).toBeVisible();
+
+  await page.getByRole("button", { name: /^Edit .*\+0\.5 BTC/ }).click();
+  const dialog = dialogOf(page, "Edit transaction");
+  const hint = dialog.getByText(/^This turns /);
+  await expect(hint).toHaveCount(0);
+  await dialog.getByRole("radio", { name: "Sell" }).click();
+  await expect(hint).toHaveText(
+    "This turns the purchase into a sale. To sell some of it, add a new transaction.",
+  );
+  await dialog.getByRole("button", { name: "Save changes" }).click();
+  await expect(
+    dialog.getByText(/^Without this purchase, you held 0 BTC on /),
+  ).toBeVisible();
+
+  await dialog.getByRole("radio", { name: "Buy" }).click();
+  await expect(hint).toHaveCount(0);
   expect(await storedTransactions(userId)).toHaveLength(1);
 });
 
