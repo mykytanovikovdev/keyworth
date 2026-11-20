@@ -1,4 +1,4 @@
-import type { Page } from "@playwright/test";
+import type { Download, Page } from "@playwright/test";
 
 declare global {
   interface Window {
@@ -50,3 +50,15 @@ export async function chooseTheme(
  * slowed sixfold that failed 6 runs of 6; with this pause, none.
  */
 export const LIKE_A_PERSON = { delay: 120 } as const;
+
+/**
+ * A downloaded file as text. Read as a stream: when the browser runs in Docker
+ * (scripts/e2e-docker.ts), the file has no path on this machine.
+ */
+export async function downloadedText(download: Download): Promise<string> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of await download.createReadStream()) {
+    chunks.push(chunk as Buffer);
+  }
+  return Buffer.concat(chunks).toString("utf8");
+}

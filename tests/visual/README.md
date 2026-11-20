@@ -69,7 +69,8 @@ artifact).
   rendered by Chromium inside `mcr.microsoft.com/playwright:v1.64.1-noble`,
   pinned by digest, on `linux/amd64` (emulated on Apple silicon).
 - **Only the browser is in Docker, locally and in CI.** `scripts/visual.ts` starts
-  Playwright's browser server in the image and the tests connect to it; the web
+  Playwright's browser server in the image (`scripts/browser-server.ts`, shared
+  with the end-to-end tests) and the tests connect to it; the web
   server and test runner stay on the host, so there is no `npm ci` inside a
   container. `exposeNetwork: "<loopback>"` lets the containerized browser open
   `localhost:4174` on the host.
@@ -111,12 +112,14 @@ committing it.
 - **Never update baselines with a plain `npx playwright test`** on macOS: it
   would write macOS renderings that fail in CI. Always go through
   `npm run test:visual:update`.
-- **Keep the image tag, its digest and `@playwright/test` on the same
-  version** (in `scripts/visual.ts`, `ci.yml` and `package.json`). A Playwright
-  upgrade means updating all three and regenerating the baselines in a separate
-  commit. A Dependabot pull request that bumps only `@playwright/test` is
-  expected to fail the `visual` job: the image ships the browsers of the older
-  version.
+- **Keep the image tag, its digests and `@playwright/test` on the same
+  version** (in `scripts/browser-server.ts` and `package.json`). The image is
+  pinned by one digest per architecture (amd64 for these tests, the host's own
+  for the end-to-end tests); `docker buildx imagetools inspect <tag>` lists
+  both. A Playwright upgrade means updating all of them and regenerating the
+  baselines in a separate commit. A Dependabot pull request that bumps only `@playwright/test` is
+  expected to fail the `visual` and `e2e` jobs: the image ships the browsers of
+  the older version.
 - **A stale server on 4174 is reused locally** (`reuseExistingServer`). Stop
   it after changing code, or the screenshots show the old build.
 - **The first run under emulation is slow** (Chromium on `linux/amd64` on an

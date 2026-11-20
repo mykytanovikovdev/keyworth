@@ -5,8 +5,8 @@ import { testServerVars } from "../support/session.ts";
 
 // Screenshot comparison of /design. Baselines are rendered by Chromium inside
 // the official Playwright Linux image, so they match pixel for pixel on any
-// machine: in CI the whole job runs in that image; locally `npm run test:visual`
-// starts the image and connects to its browser (scripts/visual.ts).
+// machine: `npm run test:visual`, locally and in CI, starts the image and
+// connects to its browser (scripts/visual.ts).
 
 const isCI = Boolean(process.env.CI);
 const root = resolve(import.meta.dirname, "../..");

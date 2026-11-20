@@ -1,4 +1,3 @@
-import { readFile } from "node:fs/promises";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, type Page, test } from "@playwright/test";
 import {
@@ -14,6 +13,7 @@ import { stubMarket } from "./market.ts";
 import {
   collectErrors,
   cspViolations,
+  downloadedText,
   LIKE_A_PERSON,
   watchCspViolations,
 } from "./support.ts";
@@ -120,7 +120,7 @@ test("onboarding: a passphrase, the recovery key shown once, then the app", asyn
     page.getByRole("button", { name: "Download" }).click(),
   ]);
   expect(download.suggestedFilename()).toBe("keyworth-recovery-key.txt");
-  expect(await readFile(await download.path(), "utf8")).toContain(recoveryKey);
+  expect(await downloadedText(download)).toContain(recoveryKey);
 
   await page.getByRole("button", { name: "I've saved it" }).click();
   await expect(appHome(page)).toBeVisible();

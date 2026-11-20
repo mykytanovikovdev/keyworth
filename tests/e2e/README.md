@@ -93,6 +93,8 @@ chat, which arrives with its phase. Screenshot comparison lives in [`tests/visua
 ```sh
 npm run db:up                                 # once: the local test database (Docker)
 npm run test:e2e                              # builds both, serves :4173 and :4174, runs all projects
+npm run test:e2e:docker                       # the same with the browsers in the Playwright image (CI)
+npm run test:e2e:docker -- --project=firefox  # Firefox where it does not start on the host
 npx playwright test --project=headers         # HTTP checks only, fast
 npx playwright test --project=chromium        # production build, one browser
 npx playwright test --project=design-webkit   # /design, one browser
@@ -100,8 +102,9 @@ npx playwright show-report                    # after a failure (traces are kept
 PLAYWRIGHT_BASE_URL=https://keyworth.app npx playwright test --project=headers --project=chromium
 ```
 
-First run on a new machine: `npx playwright install chromium firefox webkit`.
-No account, database or network access to third parties is needed.
+First run on a new machine: `npx playwright install chromium firefox webkit`
+(or only Docker, for `test:e2e:docker`). No account, database or network access
+to third parties is needed.
 
 ## Approach
 
@@ -126,6 +129,14 @@ No account, database or network access to third parties is needed.
 - **One suite, two targets:** `PLAYWRIGHT_BASE_URL` switches from the local build
   to a deployed URL; CI runs the `headers` and `chromium` projects against
   production right after each deploy.
+- **In CI the browsers come from the Playwright Docker image**
+  (`npm run test:e2e:docker`, `scripts/browser-server.ts`): the same pinned image
+  as the visual tests runs Playwright's browser server, and the test runner and
+  both web servers stay on the runner. `playwright install --with-deps` was
+  dropped because the browsers' system packages come from the runner's Ubuntu
+  mirror, which has taken from one to over twenty minutes and twice ran the job
+  past its time limit. `exposeNetwork: "<loopback>"` lets those browsers open
+  the runner's `localhost`; a deployed site they reach directly.
 - CSP violations are captured twice: through a `securitypolicyviolation` listener
   injected before any page script, and through console errors.
 - Expected header values are written out in the test, never imported from the
@@ -166,6 +177,13 @@ label-based locators: they double as a basic accessibility check.
 - A new header or CSP change must be made in `public/_headers` (or
   `worker/security-headers.ts`) **and** in the expectations here; that is
   intentional friction.
+- **Read a download through `downloadedText()`** (`support.ts`), not
+  `download.path()`: with the browsers in Docker the file has no path on the
+  host, and `path()` throws.
+- **Keep the image and `@playwright/test` on the same version**
+  (`scripts/browser-server.ts`, `package.json`): the browser server in the image
+  comes from `node_modules`, the browsers from the image, and a mismatch means
+  "Executable doesn't exist". See [tests/visual/README.md](../visual/README.md).
 - **The test database must be running** (`npm run db:up`); the global setup
   fails with that hint otherwise.
 - **Each test is its own visitor** (`ownAddress` in `signed-in.ts`, called by
