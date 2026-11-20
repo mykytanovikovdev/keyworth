@@ -216,9 +216,16 @@ characters. The rules, the attacks they stop and the checklist for a new field:
 
 ### Reporting a vulnerability
 
-The repository is private during early development, and a dedicated private
-reporting channel will be published here before it becomes public. Until then,
-please report issues directly to the maintainer and do not disclose them publicly.
+Please report it privately through GitHub:
+[Security → Report a vulnerability](https://github.com/mykytanovikovdev/keyworth/security/advisories/new).
+Only the maintainer sees the report, and the fix and the advisory are worked out
+there before anything is made public. Do not open a public issue, pull request or
+discussion for it.
+
+What counts: anything that lets someone read another user's data, reach a
+passphrase, recovery key or data key, act as another user, or get around the
+invite list, the rate limits or the content security policy. Keyworth is in
+early development and run for a small group, so there is no bug bounty.
 
 ## License
 

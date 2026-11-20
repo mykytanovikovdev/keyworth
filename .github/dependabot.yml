@@ -19,6 +19,13 @@ updates:
       # stable compiler API for it yet.
       - dependency-name: "typescript"
         update-types: ["version-update:semver-major"]
+      # Their Firefox crashes the page when a label is looked up after an axe
+      # scan (microsoft/playwright#43967), which fails our axe tests. Fixed on
+      # Playwright's main; remove this entry once a release with the fix is out.
+      # A Playwright update also needs the matching Docker image and digest in
+      # scripts/visual.ts, which Dependabot does not change.
+      - dependency-name: "@playwright/test"
+        versions: ["1.65.0", "1.65.1"]
     groups:
       runtime:
         dependency-type: production
