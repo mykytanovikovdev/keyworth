@@ -11,6 +11,7 @@ import { stubMarket } from "./market.ts";
 import {
   collectErrors,
   cspViolations,
+  downloadedText,
   LIKE_A_PERSON,
   watchCspViolations,
 } from "./support.ts";
@@ -443,8 +444,7 @@ test("exports every transaction as a CSV file that imports back as recorded", as
   expect(download.suggestedFilename()).toMatch(
     /^keyworth-transactions-\d{4}-\d{2}-\d{2}\.csv$/,
   );
-  const path = await download.path();
-  const text = (await import("node:fs")).readFileSync(path, "utf8");
+  const text = await downloadedText(download);
   const [header, row] = text.replace(/^\uFEFF/, "").split("\r\n");
   expect(header).toBe(
     "Date,Type,Coin,Symbol,Quantity,Price,Currency,Fee,Fee currency,Note",

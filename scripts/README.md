@@ -14,7 +14,9 @@ the SPA or the Worker.
 | ------------------------- | ------------------------------------------------------------------------- |
 | `check-licenses.ts`       | CLI: reads `package-lock.json`, prints violations, exits non-zero         |
 | `license-policy.ts`       | The policy (allowlists, exceptions) and pure functions to evaluate it     |
+| `browser-server.ts`       | Starts the pinned Playwright image's browser server and runs the tests    |
 | `visual.ts`               | Runs `tests/visual` with Chromium in the Playwright image, here and in CI |
+| `e2e-docker.ts`           | Runs `tests/e2e` with every browser in the Playwright image (CI, deploy)  |
 | `users.ts`                | `npm run users`: invites, sessions, blocks and account deletion           |
 | `user-admin.ts`           | The SQL behind `users.ts`, without I/O, so the Worker tests can run it    |
 | `generate-auth-schema.ts` | `npm run db:auth-schema`: regenerates Better Auth's tables                |
@@ -163,9 +165,18 @@ check`). A false positive: use an example address or range rather than widen
 - `npm run db:auth-schema` — runs Better Auth's CLI at the installed version
   (not the newest on npm) and switches every timestamp to `with time zone`.
 - `npm run test:visual` / `npm run test:visual:update` — `visual.ts` starts the
-  pinned Playwright image (as `linux/amd64`, like CI), serves its browser on
-  `127.0.0.1:3123`, runs the tests on this machine against it, and removes the
-  container afterwards. Why and how: [tests/visual/README.md](../tests/visual/README.md).
+  pinned Playwright image (as `linux/amd64`, like CI) through
+  `browser-server.ts`, serves its browser on `127.0.0.1:3123`, runs the tests on
+  this machine against it, and removes the container afterwards. Why and how:
+  [tests/visual/README.md](../tests/visual/README.md).
+- `npm run test:e2e:docker` — `e2e-docker.ts` does the same for the end-to-end
+  tests on `127.0.0.1:3124`, with Chromium, Firefox and WebKit from the image,
+  in the host's own architecture (no pixels are compared). CI's e2e job and the
+  post-deploy smoke test use it, so no runner installs browsers or their system
+  packages. Extra arguments go to `playwright test`. The image is pinned by one
+  digest per architecture, not the multi-platform index: Docker's classic image
+  store keeps one platform per reference, and on Apple silicon the visual tests
+  need amd64 while these run arm64. Why: [tests/e2e/README.md](../tests/e2e/README.md).
 
 ## Related
 

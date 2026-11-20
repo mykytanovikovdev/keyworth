@@ -79,7 +79,8 @@ npm run dev             # SPA + Worker on one port, with hot reload
 ```
 
 For end-to-end tests, install the browsers once:
-`npx playwright install chromium firefox webkit`.
+`npx playwright install chromium firefox webkit`, or run them from the
+Playwright Docker image with `npm run test:e2e:docker`, as CI does.
 
 ## Scripts
 
@@ -91,6 +92,7 @@ For end-to-end tests, install the browsers once:
 | `npm run check`              | Format, lint, types, Worker types, tests, licenses, docs, build pre-merge |
 | `npm test`                   | Unit (Node) and Worker (workerd) tests                                    |
 | `npm run test:e2e`           | Playwright against fresh production and design builds                     |
+| `npm run test:e2e:docker`    | The same, with the browsers in the Playwright Docker image (as in CI)     |
 | `npm run test:visual`        | Screenshots of `/design` against the baselines (needs Docker)             |
 | `npm run test:visual:update` | Rewrite the screenshot baselines after an intended change                 |
 | `npm run lint`               | ESLint, including the project's security rules                            |

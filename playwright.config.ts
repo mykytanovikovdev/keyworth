@@ -6,6 +6,10 @@ import { testServerVars } from "./tests/support/session.ts";
 // (the post-deploy smoke test in CI). Otherwise local builds are used.
 const remoteBaseUrl = process.env.PLAYWRIGHT_BASE_URL;
 const isCI = Boolean(process.env.CI);
+// Set by scripts/e2e-docker.ts: the browsers run in the Playwright Docker image,
+// the tests and the servers run here. `<loopback>` lets those browsers reach
+// this machine's localhost.
+const wsEndpoint = process.env.PW_BROWSER_WS_ENDPOINT;
 
 // Each build is served by `wrangler dev` from its own output config, so the two
 // servers can run side by side (`vite preview` serves whichever build ran last).
@@ -33,6 +37,9 @@ export default defineConfig({
   use: {
     baseURL: productionUrl,
     trace: "retain-on-failure",
+    ...(wsEndpoint && {
+      connectOptions: { wsEndpoint, exposeNetwork: "<loopback>" },
+    }),
   },
   projects: [
     // The production build. HTTP-level checks need no browser.

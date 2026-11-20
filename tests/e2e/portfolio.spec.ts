@@ -196,10 +196,12 @@ test("fits a 320px screen with no axe violations", async ({
   context,
   baseURL,
 }) => {
+  // Final states only, from the start: switched on after the purchase, it let
+  // axe catch the holdings list still fading in (contrast 1.03 in WebKit).
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 320, height: 800 });
   await openApp(page, context, baseURL);
   await buyBitcoin(page);
-  await page.emulateMedia({ reducedMotion: "reduce" });
 
   expect(
     await page.evaluate(
