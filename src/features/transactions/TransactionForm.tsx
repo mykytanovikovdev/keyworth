@@ -36,6 +36,7 @@ import {
   type FormValues,
   AMOUNT_MAX_LENGTH,
   executedAt,
+  kindChangeHint,
   parseAmount,
   type PriceOnDay,
   typedAmount,
@@ -180,6 +181,9 @@ export function TransactionForm({
       : null;
   const total = totalOf(values);
   const symbol = values.asset?.symbol ?? "";
+  // An edit that changes the kind turns this transaction into another one.
+  const kindHint =
+    mode === "edit" ? kindChangeHint(initial.kind, values.kind) : null;
 
   return (
     <Dialog
@@ -219,6 +223,7 @@ export function TransactionForm({
               if (isKind(id)) update({ kind: id });
             }}
           />
+          {kindHint && <Notice tone="info">{kindHint}</Notice>}
           <ComboBox
             label="Coin"
             placeholder={fromHeld ? "Search your coins" : "Search coins"}
