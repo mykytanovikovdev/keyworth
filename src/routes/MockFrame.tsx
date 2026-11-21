@@ -33,21 +33,23 @@ export function MockFrame({
       title={title}
       links={MOCK_LINKS}
       chat={{
-        chats: noChats ? [] : chats,
-        currentId: currentChatId,
         newChat: MOCK_NEW_CHAT,
-        hrefOf: mockChatHref,
-        onDelete: (id) => {
-          const before = mockChats.get();
-          mockChats.set(before.filter((chat) => chat.id !== id));
-          showToast("Chat deleted", {
-            action: {
-              label: "Undo",
-              onAction: () => {
-                mockChats.set(before);
+        list: {
+          chats: noChats ? [] : chats,
+          currentId: currentChatId,
+          hrefOf: mockChatHref,
+          onDelete: (id) => {
+            const before = mockChats.get();
+            mockChats.set(before.filter((chat) => chat.id !== id));
+            showToast("Chat deleted", {
+              action: {
+                label: "Undo",
+                onAction: () => {
+                  mockChats.set(before);
+                },
               },
-            },
-          });
+            });
+          },
         },
       }}
     >

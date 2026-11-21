@@ -4,11 +4,11 @@ import {
   Fragment,
   type ReactNode,
   useEffect,
-  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
 import { answerClassName } from "../features/chat/answer-styles.ts";
+import { STARTER_QUESTIONS, useFollow } from "../features/chat/follow.ts";
 import { ChatLayout, EmptyChat } from "../features/chat/ChatLayout.tsx";
 import { Composer } from "../features/chat/Composer.tsx";
 import { DeleteAllChatsDialog } from "../features/chat/DeleteAllChatsDialog.tsx";
@@ -232,13 +232,6 @@ const olderChat = (title: string): Turn => ({
   },
 });
 
-const SUGGESTIONS = [
-  "How did my portfolio do this month?",
-  "Which coin moved the most this week?",
-  "What's my biggest holding?",
-  "Compare Bitcoin and Ethereum",
-];
-
 // ---------------------------------------------------------------------------
 // A made-up answer, revealed word by word as a stream would.
 
@@ -447,20 +440,6 @@ function useConversation(start: Played[]) {
   return { turns, playing, ask, end, retry };
 }
 
-/** While an answer grows, keep its end in view, unless the reader scrolled up. */
-function useFollow(dependency: unknown) {
-  const endRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    const end = endRef.current;
-    if (!end) return;
-    const nearBottom =
-      window.innerHeight + window.scrollY >=
-      document.documentElement.scrollHeight - 160;
-    if (nearBottom) end.scrollIntoView({ block: "end" });
-  }, [dependency]);
-  return endRef;
-}
-
 /** Next midnight UTC, in the viewer's own time: when today's limit resets. */
 const RESETS_AT = new Intl.DateTimeFormat("en-US", {
   timeStyle: "short",
@@ -540,7 +519,7 @@ function NewChat({ limit = false }: { limit?: boolean }) {
   }
   return (
     <EmptyChat
-      suggestions={SUGGESTIONS}
+      suggestions={STARTER_QUESTIONS}
       onSend={setAsked}
       isDisabled={limit}
       {...(limit && { notice: <LimitNotice /> })}
