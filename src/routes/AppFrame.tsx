@@ -28,13 +28,20 @@ export interface AppLinks {
   settings: string;
 }
 
-/** The menu's chat part: New chat and the list of chats. */
+/** The menu's chat part: New chat and, once chats are kept, their list. */
 export interface FrameChats {
-  chats: readonly ChatSummary[];
-  currentId?: string | undefined;
-  onDelete: (id: string) => void;
   newChat: string;
-  hrefOf: (id: string) => string;
+  /** Runs as New chat is followed: the conversation starts over. */
+  onNewChat?: (() => void) | undefined;
+  /** Absent until chats are kept (phase 5.3): the menu shows no list. */
+  list?:
+    | {
+        chats: readonly ChatSummary[];
+        currentId?: string | undefined;
+        onDelete: (id: string) => void;
+        hrefOf: (id: string) => string;
+      }
+    | undefined;
 }
 
 interface AppFrameProps {
@@ -98,7 +105,9 @@ export function AppFrame({
               <span className="truncate">{title}</span>
             )}
           </p>
-          {section === "chat" && chat && <NewChatIcon href={chat.newChat} />}
+          {section === "chat" && chat && (
+            <NewChatIcon href={chat.newChat} onPress={chat.onNewChat} />
+          )}
         </header>
         <main className="flex flex-1 flex-col">{children}</main>
       </div>
@@ -161,16 +170,22 @@ function AppMenu({ section, links, chat, onClose }: AppMenuProps) {
             href={chat.newChat}
             icon={<SquarePen aria-hidden="true" />}
             className="w-full"
+            {...(chat.onNewChat && { onPress: chat.onNewChat })}
           >
             New chat
           </ButtonLink>
-          <ChatList
-            chats={chat.chats}
-            currentId={chat.currentId}
-            hrefOf={chat.hrefOf}
-            onDelete={chat.onDelete}
-            className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pt-2"
-          />
+          {chat.list ? (
+            <ChatList
+              chats={chat.list.chats}
+              currentId={chat.list.currentId}
+              hrefOf={chat.list.hrefOf}
+              onDelete={chat.list.onDelete}
+              className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pt-2"
+            />
+          ) : (
+            // The sections stay at the bottom, where the list would end.
+            <div className="flex-1" />
+          )}
         </>
       )}
       {/* Under the chats, set apart; with no chats, right under the name. */}
@@ -199,11 +214,18 @@ function AppMenu({ section, links, chat, onClose }: AppMenuProps) {
 }
 
 /** "New chat" as an icon in the phone bar, while a chat is open. */
-function NewChatIcon({ href }: { href: string }) {
+function NewChatIcon({
+  href,
+  onPress,
+}: {
+  href: string;
+  onPress?: (() => void) | undefined;
+}) {
   return (
     <Tooltip content="New chat">
       <Link
         href={href}
+        {...(onPress && { onPress })}
         aria-label="New chat"
         className="inline-flex size-9 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors duration-(--kw-duration-fast) data-hovered:bg-hover data-hovered:text-fg data-pressed:bg-hover"
       >

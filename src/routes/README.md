@@ -15,6 +15,7 @@ and the pages that belong to no feature (not found, the dev-only mockups).
 | `AppFrame.tsx`                   | The frame: the menu in a left column, behind a button in a one-line bar on narrow screens         |
 | `/` → `PortfolioPage`            | The signed-in start page ([src/features/portfolio](../features/portfolio/README.md))              |
 | `/transactions`                  | The transactions and their form ([src/features/transactions](../features/transactions/README.md)) |
+| `/chat`                          | The chat ([src/features/chat](../features/chat/README.md)); its code is not fetched ahead         |
 | `NotFoundPage.tsx`               | Any unknown path                                                                                  |
 | `KdfBenchmarkPage.tsx`           | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                |
 | `EncryptionMockupsPage.tsx`      | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2            |
@@ -27,6 +28,7 @@ and the pages that belong to no feature (not found, the dev-only mockups).
              ┌ session layout: no session → redirect to /sign-in
 /            │ ┐ app layout: the key gate (create a passphrase, unlock)
 /transactions│ │
+/chat        │ │   one conversation per tab until chats are kept
 /settings    │ ┘   ?then=change-passphrase | new-recovery-key | delete-account
 /recover     └   outside the gate: a forgotten passphrase
 /sign-in       a session → redirect to /
@@ -61,7 +63,9 @@ and the pages that belong to no feature (not found, the dev-only mockups).
   Portfolio, Transactions and Settings code in the background
   (`preloadSections`): code only, no data, and little of it (from the start
   page, about 8 kB gzip: the rest is shared with the portfolio). The first
-  switch to a section is then instant, and the first load is not slower.
+  switch to a section is then instant, and the first load is not slower. The
+  chat is left out: its chunk carries the AI SDK and a markdown parser (about
+  155 kB gzip), for those who open it.
 - **Guards decide pages, not access.** `beforeLoad` redirects based on the
   cached session, but the Worker checks the session on every API request; a
   page that slipped through would get no data.
@@ -73,9 +77,10 @@ and the pages that belong to no feature (not found, the dev-only mockups).
   mockup on 2026-11-14): on wide screens a left column, below 1024 px a
   one-line bar whose button opens the same menu in a `Drawer`. A header with
   sections took two rows on phones. The theme is chosen in Settings only. The
-  chat's part of the menu (New chat, the chats) is optional: the app has no
-  chat yet, so its menu holds the sections alone; the mockups pass made-up
-  chats.
+  chat's part of the menu is New chat and, once chats are kept (phase 5.3),
+  their list: until then the app shows New chat alone, which starts the
+  conversation over (`chatSession.startOver`, light enough for the frame),
+  and the mockups pass made-up chats.
 - **`/design` is a conditional route.** In a production build its condition is
   the constant `false`, so the page's code is not in the bundle.
 

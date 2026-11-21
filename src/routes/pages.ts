@@ -18,6 +18,13 @@ export const TransactionsPage = lazyRouteComponent(
   "TransactionsPage",
 );
 
+// Not fetched ahead with the sections: it carries the AI SDK and the
+// markdown renderer, for those who open the chat.
+export const ChatPage = lazyRouteComponent(
+  () => import("../features/chat/ChatPage.tsx"),
+  "ChatPage",
+);
+
 export const SettingsPage = lazyRouteComponent(
   () => import("../features/settings/SettingsPage.tsx"),
   "SettingsPage",

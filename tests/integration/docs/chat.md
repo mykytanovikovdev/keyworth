@@ -38,8 +38,9 @@ answer, its usage, and a tool call with input its schema accepts.
 - **The real model.** Its answers' quality, its keeping to the subject and its
   behavior with the prompt belong to the eval set (phase 9); its CPU time is
   measured on production (`npm run perf`).
-- **The tools and the agent's loop.** They run in the browser (phase 5.2) and
-  are tested there.
+- **The tools and the agent's loop.** They run in the browser and are tested
+  there: `tests/unit/chat/` and `tests/e2e/chat.spec.ts`
+  ([src/features/chat/docs/tools-and-minimization.md](../../../src/features/chat/docs/tools-and-minimization.md)).
 - **Isolation between users.** The route reads and writes no user data: the
   only row it writes, the day's count, has no user id.
 
@@ -68,4 +69,4 @@ expect(calls[0]?.body.messages.at(-1)).toMatchObject({ role: "user" });
   cut early still carries a partial count. A step without any count is one
   whose stream breaks with an error.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-21

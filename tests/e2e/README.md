@@ -65,6 +65,13 @@ Covered now:
   Transactions link without a reload, failing prices shown as a notice and not
   as zeros, 320 px with no axe violations. What it proves:
   [docs/portfolio-flows.md](docs/portfolio-flows.md).
+- **`chat.spec.ts`** (Chromium, Firefox, WebKit for the full loop, the rest
+  Chromium only; local builds only): a question runs the agent's loop and a
+  tool in the browser, with the model answered in the browser; the answer's
+  markdown without links, images or HTML; no amount in the tool's result on
+  the wire; Stop, New chat, refusals, today's limit, locking forgets the
+  conversation; 320 px and axe in both themes. What it proves:
+  [docs/chat-flows.md](docs/chat-flows.md).
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:
   - every component used for real (dialog, confirmation, toast, tooltip) with
@@ -85,8 +92,8 @@ need every engine: [docs/csp-and-engines.md](docs/csp-and-engines.md).
 What these suites prove about the CSP and the browser engines, and their
 pitfalls: [docs/csp-and-engines.md](docs/csp-and-engines.md).
 
-Not covered yet: the real round trip through Google (checked by hand), and
-chat, which arrives with its phase. Screenshot comparison lives in [`tests/visual/`](../visual/README.md).
+Not covered yet: the real round trip through Google (checked by hand), and the
+real model's answers (the eval set, phase 9). Screenshot comparison lives in [`tests/visual/`](../visual/README.md).
 
 ## How to run
 

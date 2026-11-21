@@ -17,7 +17,11 @@ Covered now:
 - `tests/unit/chat/` — the chat's cost read from the tail of a model's
   stream (`worker/chat/usage.ts`), and the browser's model client
   (`@ai-sdk/openai-compatible`) reading streams recorded from Workers AI, as
-  the server passes them on: an answer, its usage, a tool call.
+  the server passes them on: an answer, its usage, a tool call. The browser's
+  tools on made-up data, and what they keep back: no amount without
+  `includeAmounts`, never a note
+  ([src/features/chat/docs/tools-and-minimization.md](../../src/features/chat/docs/tools-and-minimization.md));
+  which messages go to the model within the server's limit.
 - `src/ui/tokens.css` — both themes define every semantic color and data
   series, and every text/background pair meets WCAG AA (4.5:1 for text, 3:1 for
   field borders and focus). The test parses the CSS, so a token change that

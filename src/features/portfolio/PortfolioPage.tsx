@@ -1,9 +1,10 @@
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { addDays, utcDate } from "../../../shared/metrics/ledger.ts";
+import { addDays } from "../../../shared/metrics/ledger.ts";
 import { Button, Notice } from "../../ui/index.ts";
 import { useNavigate } from "@tanstack/react-router";
 import { useTransactionEditor } from "../transactions/editor.tsx";
+import { currenciesOf, firstDaysOf } from "./inputs.ts";
 import {
   historyQuery,
   priceSeries,
@@ -46,36 +47,10 @@ export function PortfolioPage() {
     [transactions.data],
   );
   // The first day each coin was held: its history is asked from then.
-  const firstDays = useMemo(() => {
-    const first = new Map<string, string>();
-    for (const { value } of records) {
-      const day = utcDate(value.executedAt);
-      const known = first.get(value.assetId);
-      if (!known || day < known) first.set(value.assetId, day);
-    }
-    return first;
-  }, [records]);
+  const firstDays = useMemo(() => firstDaysOf(records), [records]);
   const firstDay = [...firstDays.values()].sort()[0] ?? today;
   const currencies = useMemo(
-    () => [
-      ...new Set([
-        baseCurrency,
-        ...records.flatMap(({ value }): string[] => {
-          switch (value.type) {
-            case "buy":
-            case "sell":
-              return value.feeCurrency
-                ? [value.priceCurrency, value.feeCurrency]
-                : [value.priceCurrency];
-            case "transfer_in":
-            case "income":
-              return [value.priceCurrency];
-            default:
-              return [];
-          }
-        }),
-      ]),
-    ],
+    () => currenciesOf(records, baseCurrency),
     [baseCurrency, records],
   );
   // A week earlier: a first transaction on a weekend needs Friday's rate.

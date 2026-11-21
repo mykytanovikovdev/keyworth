@@ -1,7 +1,13 @@
 import { Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
+import { chatSession } from "../features/chat/chat-session.ts";
 import { VaultGate } from "../features/unlock/VaultGate.tsx";
-import { AppFrame, type AppLinks, type AppSection } from "./AppFrame.tsx";
+import {
+  AppFrame,
+  type AppLinks,
+  type AppSection,
+  type FrameChats,
+} from "./AppFrame.tsx";
 import { preloadSections } from "./pages.ts";
 
 const LINKS: AppLinks = {
@@ -10,8 +16,15 @@ const LINKS: AppLinks = {
   settings: "/settings",
 };
 
+// One conversation at a time until chats are kept (phase 5.3): no list yet.
+const CHAT: FrameChats = {
+  newChat: "/chat",
+  onNewChat: chatSession.startOver,
+};
+
 /** Which item of the menu the address belongs to. */
 function sectionOf(pathname: string): AppSection {
+  if (pathname.startsWith("/chat")) return "chat";
   if (pathname.startsWith("/transactions")) return "transactions";
   if (pathname.startsWith("/settings")) return "settings";
   return "portfolio";
@@ -25,7 +38,7 @@ export function AppShell() {
   useEffect(preloadSections, []);
   return (
     <VaultGate>
-      <AppFrame section={sectionOf(pathname)} links={LINKS}>
+      <AppFrame section={sectionOf(pathname)} links={LINKS} chat={CHAT}>
         <Outlet />
       </AppFrame>
     </VaultGate>

@@ -12,6 +12,7 @@ import type { SettingsAction } from "../features/settings/SettingsPage.tsx";
 import { AppShell } from "./AppShell.tsx";
 import { NotFoundPage } from "./NotFoundPage.tsx";
 import {
+  ChatPage,
   PortfolioPage,
   SettingsPage,
   SignInPage,
@@ -85,6 +86,12 @@ const transactionsRoute = createRoute({
     const search = transactionsRoute.useSearch();
     return <TransactionsPage openImport={search.import === true} />;
   }),
+});
+
+const chatRoute = createRoute({
+  getParentRoute: () => appRoute,
+  path: "/chat",
+  component: ChatPage,
 });
 
 const settingsRoute = createRoute({
@@ -207,7 +214,12 @@ const chatMockupsRoute =
 
 const routeTree = rootRoute.addChildren([
   sessionRoute.addChildren([
-    appRoute.addChildren([homeRoute, transactionsRoute, settingsRoute]),
+    appRoute.addChildren([
+      homeRoute,
+      transactionsRoute,
+      chatRoute,
+      settingsRoute,
+    ]),
     recoverRoute,
   ]),
   signInRoute,

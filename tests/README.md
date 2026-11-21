@@ -17,8 +17,8 @@ details.
 
 Planned, each arriving with the code it tests:
 
-- `e2e/` grows with the chat (phases 5–6) and recording a trade through it
-  (phase 7).
+- `e2e/` grows with the chat's history (phase 5.3) and recording a trade
+  through it (phase 7).
 - `visual/` grows with the app's screens as they are built.
 - `agent/` — the chat agent with a scripted mock model from `ai/test`:
   deterministic, runs in CI (phases 5–7).
