@@ -163,6 +163,9 @@ test.describe("signed in", () => {
         name: "Only you can read your portfolio",
       }),
     ).toBeVisible();
+    // A page load cancels a font still downloading, which Firefox logs as an
+    // error: the next load waits for the fonts, as a person would anyway.
+    await page.evaluate(() => document.fonts.ready);
     await page.goto("/sign-in");
     await expect(page).toHaveURL(/\/$/);
 

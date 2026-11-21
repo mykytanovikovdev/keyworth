@@ -21,21 +21,27 @@ import {
 
 export type AppSection = "chat" | "portfolio" | "transactions" | "settings";
 
-/** Where the menu's links go: the app's routes, or the mockups' pages. */
+/** Where the menu's sections go: the app's routes, or the mockups' pages. */
 export interface AppLinks {
   portfolio: string;
   transactions: string;
   settings: string;
+}
+
+/** The menu's chat part: New chat and the list of chats. */
+export interface FrameChats {
+  chats: readonly ChatSummary[];
+  currentId?: string | undefined;
+  onDelete: (id: string) => void;
   newChat: string;
-  chat: (id: string) => string;
+  hrefOf: (id: string) => string;
 }
 
 interface AppFrameProps {
   section: AppSection;
-  chats: readonly ChatSummary[];
-  currentChatId?: string | undefined;
-  onDeleteChat: (id: string) => void;
   links: AppLinks;
+  /** Absent until the app has a chat: the menu then holds the sections only. */
+  chat?: FrameChats | undefined;
   /** The phone bar's title: the open chat's; the app's name when absent. */
   title?: string | undefined;
   children: ReactNode;
@@ -48,10 +54,8 @@ interface AppFrameProps {
  */
 export function AppFrame({
   section,
-  chats,
-  currentChatId,
-  onDeleteChat,
   links,
+  chat,
   title,
   children,
 }: AppFrameProps) {
@@ -65,14 +69,7 @@ export function AppFrame({
   };
 
   const menu = (close?: () => void) => (
-    <AppMenu
-      section={section}
-      chats={chats}
-      currentChatId={currentChatId}
-      onDeleteChat={onDeleteChat}
-      links={links}
-      onClose={close}
-    />
+    <AppMenu section={section} links={links} chat={chat} onClose={close} />
   );
 
   return (
@@ -101,7 +98,7 @@ export function AppFrame({
               <span className="truncate">{title}</span>
             )}
           </p>
-          {section === "chat" && <NewChatIcon href={links.newChat} />}
+          {section === "chat" && chat && <NewChatIcon href={chat.newChat} />}
         </header>
         <main className="flex flex-1 flex-col">{children}</main>
       </div>
@@ -114,22 +111,13 @@ export function AppFrame({
 
 interface AppMenuProps {
   section: AppSection;
-  chats: readonly ChatSummary[];
-  currentChatId: string | undefined;
-  onDeleteChat: (id: string) => void;
   links: AppLinks;
+  chat: FrameChats | undefined;
   /** In the phone panel: its close button. */
   onClose?: (() => void) | undefined;
 }
 
-function AppMenu({
-  section,
-  chats,
-  currentChatId,
-  onDeleteChat,
-  links,
-  onClose,
-}: AppMenuProps) {
+function AppMenu({ section, links, chat, onClose }: AppMenuProps) {
   const sections = [
     {
       href: links.portfolio,
@@ -167,23 +155,28 @@ function AppMenu({
           </IconButton>
         )}
       </div>
-      <ButtonLink
-        href={links.newChat}
-        icon={<SquarePen aria-hidden="true" />}
-        className="w-full"
-      >
-        New chat
-      </ButtonLink>
-      <ChatList
-        chats={chats}
-        currentId={currentChatId}
-        hrefOf={links.chat}
-        onDelete={onDeleteChat}
-        className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pt-2"
-      />
+      {chat && (
+        <>
+          <ButtonLink
+            href={chat.newChat}
+            icon={<SquarePen aria-hidden="true" />}
+            className="w-full"
+          >
+            New chat
+          </ButtonLink>
+          <ChatList
+            chats={chat.chats}
+            currentId={chat.currentId}
+            hrefOf={chat.hrefOf}
+            onDelete={chat.onDelete}
+            className="-mx-1 min-h-0 flex-1 overflow-y-auto px-1 pt-2"
+          />
+        </>
+      )}
+      {/* Under the chats, set apart; with no chats, right under the name. */}
       <nav
         aria-label="Main"
-        className="flex shrink-0 flex-col gap-0.5 border-t border-line pt-3"
+        className={`flex shrink-0 flex-col gap-0.5 ${chat ? "border-t border-line pt-3" : ""}`}
       >
         {sections.map((item) => (
           <Link

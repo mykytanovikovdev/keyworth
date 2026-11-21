@@ -574,7 +574,7 @@ test("the base currency is the first encrypted record", async ({
   await expect(currency).toHaveValue("Georgian Lari", AFTER_ARGON2);
 });
 
-test("the header fits a 320px screen, and its logo goes home without locking", async ({
+test("the frame fits a 320px screen, and its menu goes home without locking", async ({
   page,
   context,
   baseURL,
@@ -583,8 +583,9 @@ test("the header fits a 320px screen, and its logo goes home without locking", a
   const { passphrase } = await returningUser(context, baseURL);
   await page.goto("/settings");
   await unlock(page, passphrase);
-  const settings = page.getByRole("link", { name: "Settings", exact: true });
-  await expect(settings).toBeVisible(AFTER_ARGON2);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Settings" }),
+  ).toBeVisible(AFTER_ARGON2);
 
   const overflow = () =>
     page.evaluate(
@@ -594,9 +595,15 @@ test("the header fits a 320px screen, and its logo goes home without locking", a
     );
   expect(await overflow()).toBeLessThanOrEqual(0);
 
-  // Named for screen readers even where only the mark shows.
-  await page.getByRole("link", { name: "Keyworth", exact: true }).click();
+  // On a phone the menu is behind a button; its links go through the router.
+  await page.getByRole("button", { name: "Open menu" }).click();
+  const menu = page.getByRole("dialog", { name: "Menu" });
+  await expect(
+    menu.getByRole("link", { name: "Settings", exact: true }),
+  ).toHaveAttribute("aria-current", "page");
+  await menu.getByRole("link", { name: "Portfolio", exact: true }).click();
   await expect(appHome(page)).toBeVisible();
+  await expect(menu).toHaveCount(0);
   expect(await overflow()).toBeLessThanOrEqual(0);
   await expect(unlockHeading(page)).toHaveCount(0);
 });

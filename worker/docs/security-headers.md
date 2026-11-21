@@ -91,6 +91,11 @@ exception needs the owner's approval and a justification here and in
   run `npm run test:e2e`.
 - **`_headers` never applies to Worker responses, and `security-headers.ts`
   never to static files.** A new header usually belongs in both.
+- **A feature a browser no longer knows is noise, not protection.**
+  `Permissions-Policy` listed `browsing-topics` (Chrome's Topics API) until
+  Chrome dropped it and logged "Unrecognized feature" on every page; it was
+  removed. The page loads no third-party script that could ask for topics
+  anyway.
 - **Repeated headers in `_headers` are joined with commas;** detach the parent
   rule's value first (`! Cache-Control` under `/assets/*`).
 
@@ -102,4 +107,4 @@ Worker responses; no inline code in `index.html`), every rendering e2e test
 and the post-deploy smoke test against keyworth.app. See
 [tests/e2e/docs/csp-and-engines.md](../../tests/e2e/docs/csp-and-engines.md).
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-21

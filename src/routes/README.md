@@ -7,22 +7,21 @@ and the pages that belong to no feature (not found, the dev-only mockups).
 
 ## How it works
 
-| File                             | Role                                                                                                       |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `router.tsx`                     | Every route, declared in code, and the router factory                                                      |
-| `pages.ts`                       | The pages loaded on first use, and the sections' code fetched ahead                                        |
-| `AppShell.tsx`                   | Behind the key gate: header (mark, sections, theme, settings) and content                                  |
-| `AppNav.tsx`                     | The sections in the header (Portfolio, Transactions): inline, or a second row on phones                    |
-| `AppFrame.tsx`                   | The new frame (phase 5): the menu in a left column, behind a button on narrow screens; mockups only so far |
-| `/` → `PortfolioPage`            | The signed-in start page ([src/features/portfolio](../features/portfolio/README.md))                       |
-| `/transactions`                  | The transactions and their form ([src/features/transactions](../features/transactions/README.md))          |
-| `NotFoundPage.tsx`               | Any unknown path                                                                                           |
-| `KdfBenchmarkPage.tsx`           | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                         |
-| `EncryptionMockupsPage.tsx`      | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2                     |
-| `TransactionsMockupsPage.tsx`    | `/design/transactions`: the transactions screens in every state                                            |
-| `PortfolioMockupsPage.tsx`       | `/design/portfolio`: the portfolio page in every state, from made-up transactions                          |
-| `ChatMockupsPage.tsx`            | `/design/chat`: the chat in every state, and Settings with "Delete all chats"                              |
-| `MockFrame.tsx`, `mock-chats.ts` | The mockups' frame: `AppFrame` with made-up chats, shared by every mockup page                             |
+| File                             | Role                                                                                              |
+| -------------------------------- | ------------------------------------------------------------------------------------------------- |
+| `router.tsx`                     | Every route, declared in code, and the router factory                                             |
+| `pages.ts`                       | The pages loaded on first use, and the sections' code fetched ahead                               |
+| `AppShell.tsx`                   | Behind the key gate: `AppFrame` around the page, its menu item picked from the address            |
+| `AppFrame.tsx`                   | The frame: the menu in a left column, behind a button in a one-line bar on narrow screens         |
+| `/` → `PortfolioPage`            | The signed-in start page ([src/features/portfolio](../features/portfolio/README.md))              |
+| `/transactions`                  | The transactions and their form ([src/features/transactions](../features/transactions/README.md)) |
+| `NotFoundPage.tsx`               | Any unknown path                                                                                  |
+| `KdfBenchmarkPage.tsx`           | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                |
+| `EncryptionMockupsPage.tsx`      | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2            |
+| `TransactionsMockupsPage.tsx`    | `/design/transactions`: the transactions screens in every state                                   |
+| `PortfolioMockupsPage.tsx`       | `/design/portfolio`: the portfolio page in every state, from made-up transactions                 |
+| `ChatMockupsPage.tsx`            | `/design/chat`: the chat in every state, and Settings with "Delete all chats"                     |
+| `MockFrame.tsx`, `mock-chats.ts` | The mockups' frame: `AppFrame` with made-up chats, shared by every mockup page                    |
 
 ```
              ┌ session layout: no session → redirect to /sign-in
@@ -70,6 +69,13 @@ and the pages that belong to no feature (not found, the dev-only mockups).
   ([features/unlock/VaultGate.tsx](../features/unlock/VaultGate.tsx)): the
   address stays, so unlocking on `/settings` lands on `/settings`, and the
   vault's state changes (Lock in another tab) apply without navigation.
+- **The menu is a column, not a header** (the chat's frame, approved as a
+  mockup on 2026-11-14): on wide screens a left column, below 1024 px a
+  one-line bar whose button opens the same menu in a `Drawer`. A header with
+  sections took two rows on phones. The theme is chosen in Settings only. The
+  chat's part of the menu (New chat, the chats) is optional: the app has no
+  chat yet, so its menu holds the sections alone; the mockups pass made-up
+  chats.
 - **`/design` is a conditional route.** In a production build its condition is
   the constant `false`, so the page's code is not in the bundle.
 
@@ -93,8 +99,9 @@ bundle:size`.
 - Links inside the app go through the router (`ButtonLink`, `TextLink`, React
   Aria's `Link`), never a plain `<a>`: a page reload locks the data unless the
   device is remembered.
-- The header must fit a 320 px screen (folding phones' outer screens): below
-  360 px the logo shows the mark alone, its name kept for screen readers.
+- The frame must fit a 320 px screen (folding phones' outer screens): the bar
+  holds the menu button and the name only. Any navigation, from the menu or
+  not, closes the phone menu: it remembers the address it was opened on.
 
 ## How to work with it
 

@@ -1,7 +1,12 @@
 import { type ReactNode, useSyncExternalStore } from "react";
 import { showToast } from "../ui/index.ts";
 import { AppFrame, type AppSection } from "./AppFrame.tsx";
-import { MOCK_LINKS, mockChats } from "./mock-chats.ts";
+import {
+  MOCK_LINKS,
+  MOCK_NEW_CHAT,
+  mockChatHref,
+  mockChats,
+} from "./mock-chats.ts";
 
 /**
  * The app's frame around a mockup (dev and design builds only): the real
@@ -25,21 +30,25 @@ export function MockFrame({
   return (
     <AppFrame
       section={section}
-      chats={noChats ? [] : chats}
-      currentChatId={currentChatId}
       title={title}
       links={MOCK_LINKS}
-      onDeleteChat={(id) => {
-        const before = mockChats.get();
-        mockChats.set(before.filter((chat) => chat.id !== id));
-        showToast("Chat deleted", {
-          action: {
-            label: "Undo",
-            onAction: () => {
-              mockChats.set(before);
+      chat={{
+        chats: noChats ? [] : chats,
+        currentId: currentChatId,
+        newChat: MOCK_NEW_CHAT,
+        hrefOf: mockChatHref,
+        onDelete: (id) => {
+          const before = mockChats.get();
+          mockChats.set(before.filter((chat) => chat.id !== id));
+          showToast("Chat deleted", {
+            action: {
+              label: "Undo",
+              onAction: () => {
+                mockChats.set(before);
+              },
             },
-          },
-        });
+          });
+        },
       }}
     >
       {children}

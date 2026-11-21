@@ -57,9 +57,9 @@ alone: their screens are loaded in every engine by the other scenarios.
   the wrong one the mark went from the ring to a refusal, and the cursor is
   back in the field; the right one turns the lock before the page that was
   asked for (`/settings`) shows; a reload asks again.
-- **The header:** at 320 px no signed-in page scrolls sideways; the logo, named
-  for screen readers though only the mark shows, goes home without a reload, so
-  the data stays open.
+- **The frame:** at 320 px no signed-in page scrolls sideways; the menu opens
+  from the bar, marks the current page, and its Portfolio link goes home
+  without a reload, so the data stays open, and closes the menu.
 - **One unlock per browser:** a second tab opens without the passphrase; Lock
   in one tab locks both; unlocking one unlocks the other.
 - **Remember this device:** with the checkbox, the device row exists and a
@@ -108,4 +108,4 @@ use `AFTER_ARGON2` (30 seconds). In CI a derivation takes several seconds,
 most in WebKit on Linux; with 15 seconds and the default test time, the test
 with six derivations failed there twice in a row (2026-11-03).
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-21
