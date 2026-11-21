@@ -18,6 +18,8 @@ interface ButtonLinkProps {
   size?: ButtonSize;
   icon?: ReactNode;
   children: ReactNode;
+  /** Runs as the link is followed, such as starting a new chat. */
+  onPress?: () => void;
   /** Layout only (margins, width). */
   className?: string;
 }
@@ -29,11 +31,13 @@ export function ButtonLink({
   size = "md",
   icon,
   children,
+  onPress,
   className = "",
 }: ButtonLinkProps) {
   return (
     <AriaLink
       href={href}
+      {...(onPress && { onPress })}
       className={`${buttonClassName(variant, size)} ${className}`}
     >
       {icon}
