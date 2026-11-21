@@ -75,7 +75,7 @@ export const CHAT_TOOLS = {
   },
   calc_portfolio_metrics: {
     description:
-      "The portfolio's change over a period, its largest drop (drawdown), its volatility (annualized) and each coin's part in the change.",
+      "The portfolio's change over a period, its largest drop (drawdown), its volatility (annualized), and each held coin's share and price change over the period.",
     inputSchema: z.object({ period }),
   },
   compare_assets: {

@@ -64,7 +64,7 @@ const MONTH: Turn = {
       {
         label: "Calculated the month",
         running: "Calculating the month",
-        detail: "Change, the largest drop, and each coin's part in it.",
+        detail: "Change, the largest drop, and how each coin moved.",
       },
     ],
     blocks: [

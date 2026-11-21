@@ -88,7 +88,8 @@ export function ToolSteps({ steps, done }: ToolStepsProps) {
           <ol id={listId} className="mt-2 ml-[7px] border-l border-line pl-4">
             {visible.map((step, index) => (
               <li
-                key={step.label}
+                // Steps only append, and two can say the same thing.
+                key={index}
                 className="relative animate-step pb-2.5 last:pb-0.5"
               >
                 <span
