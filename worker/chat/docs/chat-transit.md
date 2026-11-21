@@ -8,9 +8,10 @@ conversation, through `POST /api/chat/completions` to the model. This document
 describes that path: what passes, what is checked, what is kept (a number) and
 what is never written anywhere (everything else).
 
-Out of scope: what the tools return and when amounts are included (the tools,
-in the browser), the agent's loop (the browser's AI SDK), the encrypted history
-(the vault), the answers' quality (the eval set).
+Out of scope: what the tools return and when amounts are included, and the
+agent's loop in the browser
+([src/features/chat/docs/tools-and-minimization.md](../../../src/features/chat/docs/tools-and-minimization.md)),
+the encrypted history (the vault), the answers' quality (the eval set).
 
 ## How it works
 
@@ -103,4 +104,4 @@ guards fails a test.
 - Never log inside the route beyond `describeError` and a status; never pass
   the browser's body on, only `messages`.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-21

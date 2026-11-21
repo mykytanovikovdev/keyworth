@@ -85,7 +85,12 @@ it — a promise, not a cryptographic guarantee; the route's tests check that
 nothing of a conversation reaches the logs, even when the model fails, and
 the server, not the browser, writes the model's instructions and limits
 ([worker/chat/docs/chat-transit.md](../../../worker/chat/docs/chat-transit.md)).
-By default the model gets shares and percentages, not amounts. Cloudflare terminates TLS and technically
+By default the model gets shares and percentages, not amounts, and never the
+person's notes or who they are; the tools that pick what it gets run in the
+browser
+([src/features/chat/docs/tools-and-minimization.md](../../features/chat/docs/tools-and-minimization.md)).
+The conversation itself is kept only in the tab's memory and dropped when the
+vault locks. Cloudflare terminates TLS and technically
 sees that traffic. With a user's own API key (phase 13) the browser talks to
 Anthropic directly and the server sees none of it.
 
@@ -201,4 +206,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-21
