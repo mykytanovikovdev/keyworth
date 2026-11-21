@@ -175,32 +175,32 @@ and form controls match.
 
 ### Components
 
-| Component                 | Built on                   | Notes                                                                              |
-| ------------------------- | -------------------------- | ---------------------------------------------------------------------------------- |
-| `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending`¹  |
-| `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                  |
-| `TextField`               | React Aria `TextField`     | Label, hint, error; ARIA validation; `suffix` (a unit), `action` (an "All" button) |
-| `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill |
-| `Select`                  | React Aria `Menu`          | A list that applies at once, such as a currency; type-ahead; not React Aria's one  |
-| `Checkbox`                | React Aria `CheckboxField` | Label (or `hideLabel`) and a description line; `isIndeterminate` shows a dash      |
-| `ComboBox`                | React Aria `ComboBox`      | Type to filter or search, pick from a list; a picture and a detail per option      |
-| `DateField`               | React Aria `DateField`     | Day / month / year segments (`en-GB` order), the date repeated in words below      |
-| `SegmentedControl`        | `ToggleButtonGroup`        | A few options, all visible, such as a form's tabs (Buy, Sell, Receive, Send)       |
-| `ActionMenu`              | React Aria `Menu`          | A "⋯" button with an item's or a page's actions (Edit, Delete; Import, Export)     |
-| `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                        |
-| `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller            |
-| `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon               |
-| `Dialog`, `DialogActions` | React Aria `Modal`         | Focus trap and return, scroll lock; `alertdialog` ignores Escape                   |
-| `Drawer`                  | React Aria `Modal`         | The menu on narrow screens: in from the left; Escape or a tap outside closes it    |
-| `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds; one `action`     |
-| `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                                |
-| `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                            |
-| `ThemeToggle`             | `ToggleButtonGroup`        | Icons only (mockups' bars), icons with text in Settings                            |
-| `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`                  |
-| `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                     |
-| `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative; `keyholeClassName`²          |
-| `ValueChart`              | `svg`                      | One series as a line with a fill; draws itself; the value under the pointer        |
-| `AllocationBar`           | `div`                      | Shares as one stacked bar; a written legend; five data colors and a grey "Other"   |
+| Component                 | Built on                   | Notes                                                                                               |
+| ------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------- |
+| `Button`                  | React Aria `Button`        | `primary` (one per view), `secondary`, `ghost`, `danger`; `sm`/`md`; `isPending`¹                   |
+| `IconButton`              | React Aria `Button`        | Required `label`, shown as a tooltip; `ghost` or `primary` (Send)                                   |
+| `TextField`               | React Aria `TextField`     | Label, hint, error; ARIA validation; `suffix` (a unit), `action` (an "All" button)                  |
+| `PasswordField`           | React Aria `TextField`     | Secrets: hidden with a show button; no autocorrect, capitals, spellcheck, autofill                  |
+| `Select`                  | React Aria `Menu`          | A list that applies at once, such as a currency; type-ahead; not React Aria's one                   |
+| `Checkbox`                | React Aria `CheckboxField` | Label (or `hideLabel`) and a description line; `isIndeterminate` shows a dash                       |
+| `ComboBox`                | React Aria `ComboBox`      | Type to filter or search, pick from a list; a picture and a detail per option                       |
+| `DateField`               | React Aria `DateField`     | Day / month / year segments (`en-GB` order), the date repeated in words below                       |
+| `SegmentedControl`        | `ToggleButtonGroup`        | A few options, all visible, such as a form's tabs (Buy, Sell, Receive, Send)                        |
+| `ActionMenu`              | React Aria `Menu`          | A "⋯" button with an item's or a page's actions (Edit, Delete; Import, Export)                      |
+| `Notice`                  | `p`                        | `error` (announced), `warning`, `info`; always with an icon                                         |
+| `Card`                    | `div`                      | `raised` (above the page) or `surface` (on it); padding from the caller                             |
+| `Badge`                   | `span`                     | `neutral`, `accent`, `gain`, `loss`, `warning`; status needs an icon                                |
+| `Dialog`, `DialogActions` | React Aria `Modal`         | Focus trap and return, scroll lock; `alertdialog` ignores Escape                                    |
+| `Drawer`                  | React Aria `Modal`         | The menu on narrow screens: in from the left; Escape or a tap outside closes it                     |
+| `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds; one `action`                      |
+| `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                                                 |
+| `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                                             |
+| `ThemeToggle`             | `ToggleButtonGroup`        | Icons only (mockups' bars), icons with text in Settings                                             |
+| `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`; `onPress` runs as it is followed |
+| `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                                      |
+| `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative; `keyholeClassName`²                           |
+| `ValueChart`              | `svg`                      | One series as a line with a fill; draws itself; the value under the pointer                         |
+| `AllocationBar`           | `div`                      | Shares as one stacked bar; a written legend; five data colors and a grey "Other"                    |
 
 ¹ A spinner replaces the icon while pending; `spinner={false}` when something
 else on the screen shows the progress (the key screens' ring).

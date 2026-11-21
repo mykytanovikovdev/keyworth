@@ -14,13 +14,14 @@ the request, writes the model's request itself and passes the model's stream
 back untouched.
 
 Not here: the tools' work and the agent's loop (the browser), the chat's
-history (the browser keeps it encrypted in the vault) and the chat's screens
+history (phase 5.3: kept encrypted in the vault; until then only in the tab's
+memory) and the chat's screens
 ([src/features/chat/](../../src/features/chat/README.md)).
 
 ## How it works
 
 ```
-browser (AI SDK + @ai-sdk/openai-compatible, baseURL /api)
+browser (AI SDK + @ai-sdk/openai-compatible, baseURL <this site>/api)
    │ POST /api/chat/completions { messages, …anything else is ignored }
    ▼
 session, origin, 128 KB ──► messages checked (shared/schemas/chat.ts):

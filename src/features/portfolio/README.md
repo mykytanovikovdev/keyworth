@@ -15,6 +15,7 @@ market data and shows figures; it computes no money itself (that is
 | ---------------------- | --------------------------------------------------------------------------------------- |
 | `PortfolioPage.tsx`    | The route: transactions, today's quotes, histories and rates in, the view out           |
 | `market-data.ts`       | Queries for histories and rates; the server's answers as `PriceSeries` and `RateLookup` |
+| `inputs.ts`            | Each coin's first day and the currencies asked for; shared with the chat's tools        |
 | `summary.ts`           | `summarize()`: every figure on the page from `shared/metrics`, for one period           |
 | `PortfolioView.tsx`    | The page itself, from a summary: value, period, chart, four figures, allocation, table  |
 | `PortfolioNotices.tsx` | What the figures leave out, said once above them                                        |
