@@ -1,11 +1,21 @@
 import { Outlet, useRouterState } from "@tanstack/react-router";
-import { Settings } from "lucide-react";
 import { useEffect } from "react";
-import { Link } from "react-aria-components";
 import { VaultGate } from "../features/unlock/VaultGate.tsx";
-import { ButtonLink, KeyworthMark, ThemeToggle } from "../ui/index.ts";
-import { AppNav } from "./AppNav.tsx";
+import { AppFrame, type AppLinks, type AppSection } from "./AppFrame.tsx";
 import { preloadSections } from "./pages.ts";
+
+const LINKS: AppLinks = {
+  portfolio: "/",
+  transactions: "/transactions",
+  settings: "/settings",
+};
+
+/** Which item of the menu the address belongs to. */
+function sectionOf(pathname: string): AppSection {
+  if (pathname.startsWith("/transactions")) return "transactions";
+  if (pathname.startsWith("/settings")) return "settings";
+  return "portfolio";
+}
 
 /** The frame around every signed-in page, once the data key is open. */
 export function AppShell() {
@@ -15,47 +25,9 @@ export function AppShell() {
   useEffect(preloadSections, []);
   return (
     <VaultGate>
-      <div className="flex min-h-dvh flex-col">
-        <header className="border-b border-line">
-          <div className="mx-auto flex min-h-14 w-full max-w-5xl flex-wrap items-center justify-between gap-x-4 px-4 sm:flex-nowrap sm:px-6">
-            <div className="flex h-14 items-center">
-              {/* Through the router: a page reload would lock the data. */}
-              <Link
-                href="/"
-                className="flex items-center gap-2 rounded-md text-sm font-semibold"
-              >
-                <KeyworthMark />
-                {/* The narrowest phones have room for the mark alone. */}
-                <span className="max-[359px]:sr-only">Keyworth</span>
-              </Link>
-            </div>
-            <AppNav
-              items={[
-                { href: "/", label: "Portfolio", current: pathname === "/" },
-                {
-                  href: "/transactions",
-                  label: "Transactions",
-                  current: pathname.startsWith("/transactions"),
-                },
-              ]}
-            />
-            <div className="flex h-14 items-center gap-2 sm:ml-auto">
-              <ThemeToggle />
-              <ButtonLink
-                href="/settings"
-                variant="ghost"
-                size="sm"
-                icon={<Settings aria-hidden="true" />}
-              >
-                Settings
-              </ButtonLink>
-            </div>
-          </div>
-        </header>
-        <main className="flex flex-1 flex-col">
-          <Outlet />
-        </main>
-      </div>
+      <AppFrame section={sectionOf(pathname)} links={LINKS}>
+        <Outlet />
+      </AppFrame>
     </VaultGate>
   );
 }

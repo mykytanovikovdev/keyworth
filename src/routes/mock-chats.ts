@@ -46,6 +46,7 @@ export const MOCK_LINKS: AppLinks = {
   portfolio: "/design/portfolio",
   transactions: "/design/transactions",
   settings: "/design/chat?screen=settings",
-  newChat: "/design/chat?screen=new",
-  chat: (id) => `/design/chat?screen=chat&id=${id}`,
 };
+
+export const MOCK_NEW_CHAT = "/design/chat?screen=new";
+export const mockChatHref = (id: string) => `/design/chat?screen=chat&id=${id}`;

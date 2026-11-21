@@ -195,7 +195,7 @@ and form controls match.
 | `Toaster`, `showToast()`  | React Aria `Toast`         | Top of the screen; errors stay until dismissed, others 5 seconds; one `action`     |
 | `Tooltip`                 | React Aria `Tooltip`       | Hover and keyboard focus only; never the only label                                |
 | `Skeleton`                | `div`                      | Hidden from screen readers; mark the region `aria-busy`                            |
-| `ThemeToggle`             | `ToggleButtonGroup`        | Icons in the header, icons with text in settings                                   |
+| `ThemeToggle`             | `ToggleButtonGroup`        | Icons only (mockups' bars), icons with text in Settings                            |
 | `ButtonLink`              | React Aria `Link`          | Navigation that reads as an action; the same variants as `Button`                  |
 | `TextLink`                | React Aria `Link`          | Inline link in running text, always underlined                                     |
 | `KeyworthMark`            | `svg`                      | The app's mark (a keyhole on the accent); decorative; `keyholeClassName`²          |

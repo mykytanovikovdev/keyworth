@@ -102,8 +102,6 @@ builds), from made-up transactions through the real `summarize()`.
   uses the device's date. Near midnight they can differ by a day.
 - **History before a coin's series** (an old purchase of a coin with a year of
   CoinGecko data) moves the period's start; its words say "since <date>".
-- **The mobile header** puts the sections on a second row; a compact layout is
-  planned with the chat's side menu.
 
 ## How to work with it
 
