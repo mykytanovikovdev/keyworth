@@ -4,4 +4,4 @@
  * Change the date in the same commit as the text.
  */
 export const TERMS_VERSION = "2026-11-06";
-export const PRIVACY_POLICY_VERSION = "2026-11-11";
+export const PRIVACY_POLICY_VERSION = "2026-11-21";

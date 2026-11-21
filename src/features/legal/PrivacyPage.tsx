@@ -49,6 +49,20 @@ export function PrivacyPage() {
             to you. Legal basis: our contract with you.
           </li>
           <li>
+            <strong>The chat.</strong> When you ask the assistant a question,
+            your browser looks up what the question needs in your decrypted
+            portfolio and sends it, with your question and the conversation so
+            far, through our server to the AI model that writes the answer. By
+            default that is shares, percentages, changes and market prices;
+            amounts and quantities go only when your question is about them.
+            Your name, email address and transaction notes never go. Our server
+            passes all of this through without storing or logging it, and counts
+            only how much the model was used each day, for everyone together.
+            The conversation stays in your browser tab and is gone when you
+            start a new chat, lock Keyworth or close the tab. Legal basis: our
+            contract with you.
+          </li>
+          <li>
             <strong>Security.</strong> The IP address and browser of each
             sign-in session, request counters per IP address, and the invite and
             block lists (email addresses and, for a block, the reason). We use
@@ -69,8 +83,10 @@ export function PrivacyPage() {
         </p>
         <p>
           We make no automated decisions about you with legal or similarly
-          significant effects. There are no ads, no analytics and no third-party
-          trackers, and we don't sell your data.
+          significant effects. The chat's answers are written by an AI, as the
+          chat says under its box; they are information, not investment advice.
+          There are no ads, no analytics and no third-party trackers, and we
+          don't sell your data.
         </p>
       </section>
 
@@ -114,7 +130,10 @@ export function PrivacyPage() {
           <li>
             <strong>Cloudflare</strong> (USA) runs the app and its network, so
             every request passes through it, with your IP address. It also
-            forwards messages sent to our privacy address.
+            forwards messages sent to our privacy address, and runs the AI model
+            that answers the chat (Workers AI), which receives what the chat
+            sends it, as described above, without your IP address or who you
+            are. Cloudflare does not keep it or use it to train models.
           </li>
           <li>
             <strong>Neon</strong>, part of Databricks (USA), hosts the database,
@@ -169,6 +188,10 @@ export function PrivacyPage() {
           <li>
             <strong>Your messages:</strong> as long as we need to answer you and
             to show what was asked and done.
+          </li>
+          <li>
+            <strong>The chat:</strong> not kept. Each question and answer exists
+            only in your browser tab and, while the model answers, in transit.
           </li>
           <li>
             <strong>Market data:</strong> prices, coin searches and logos for up
