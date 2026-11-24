@@ -109,6 +109,7 @@ export interface RouteSummary {
   count: number;
   cpuMedian: number;
   cpuMax: number;
+  wallMin: number;
   wallMedian: number;
   wallMax: number;
   /** Why each failed request failed (`failureOf`), one entry a request. */
@@ -137,6 +138,7 @@ export function summarize(samples: readonly Sample[]): RouteSummary[] {
       count: list.length,
       cpuMedian: median(list.map(({ cpuMs }) => cpuMs)),
       cpuMax: Math.max(...list.map(({ cpuMs }) => cpuMs)),
+      wallMin: Math.min(...list.map(({ wallMs }) => wallMs)),
       wallMedian: median(list.map(({ wallMs }) => wallMs)),
       wallMax: Math.max(...list.map(({ wallMs }) => wallMs)),
       failures: list.flatMap((sample) => failureOf(sample) ?? []),
@@ -164,14 +166,14 @@ export function formatReport(samples: readonly Sample[]): string {
     row.route,
     String(row.count),
     `${String(row.cpuMedian)} / ${String(row.cpuMax)}`,
-    `${String(row.wallMedian)} / ${String(row.wallMax)}`,
+    `${String(row.wallMin)} / ${String(row.wallMedian)} / ${String(row.wallMax)}`,
     tally(row.failures),
   ]);
   const header = [
     "Route",
     "Requests",
     "CPU ms (median / max)",
-    "Time ms (median / max)",
+    "Time ms (min / median / max)",
     "Not ok",
   ];
   const widths = header.map((title, column) =>
