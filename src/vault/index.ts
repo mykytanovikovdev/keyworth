@@ -8,7 +8,13 @@ import { Vault, type VaultState } from "./vault.ts";
 
 // The public surface of src/vault. See README.md.
 export { ApiError, httpApi } from "./api.ts";
-export { readRecords, type StoredRecord, writeRecord } from "./records.ts";
+export {
+  newRecord,
+  readRecord,
+  readRecords,
+  type StoredRecord,
+  writeRecord,
+} from "./records.ts";
 export type { LockReason } from "./tabs.ts";
 export { VaultError, type VaultErrorCode, type VaultState } from "./vault.ts";
 

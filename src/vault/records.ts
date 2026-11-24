@@ -1,6 +1,10 @@
-import type { RecordKind, VaultBatch } from "../../shared/schemas/vault.ts";
+import type {
+  RecordKind,
+  VaultBatch,
+  VaultRecordJson,
+} from "../../shared/schemas/vault.ts";
 import { CryptoError } from "../crypto/index.ts";
-import type { VaultApi } from "./api.ts";
+import { ApiError, type VaultApi } from "./api.ts";
 import type { Vault } from "./vault.ts";
 
 /*
@@ -23,6 +27,25 @@ interface Schema<T> {
   safeParse(value: unknown): { success: true; data: T } | { success: false };
 }
 
+async function decrypted<T>(
+  vault: Vault,
+  kind: RecordKind,
+  schema: Schema<T>,
+  row: VaultRecordJson,
+): Promise<StoredRecord<T>> {
+  let value: T | null = null;
+  try {
+    // Decrypted as the kind asked for: a row of another kind fails its AAD.
+    const parsed = schema.safeParse(
+      await vault.decrypt(kind, row.id, row.revision, row.envelope),
+    );
+    if (parsed.success) value = parsed.data;
+  } catch (error) {
+    if (!(error instanceof CryptoError)) throw error;
+  }
+  return { id: row.id, revision: row.revision, value };
+}
+
 export async function readRecords<T>(
   vault: Vault,
   api: VaultApi,
@@ -30,21 +53,23 @@ export async function readRecords<T>(
   schema: Schema<T>,
 ): Promise<StoredRecord<T>[]> {
   const rows = await api.records(kind);
-  return Promise.all(
-    rows.map(async (row) => {
-      let value: T | null = null;
-      try {
-        // Decrypted as the kind asked for: a row of another kind fails its AAD.
-        const parsed = schema.safeParse(
-          await vault.decrypt(kind, row.id, row.revision, row.envelope),
-        );
-        if (parsed.success) value = parsed.data;
-      } catch (error) {
-        if (!(error instanceof CryptoError)) throw error;
-      }
-      return { id: row.id, revision: row.revision, value };
-    }),
-  );
+  return Promise.all(rows.map((row) => decrypted(vault, kind, schema, row)));
+}
+
+/** One record of a kind by its id; null when there is none. */
+export async function readRecord<T>(
+  vault: Vault,
+  api: VaultApi,
+  kind: RecordKind,
+  id: string,
+  schema: Schema<T>,
+): Promise<StoredRecord<T> | null> {
+  try {
+    return await decrypted(vault, kind, schema, await api.record(id));
+  } catch (error) {
+    if (error instanceof ApiError && error.code === "not_found") return null;
+    throw error;
+  }
 }
 
 /**
