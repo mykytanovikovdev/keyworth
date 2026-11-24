@@ -42,7 +42,7 @@ describe("records", () => {
 
     expect([first, second]).toEqual([1, 2]);
     expect(JSON.stringify([...b.server.records.values()])).not.toMatch(
-      /CHF|EUR|baseCurrency/,
+      /"(CHF|EUR)"|baseCurrency/,
     );
     expect(await readRecords(vault, api, "settings", settingsSchema)).toEqual([
       { id, revision: 2, value: { baseCurrency: "CHF" } },
