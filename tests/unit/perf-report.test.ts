@@ -138,29 +138,44 @@ describe("summarize", () => {
         count: 2,
         cpuMedian: 9,
         cpuMax: 9,
+        wallMin: 7000,
         wallMedian: 7500,
         wallMax: 8000,
-        failed: 2,
+        failures: ["500", "502"],
       },
       {
         route: "POST /api/chat",
         count: 1,
         cpuMedian: 2,
         cpuMax: 2,
+        wallMin: 5000,
         wallMedian: 5000,
         wallMax: 5000,
-        failed: 0,
+        failures: [],
       },
       {
         route: "GET /api/vault",
         count: 3,
         cpuMedian: 5,
         cpuMax: 6,
+        wallMin: 200,
         wallMedian: 220,
         wallMax: 300,
-        failed: 1,
+        failures: ["exceededCpu"],
       },
     ]);
+  });
+
+  it("says why requests failed, counted by reason", () => {
+    const report = formatReport([
+      sample("POST /api/chat/completions", 1, 50, "canceled"),
+      sample("POST /api/chat/completions", 1, 50, "canceled"),
+      sample("POST /api/chat/completions", 1, 50, "ok", 502),
+      sample("POST /api/chat/completions", 1, 50, "ok", 429),
+    ]);
+
+    expect(report).toContain("canceled ×2, 502 ×1");
+    expect(report).not.toContain("429");
   });
 
   it("prints a table with where the Worker ran", () => {

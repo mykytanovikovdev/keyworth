@@ -109,13 +109,21 @@ export interface RouteSummary {
   count: number;
   cpuMedian: number;
   cpuMax: number;
+  wallMin: number;
   wallMedian: number;
   wallMax: number;
-  /**
-   * Requests that failed: an outcome other than "ok" (exceeded limits, an
-   * exception the runtime caught) or a 5xx our own error handler answered.
-   */
-  failed: number;
+  /** Why each failed request failed (`failureOf`), one entry a request. */
+  failures: string[];
+}
+
+/**
+ * Why a request failed: the runtime's outcome, in its own words, when it is not
+ * "ok" (an exceeded limit, an exception, a browser that left), else the 5xx our
+ * own error handler answered. Null when it did not fail.
+ */
+function failureOf({ outcome, status }: Sample): string | null {
+  if (outcome !== "ok") return outcome;
+  return status !== null && status >= 500 ? String(status) : null;
 }
 
 /** Per route, slowest wall time first. */
@@ -130,11 +138,10 @@ export function summarize(samples: readonly Sample[]): RouteSummary[] {
       count: list.length,
       cpuMedian: median(list.map(({ cpuMs }) => cpuMs)),
       cpuMax: Math.max(...list.map(({ cpuMs }) => cpuMs)),
+      wallMin: Math.min(...list.map(({ wallMs }) => wallMs)),
       wallMedian: median(list.map(({ wallMs }) => wallMs)),
       wallMax: Math.max(...list.map(({ wallMs }) => wallMs)),
-      failed: list.filter(
-        ({ outcome, status }) => outcome !== "ok" || (status ?? 0) >= 500,
-      ).length,
+      failures: list.flatMap((sample) => failureOf(sample) ?? []),
     }))
     .sort((a, b) => b.wallMedian - a.wallMedian);
 }
@@ -159,14 +166,14 @@ export function formatReport(samples: readonly Sample[]): string {
     row.route,
     String(row.count),
     `${String(row.cpuMedian)} / ${String(row.cpuMax)}`,
-    `${String(row.wallMedian)} / ${String(row.wallMax)}`,
-    row.failed ? String(row.failed) : "",
+    `${String(row.wallMin)} / ${String(row.wallMedian)} / ${String(row.wallMax)}`,
+    tally(row.failures),
   ]);
   const header = [
     "Route",
     "Requests",
     "CPU ms (median / max)",
-    "Time ms (median / max)",
+    "Time ms (min / median / max)",
     "Not ok",
   ];
   const widths = header.map((title, column) =>
