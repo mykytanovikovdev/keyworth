@@ -35,8 +35,8 @@ request ─► security headers (every response)
 | Revision            | `PUT /api/vault/:id`                                                                                       | `0` creates; otherwise must equal the stored revision (at most 2³¹−2); kind cannot change                                              | 409 `conflict` + current `revision`, 409 `kind_mismatch`, or 404 |
 | Quotas              | `PUT /api/vault/:id`; `POST /api/vault/batch`                                                              | At most 20,000 records and 50 MiB of ciphertext per user, checked under the per-user lock before writing                               | 413 `quota_exceeded`                                             |
 | Lock wait           | `PUT /api/vault/:id`; `POST /api/vault/batch`                                                              | The user's write lock within 2 s, each statement within 5 s                                                                            | 429 `busy` + `Retry-After: 2`                                    |
-| Batch               | `POST /api/vault/batch`                                                                                    | 1–100 new `transaction` records, each id once; all written or none: a taken id rolls the batch back                                    | 400 `invalid_body`; 409 `conflict`                               |
-| Bulk delete         | `POST /api/vault/delete`                                                                                   | 1–1,000 ids, each once; only the user's records of kind `transaction`; ids already gone are no error                                   | 400 `invalid_body`; 200 `{ deleted }`                            |
+| Batch               | `POST /api/vault/batch`                                                                                    | 1–100 new `transaction`, `conversation` or `message` records, each id once; all written or none: a taken id rolls the batch back       | 400 `invalid_body`; 409 `conflict`                               |
+| Bulk delete         | `POST /api/vault/delete`                                                                                   | 1–1,000 ids, each once, of `transactions` (the default) or `chats`; or every chat (`all`); never settings; ids gone are no error       | 400 `invalid_body`; 200 `{ deleted }`                            |
 | Pages               | `GET /api/vault`                                                                                           | At most 1,000 records or 1 MiB of ciphertext (plus the record crossing it) per answer                                                  | `next` cursor; 400 `invalid_cursor`                              |
 | One-time setup      | `POST /api/keys`                                                                                           | The check value and both slots once, in one transaction: all three or none                                                             | 409 `already_set_up`                                             |
 | Expected slot       | `PUT /api/keys/passphrase`, `PUT /api/keys/recovery`                                                       | `expectedIv` must equal the stored slot's IV                                                                                           | 409 `conflict` + stored `iv`, or 404                             |
@@ -72,7 +72,8 @@ lock's own statement, so no extra round trip): a burst of one session's writes
 would otherwise queue while holding connections that every user shares; past
 the wait, the write is refused as `busy` and the client tries again.
 
-**Batches** (`POST /api/vault/batch`, for a CSV import) take the same lock, then
+**Batches** (`POST /api/vault/batch`, for a CSV import or a new chat, whose title
+and messages are two records) take the same lock, then
 count the user's records and bytes and insert them all in one statement; an id
 already taken makes the transaction roll back, so a batch is never half
 written. Validation costs CPU by the byte, so a batch is held to 128 KB (and
@@ -86,6 +87,10 @@ most 1,000 records or 1 MiB of ciphertext; the browser reads them one after
 another.
 Their own rate limit (60 a minute) leaves single writes untouched during an
 import.
+
+**One record** (`GET /api/vault/:id`) reads the messages of one chat without the
+others: it is the same query shape as a page, scoped by owner and id, and any
+record that is not the user's is `not_found`, like one that does not exist.
 
 ## Invariants
 

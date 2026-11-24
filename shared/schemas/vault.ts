@@ -75,9 +75,10 @@ export const vaultWriteSchema = z.strictObject({
 export type VaultWrite = z.infer<typeof vaultWriteSchema>;
 
 /**
- * `POST /api/vault/batch`: new records written together, all or none, for an
- * import. Writes one at a time are limited to 120 a minute; a file of a
- * thousand transactions would take nine.
+ * `POST /api/vault/batch`: new records written together, all or none: an
+ * import, or a new chat's two records (its title and its messages). Writes one
+ * at a time are limited to 120 a minute; a file of a thousand transactions
+ * would take nine.
  */
 export const VAULT_BATCH = Object.freeze({
   maxRecords: 100,
@@ -91,7 +92,11 @@ export const VAULT_BATCH = Object.freeze({
 });
 
 /** Only kinds that come in numbers; settings stay one record, written alone. */
-const BATCH_KINDS = ["transaction"] as const satisfies RecordKind[];
+const BATCH_KINDS = [
+  "transaction",
+  "conversation",
+  "message",
+] as const satisfies RecordKind[];
 
 export const vaultBatchSchema = z.strictObject({
   records: z
@@ -113,23 +118,42 @@ export const vaultBatchSchema = z.strictObject({
 export type VaultBatch = z.infer<typeof vaultBatchSchema>;
 
 /**
- * `POST /api/vault/delete`: several transactions deleted at once (selected,
- * or all of them). A thousand ids are about 39 KB of JSON.
+ * What `POST /api/vault/delete` may delete, by name: a chat is two records (its
+ * title and its messages), so `chats` takes both kinds. Never settings.
+ */
+export const DELETE_GROUPS = Object.freeze({
+  transactions: ["transaction"],
+  chats: ["conversation", "message"],
+} as const satisfies Record<string, readonly RecordKind[]>);
+
+export type DeleteGroup = keyof typeof DELETE_GROUPS;
+
+/**
+ * `POST /api/vault/delete`: several records of one group deleted at once:
+ * those with the ids, or, for chats, every one the user has (records whose
+ * content no longer decrypts included, which no list of ids can name). A
+ * thousand ids are about 39 KB of JSON.
  */
 export const VAULT_DELETE = Object.freeze({
   maxIds: 1000,
   maxBytes: 48 * 1024,
 });
 
-export const vaultDeleteSchema = z.strictObject({
-  ids: z
-    .array(recordIdSchema)
-    .min(1)
-    .max(VAULT_DELETE.maxIds)
-    .refine((ids) => new Set(ids).size === ids.length, {
-      message: "Each id once.",
-    }),
-});
+const deleteIds = z
+  .array(recordIdSchema)
+  .min(1)
+  .max(VAULT_DELETE.maxIds)
+  .refine((ids) => new Set(ids).size === ids.length, {
+    message: "Each id once.",
+  });
+
+export const vaultDeleteSchema = z.union([
+  z.strictObject({
+    of: z.enum(["transactions", "chats"]).default("transactions"),
+    ids: deleteIds,
+  }),
+  z.strictObject({ of: z.literal("chats"), all: z.literal(true) }),
+]);
 
 export type VaultDelete = z.infer<typeof vaultDeleteSchema>;
 
