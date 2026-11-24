@@ -296,6 +296,7 @@ test("deletes a chat with Undo, and all of them in Settings @chromium-only", asy
   await stubModel(page, [
     { stream: answerStream("One.") },
     { stream: answerStream("Two.") },
+    { stream: answerStream("Three.") },
   ]);
   for (const [question, answer] of [
     ["First question", "One."],
@@ -335,8 +336,12 @@ test("deletes a chat with Undo, and all of them in Settings @chromium-only", asy
     .click();
   await expect(page.getByText("All chats deleted")).toBeVisible();
   await expect(chatLinks(page)).toHaveCount(0);
+  // A chat begun while Undo is still open is not among those deleted.
+  await page.getByRole("link", { name: "New chat" }).click();
+  await ask(page, "Third question");
+  await expect(page.getByText("Three.")).toBeVisible();
   await lockAndUnlock(page, passphrase);
-  await expect(chatLinks(page)).toHaveCount(0);
+  await expect(chatLinks(page)).toHaveText(["Third question"]);
 });
 
 test("says why a chat's address cannot be opened @chromium-only", async ({
