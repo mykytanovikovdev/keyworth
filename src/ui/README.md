@@ -17,20 +17,20 @@ compose these parts).
 
 ## How it works
 
-| File                           | Role                                                                      |
-| ------------------------------ | ------------------------------------------------------------------------- |
-| `tokens.css`                   | Every raw value: colors per theme, font, radii, shadows, motion           |
-| `styles.css`                   | Tokens to Tailwind utilities, no Tailwind defaults, keyframes, print rule |
-| `theme.ts`                     | The user's theme choice and the theme on screen, as React hooks           |
-| `../../public/theme-init.js`   | Sets the theme before the first paint (not bundled, see below)            |
-| `UIProvider.tsx`               | English for React Aria's strings, icon defaults, links through the router |
-| `components/`                  | Base components, mostly thin styling layers over React Aria Components    |
-| `toast.ts`                     | The toast queue and `showToast()`, callable from anywhere                 |
-| `motion.ts`                    | anime.js helpers for charts and choreographed reveals; duration tokens    |
-| `viewport.ts`                  | The visible part of the page on iOS; fine pointer; closing the keyboard   |
-| `live-announcer.ts`            | Lets React Aria clear its screen-reader announcements under Trusted Types |
-| `gallery/DesignSystemPage.tsx` | The `/design` page: every component and state                             |
-| `index.ts`                     | The public surface: import from `src/ui/index.ts`, not from inner files   |
+| File                           | Role                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------ |
+| `tokens.css`                   | Every raw value: colors per theme, font, radii, shadows, motion                      |
+| `styles.css`                   | Tokens to Tailwind utilities, no Tailwind defaults, keyframes, print rule            |
+| `theme.ts`                     | The user's theme choice and the theme on screen, as React hooks                      |
+| `../../public/theme-init.js`   | Sets the theme before the first paint (not bundled, see below)                       |
+| `UIProvider.tsx`               | English for React Aria's strings, icon defaults, links through the router            |
+| `components/`                  | Base components, mostly thin styling layers over React Aria Components               |
+| `toast.ts`                     | The toast queue and `showToast()`, callable from anywhere; `onClose` when it is over |
+| `motion.ts`                    | anime.js helpers for charts and choreographed reveals; duration tokens               |
+| `viewport.ts`                  | The visible part of the page on iOS; fine pointer; closing the keyboard              |
+| `live-announcer.ts`            | Lets React Aria clear its screen-reader announcements under Trusted Types            |
+| `gallery/DesignSystemPage.tsx` | The `/design` page: every component and state                                        |
+| `index.ts`                     | The public surface: import from `src/ui/index.ts`, not from inner files              |
 
 ### Tokens become utilities
 

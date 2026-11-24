@@ -28,7 +28,8 @@ and the pages that belong to no feature (not found, the dev-only mockups).
              ┌ session layout: no session → redirect to /sign-in
 /            │ ┐ app layout: the key gate (create a passphrase, unlock)
 /transactions│ │
-/chat        │ │   one conversation per tab until chats are kept
+/chat        │ │   a new chat
+/chat/<id>   │ │   a kept one (the same route: `/chat/{-$chatId}`)
 /settings    │ ┘   ?then=change-passphrase | new-recovery-key | delete-account
 /recover     └   outside the gate: a forgotten passphrase
 /sign-in       a session → redirect to /
@@ -77,10 +78,10 @@ and the pages that belong to no feature (not found, the dev-only mockups).
   mockup on 2026-11-14): on wide screens a left column, below 1024 px a
   one-line bar whose button opens the same menu in a `Drawer`. A header with
   sections took two rows on phones. The theme is chosen in Settings only. The
-  chat's part of the menu is New chat and, once chats are kept (phase 5.3),
-  their list: until then the app shows New chat alone, which starts the
-  conversation over (`chatSession.startOver`, light enough for the frame),
-  and the mockups pass made-up chats.
+  chat's part of the menu is New chat, which starts the conversation over
+  (`chatSession.startOver`, light enough for the frame), and the list of kept
+  chats (`features/chat/useChats.ts`, under the key gate: it needs the data
+  key). The mockups pass made-up chats.
 - **`/design` is a conditional route.** In a production build its condition is
   the constant `false`, so the page's code is not in the bundle.
 

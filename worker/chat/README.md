@@ -14,8 +14,9 @@ the request, writes the model's request itself and passes the model's stream
 back untouched.
 
 Not here: the tools' work and the agent's loop (the browser), the chat's
-history (phase 5.3: kept encrypted in the vault; until then only in the tab's
-memory) and the chat's screens
+history (kept encrypted in the vault, by the browser:
+[chat-history.md](../../src/features/chat/docs/chat-history.md)) and the chat's
+screens
 ([src/features/chat/](../../src/features/chat/README.md)).
 
 ## How it works

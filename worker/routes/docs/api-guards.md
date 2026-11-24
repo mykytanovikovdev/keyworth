@@ -152,4 +152,4 @@ A new route gets `rateLimit()` and `maxBody()` on writes, a schema from
 `shared/schemas`, queries scoped by `c.get("user").id`, and tests for each
 refusal and for another user's attempt — in the same commit.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-24

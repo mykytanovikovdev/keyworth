@@ -21,7 +21,11 @@ Covered now:
   tools on made-up data, and what they keep back: no amount without
   `includeAmounts`, never a note
   ([src/features/chat/docs/tools-and-minimization.md](../../src/features/chat/docs/tools-and-minimization.md));
-  which messages go to the model within the server's limit.
+  which messages go to the model within the server's limit. Kept chats: what is
+  saved and what is not (no tool result), reading back, size, titles, merging;
+  saving in order, creating once, gone and full; deleting with Undo
+  ([src/features/chat/docs/chat-history.md](../../src/features/chat/docs/chat-history.md));
+  the words of an answer fading in.
 - `src/ui/tokens.css` — both themes define every semantic color and data
   series, and every text/background pair meets WCAG AA (4.5:1 for text, 3:1 for
   field borders and focus). The test parses the CSS, so a token change that

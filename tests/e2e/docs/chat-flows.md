@@ -24,8 +24,15 @@ stored encrypted through the form; only the model is answered in the browser
 - **Refusals:** a 502 says the AI isn't answering, and Try again asks again
   and shows the answer; a 429 `budget` says the chat is back at the reset time
   and disables the box.
-- **Locking forgets the conversation:** after Lock (which reloads the tab) and
-  unlocking, the chat is empty.
+- **Chats are kept:** the address becomes `/chat/<id>` without a reload and the
+  menu lists the chat; after Lock (which reloads the tab) and unlocking, the
+  page holds nothing of it, and opening it from the menu shows the question, the
+  steps line and the answer, with no word fading. The next question sends the
+  old tool result as "Call the tool again" and none of its figures.
+- **Deleting:** one chat hides and comes back with Undo; left, it is gone for
+  good after a Lock, even with the Undo time still running; "Delete all chats"
+  in Settings takes them all, and not a chat begun while Undo is open.
+- **An address with no chat** says so.
 - **Narrow screens and accessibility**, in both themes: at 320 px the page
   does not scroll sideways, and axe finds no WCAG 2.2 A/AA violation before
   and after an answer.
@@ -55,4 +62,4 @@ an error status with JSON, or never) and returns the request bodies;
 a test that checks the question is gone: the empty chat shows it as a
 suggestion.
 
-Last reviewed: 2026-11-21
+Last reviewed: 2026-11-24

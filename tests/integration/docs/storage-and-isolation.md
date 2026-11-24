@@ -234,4 +234,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-18
+Last reviewed: 2026-11-24

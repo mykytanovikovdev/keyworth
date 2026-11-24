@@ -108,4 +108,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-24
