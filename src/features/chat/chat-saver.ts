@@ -13,11 +13,17 @@ import { newRecord, readRecord, writeRecord } from "../../vault/records.ts";
 import { type ChatEntry, entryOf, type VaultAccess } from "./chats.ts";
 import { fits, mergeSaved, titleOf } from "./kept.ts";
 
+export interface OpenedChat {
+  /** The revision its messages were read with. */
+  revision: number;
+  messages: SavedMessage[];
+}
+
 /** A chat's messages. null when it is gone, or its messages cannot be read. */
 export async function openChat(
   { vault, api }: VaultAccess,
   { bodyId }: ChatEntry,
-): Promise<{ revision: number; messages: SavedMessage[] } | null> {
+): Promise<OpenedChat | null> {
   const body = await readRecord(
     vault,
     api,

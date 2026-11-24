@@ -2,6 +2,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { showToast } from "../../ui/index.ts";
+import { chatDeletes } from "../chat/deleting.ts";
 import { vault } from "../../vault/index.ts";
 import { authClient, sessionQuery } from "./client.ts";
 
@@ -18,6 +19,8 @@ export function useSignOut() {
 
   async function signOut({ everywhere = false } = {}) {
     setPending(true);
+    // While the session is still there to delete them with.
+    await chatDeletes.flush();
     const { error } = everywhere
       ? await authClient.revokeSessions()
       : await authClient.signOut();
