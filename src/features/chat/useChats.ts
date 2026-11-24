@@ -2,7 +2,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useRouterState } from "@tanstack/react-router";
 import { useMemo, useSyncExternalStore } from "react";
 import { showToast } from "../../ui/index.ts";
-import { chatSession } from "./chat-session.ts";
 import type { ChatSummary } from "./chat-list.ts";
 import { chatDeletes } from "./deleting.ts";
 import { access, chatsQuery, dropChats } from "./queries.ts";
@@ -49,7 +48,7 @@ export function useDeleteChats(userId: string) {
       open &&
       (chats === "all" || chats.includes(pathname.slice("/chat/".length)))
     ) {
-      chatSession.startOver();
+      // A new chat opens there, and takes the place of the one deleted.
       void navigate({ to: "/chat/{-$chatId}", params: {} });
     }
     const { undo, commit } = chatDeletes.start({

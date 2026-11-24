@@ -30,7 +30,6 @@ import {
   currentConversation,
   startConversation,
 } from "./conversation.ts";
-import { chatDeletes } from "./deleting.ts";
 import { STARTER_QUESTIONS, useFollow } from "./follow.ts";
 import {
   AnswerFailed,
@@ -149,10 +148,6 @@ function Message({ children }: { children: ReactNode }) {
 /** Reads a kept chat's messages, then opens it. */
 function KeptChat({ userId, chatId }: { userId: string; chatId: string }) {
   const list = useQuery(chatsQuery(userId));
-  const hidden = useSyncExternalStore(
-    chatDeletes.subscribe,
-    chatDeletes.hidden,
-  );
   const entry = list.data?.chats.find(({ id }) => id === chatId);
   const body = useQuery({
     queryKey: ["vault", userId, "chat", chatId],
@@ -163,9 +158,6 @@ function KeptChat({ userId, chatId }: { userId: string; chatId: string }) {
     gcTime: 0,
   });
 
-  if (hidden.all || hidden.ids.has(chatId)) {
-    return <Message>This chat was deleted.</Message>;
-  }
   if (entry && body.data) {
     return <LoadedChat userId={userId} entry={entry} opened={body.data} />;
   }

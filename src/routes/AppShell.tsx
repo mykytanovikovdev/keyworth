@@ -60,7 +60,9 @@ function Frame({
       title={chats?.find(({ id }) => id === openId)?.title}
       chat={{
         newChat: "/chat",
-        onNewChat: chatSession.startOver,
+        // On /chat/<id> the address changes, and a new chat opens by itself;
+        // on /chat it does not.
+        ...(pathname === "/chat" && { onNewChat: chatSession.startOver }),
         list: chats && {
           chats,
           currentId: openId,
