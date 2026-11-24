@@ -983,6 +983,194 @@ describe("batch", () => {
   });
 });
 
+describe("one record", () => {
+  it("returns a record as the list does, whatever its kind", async () => {
+    const user = await vaultUser("one-record");
+    const id = crypto.randomUUID();
+    await put(user, id, { text: "secret" }, { kind: "message" });
+
+    const response = await api(`/api/vault/${id}`, { cookie: user.cookie });
+
+    expect(response.status).toBe(200);
+    const record = await response.json<VaultRecordJson>();
+    expect([record]).toEqual(await list(user, "message"));
+    expect(
+      await decryptRecord(
+        user.dataKey,
+        {
+          userId: user.userId,
+          kind: "message",
+          recordId: id,
+          revision: record.revision,
+        },
+        record.envelope,
+      ),
+    ).toEqual({ text: "secret" });
+  });
+
+  it("is not found for anyone but its owner, or when there is none", async () => {
+    const alice = await vaultUser("one-record-alice");
+    const bob = await vaultUser("one-record-bob");
+    const id = crypto.randomUUID();
+    await put(alice, id, { a: 1 }, { kind: "message" });
+
+    const foreign = await api(`/api/vault/${id}`, { cookie: bob.cookie });
+    const missing = await api(`/api/vault/${crypto.randomUUID()}`, {
+      cookie: alice.cookie,
+    });
+
+    expect(foreign.status).toBe(404);
+    expect(await foreign.json()).toEqual({ error: "not_found" });
+    expect(missing.status).toBe(404);
+  });
+
+  it("needs a session and an id", async () => {
+    const user = await vaultUser("one-record-guards");
+    const anonymous = await fetchWorker(`/api/vault/${crypto.randomUUID()}`);
+    const malformed = await api("/api/vault/not-an-id", {
+      cookie: user.cookie,
+    });
+
+    expect(anonymous.status).toBe(401);
+    expect(malformed.status).toBe(400);
+  });
+});
+
+describe("a chat's two records", () => {
+  const chatRecords = async (user: VaultUser) =>
+    Promise.all(
+      (["conversation", "message"] as const).map(async (kind) => {
+        const id = crypto.randomUUID();
+        const envelope = await encryptRecord(
+          user.dataKey,
+          { userId: user.userId, kind, recordId: id, revision: 1 },
+          { kind },
+        );
+        return { id, kind, envelope };
+      }),
+    );
+
+  it("are written together, or neither is", async () => {
+    const user = await vaultUser("chat-pair");
+    const records = await chatRecords(user);
+
+    expect((await batch(user, records)).status).toBe(201);
+    expect((await list(user)).map(({ kind }) => kind).sort()).toEqual([
+      "conversation",
+      "message",
+    ]);
+
+    const [taken] = await chatRecords(user);
+    const again = [taken, { ...records[1], envelope: records[1]?.envelope }];
+    expect((await batch(user, again)).status).toBe(409);
+    expect(await storedCount(user.userId)).toBe(2);
+  });
+
+  it("a batch still takes no settings", async () => {
+    const user = await vaultUser("chat-pair-settings");
+    const [record] = await chatRecords(user);
+
+    const response = await batch(user, [{ ...record, kind: "settings" }]);
+
+    expect(response.status).toBe(400);
+    expect(await storedCount(user.userId)).toBe(0);
+  });
+});
+
+describe("deleting chats", () => {
+  const remove = (user: { cookie: string }, body: unknown) =>
+    api("/api/vault/delete", { cookie: user.cookie, method: "POST", body });
+
+  /** Two chats (two records each), a transaction and a settings record. */
+  async function stocked(label: string) {
+    const user = await vaultUser(label);
+    for (const kind of ["conversation", "message", "transaction"] as const) {
+      await insertRecords(user.userId, kind === "transaction" ? 1 : 2, {
+        kind,
+      });
+    }
+    const settings = crypto.randomUUID();
+    expect((await put(user, settings, { base: "USD" })).status).toBe(201);
+    return user;
+  }
+
+  const kinds = async (userId: string) =>
+    (
+      await query<{ kind: string }>(
+        "select kind from vault_records where user_id = $1 order by kind",
+        [userId],
+      )
+    ).map(({ kind }) => kind);
+
+  it("takes the chat's kinds by id and nothing else", async () => {
+    const user = await stocked("delete-chat");
+    const ids = [
+      ...(await idsInOrder(user.userId, "conversation")).slice(0, 1),
+      ...(await idsInOrder(user.userId, "message")).slice(0, 1),
+      ...(await idsInOrder(user.userId, "transaction")),
+      ...(await idsInOrder(user.userId, "settings")),
+    ];
+
+    const response = await remove(user, { of: "chats", ids });
+
+    expect(await response.json()).toEqual({ deleted: 2 });
+    expect(await kinds(user.userId)).toEqual([
+      "conversation",
+      "message",
+      "settings",
+      "transaction",
+    ]);
+  });
+
+  it("takes every chat with `all`, and never a transaction or the settings", async () => {
+    const user = await stocked("delete-chats-all");
+
+    const response = await remove(user, { of: "chats", all: true });
+
+    expect(await response.json()).toEqual({ deleted: 4 });
+    expect(await kinds(user.userId)).toEqual(["settings", "transaction"]);
+  });
+
+  it("takes nothing of another user's", async () => {
+    const alice = await stocked("delete-chats-alice");
+    const bob = await vaultUser("delete-chats-bob");
+
+    const byId = await remove(bob, {
+      of: "chats",
+      ids: await idsInOrder(alice.userId, "conversation"),
+    });
+    const all = await remove(bob, { of: "chats", all: true });
+
+    expect(await byId.json()).toEqual({ deleted: 0 });
+    expect(await all.json()).toEqual({ deleted: 0 });
+    expect(await kinds(alice.userId)).toHaveLength(6);
+  });
+
+  it("has no `all` for transactions, and refuses what it does not know", async () => {
+    const user = await stocked("delete-chats-bad");
+    for (const [what, body] of [
+      ["all transactions", { of: "transactions", all: true }],
+      ["all of nothing", { all: true }],
+      ["all and ids", { of: "chats", all: true, ids: [crypto.randomUUID()] }],
+      ["an unknown group", { of: "settings", ids: [crypto.randomUUID()] }],
+      ["neither", { of: "chats" }],
+    ] as const) {
+      expect((await remove(user, body)).status, what).toBe(400);
+    }
+    expect(await kinds(user.userId)).toHaveLength(6);
+  });
+
+  it("still deletes transactions without naming a group", async () => {
+    const user = await stocked("delete-chats-default");
+    const ids = [
+      ...(await idsInOrder(user.userId, "transaction")),
+      ...(await idsInOrder(user.userId, "conversation")),
+    ];
+
+    expect(await (await remove(user, { ids })).json()).toEqual({ deleted: 1 });
+  });
+});
+
 describe("deleting several", () => {
   const remove = (user: { cookie: string }, body: unknown, origin?: string) =>
     api("/api/vault/delete", {

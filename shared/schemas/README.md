@@ -12,21 +12,21 @@ lengths, so a malformed value is rejected before anything decodes it.
 
 ## How it works
 
-| File             | Role                                                                                                          |
-| ---------------- | ------------------------------------------------------------------------------------------------------------- |
-| `zod.ts`         | Configures zod (jitless) and re-exports `z`; every schema imports it                                          |
-| `base64url.ts`   | Unpadded base64url: the codec (one canonical spelling per byte string) and an exact-length schema helper      |
-| `envelope.ts`    | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                      |
-| `keys.ts`        | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys`  |
-| `vault.ts`       | Record kinds and ids, per-user limits, the bodies of `PUT /api/vault/:id`, `POST /api/vault/batch`, `/delete` |
-| `me.ts`          | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)   |
-| `market.ts`      | Asset ids (`crypto:` and CoinGecko's id), limits, the shapes `/api/market` and `/api/assets` return           |
-| `text.ts`        | Free text: `typedText` (a field's filter), `cleanText` (what is kept), `plainTextSchema`, hidden characters   |
-| `currencies.ts`  | The 161 fiat currencies with a central bank's rate; a price currency is one of them, USDT or USDC             |
-| `transaction.ts` | The plaintext inside a `transaction` record, by type; amounts as strings of plain digits; loose               |
-| `chat.ts`        | `POST /api/chat/completions`: limits, the question's rules, the OpenAI-format messages; the refusals' shape   |
-| `chat-tools.ts`  | The chat's tools as the model sees them: names, descriptions, input schemas; `includeAmounts` for amounts     |
-| `settings.ts`    | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save  |
+| File             | Role                                                                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `zod.ts`         | Configures zod (jitless) and re-exports `z`; every schema imports it                                                                                |
+| `base64url.ts`   | Unpadded base64url: the codec (one canonical spelling per byte string) and an exact-length schema helper                                            |
+| `envelope.ts`    | `envelopeSchema`: `{ v: 1, alg: "A256GCM", iv, ct }` and its exact sizes                                                                            |
+| `keys.ts`        | Argon2id settings and their limits; the passphrase, recovery and device slots; the setup body of `/api/keys`                                        |
+| `vault.ts`       | Record kinds and ids, per-user limits, the bodies of `PUT /api/vault/:id`, `POST /api/vault/batch`, `/delete` (and what each delete group may take) |
+| `me.ts`          | What `GET /api/me` returns: the user and `freshForSeconds` (a type only: the browser trusts its own server)                                         |
+| `market.ts`      | Asset ids (`crypto:` and CoinGecko's id), limits, the shapes `/api/market` and `/api/assets` return                                                 |
+| `text.ts`        | Free text: `typedText` (a field's filter), `cleanText` (what is kept), `plainTextSchema`, hidden characters                                         |
+| `currencies.ts`  | The 161 fiat currencies with a central bank's rate; a price currency is one of them, USDT or USDC                                                   |
+| `transaction.ts` | The plaintext inside a `transaction` record, by type; amounts as strings of plain digits; loose                                                     |
+| `chat.ts`        | `POST /api/chat/completions`: limits, the question's rules, the OpenAI-format messages; the refusals' shape                                         |
+| `chat-tools.ts`  | The chat's tools as the model sees them: names, descriptions, input schemas; `includeAmounts` for amounts                                           |
+| `settings.ts`    | The plaintext inside a `settings` record (base currency); loose, so newer fields survive an older tab's save                                        |
 
 The envelope schema accepts only what `src/crypto/envelope.ts` can produce: a
 12-byte IV and a ciphertext whose length is one padding bucket (256 bytes to

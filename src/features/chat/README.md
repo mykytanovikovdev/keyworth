@@ -12,8 +12,8 @@ Not here: the model, the system prompt and the limits (the server's
 [`/api/chat/completions`](../../../worker/chat/README.md)), the calculations the
 tools return ([shared/metrics/](../../../shared/metrics/README.md)), and the
 frame with the menu ([src/routes/AppFrame.tsx](../../routes/AppFrame.tsx)).
-Chats are not kept yet: one conversation lives in the tab until the encrypted
-history arrives (phase 5.3).
+Chats are kept encrypted, to open again on any device:
+[docs/chat-history.md](docs/chat-history.md).
 
 ## How it works
 
@@ -26,28 +26,34 @@ question ─► Chat (@ai-sdk/react) ─► DirectChatTransport ─► ToolLoopA
                                   (results go back with the next step)
 ```
 
-| File                       | Role                                                                                             |
-| -------------------------- | ------------------------------------------------------------------------------------------------ |
-| `ChatPage.tsx`             | `/chat`: the empty chat or the conversation, Stop, refusals, today's limit                       |
-| `conversation.ts`          | The agent (`ToolLoopAgent`, ≤ 6 steps, no retries) and the tab's one conversation (`Chat`)       |
-| `chat-session.ts`          | When the conversation starts over (New chat, locking), without loading the AI SDK                |
-| `tools.ts`                 | The seven read-only tools, on the data `chat-data.ts` loads; amounts only with `includeAmounts`  |
-| `chat-data.ts`             | The transactions, settings and market data through the pages' own queries and cache              |
-| `history.ts`               | The latest messages within the server's limit, cut only before a question                        |
-| `refusals.ts`              | The server's refusals (`budget`, `rate_limited`…) as a code through the transport, then as words |
-| `step-words.ts`            | What each tool call says in the steps line, and what the AI received from it                     |
-| `Answer.tsx`               | The answer's markdown as plain elements: no HTML, no images, links as their words                |
-| `follow.ts`                | The starter questions, and keeping a growing answer in view                                      |
-| `Composer.tsx`             | The question box: Enter sends, Shift+Enter is a new line, Stop while answering; the caption      |
-| `Messages.tsx`             | A question, an answer, the steps line (`ToolSteps`), a stopped or broken-off answer              |
-| `ChatLayout.tsx`           | The reading column with the box kept at the bottom; `EmptyChat`, a new chat with ideas           |
-| `answer-styles.ts`         | How an answer's paragraphs, lists, bold, tables and code look                                    |
-| `ChatList.tsx`             | The chats in the menu, each with a "⋯" menu (Delete chat); in the mockups until chats are kept   |
-| `chat-list.ts`             | `ChatSummary`; `groupChats`: Today, Previous 7 days, Previous 30 days, Older, newest first       |
-| `DeleteAllChatsDialog.tsx` | "Delete all chats?": asked once; Undo in the toast afterwards (mockups until chats are kept)     |
+| File                         | Role                                                                                                 |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `ChatPage.tsx`               | `/chat`, a new chat, and `/chat/<id>`, a kept one; Stop, refusals, today's limit, saving notices     |
+| `conversation.ts`            | The agent (`ToolLoopAgent`, ≤ 6 steps, no retries) and the open conversation, saved as it goes       |
+| `chat-session.ts`            | When the conversation starts over (New chat, locking), without loading the AI SDK                    |
+| `tools.ts`                   | The seven read-only tools, on the data `chat-data.ts` loads; amounts only with `includeAmounts`      |
+| `chat-data.ts`               | The transactions, settings and market data through the pages' own queries and cache                  |
+| `history.ts`                 | The latest messages within the server's limit, cut only before a question                            |
+| `refusals.ts`                | The server's refusals (`budget`, `rate_limited`…) as a code through the transport, then as words     |
+| `step-words.ts`              | What each tool call says in the steps line, and what the AI received from it                         |
+| `Answer.tsx`, `word-fade.ts` | The answer's markdown as plain elements: no HTML, no images, links as their words; new words fade in |
+| `chat-saver.ts`              | Keeps one chat stored: creates it, saves in order, merges another device's turns                     |
+| `chats.ts`, `queries.ts`     | The list of kept chats and its query; light, the menu is in the first load                           |
+| `saved.ts`, `kept.ts`        | Between the page's messages and the kept ones; titles, size, merging                                 |
+| `deleting.ts`, `useChats.ts` | Deleting with Undo (hidden at once, deleted when Undo is over), for the menu and Settings            |
+| `DeleteAllChats.tsx`         | Settings, Chats: "Delete all chats"                                                                  |
+| `follow.ts`                  | The starter questions, and keeping a growing answer in view                                          |
+| `Composer.tsx`               | The question box: Enter sends, Shift+Enter is a new line, Stop while answering; the caption          |
+| `Messages.tsx`               | A question, an answer, the steps line (`ToolSteps`), a stopped or broken-off answer                  |
+| `ChatLayout.tsx`             | The reading column with the box kept at the bottom; `EmptyChat`, a new chat with ideas               |
+| `answer-styles.ts`           | How an answer's paragraphs, lists, bold, tables and code look                                        |
+| `ChatList.tsx`               | The chats in the menu, each with a "⋯" menu (Delete chat)                                            |
+| `chat-list.ts`               | `ChatSummary`; `groupChats`: Today, Previous 7 days, Previous 30 days, Older, newest first           |
+| `DeleteAllChatsDialog.tsx`   | "Delete all chats?": asked once; Undo in the toast afterwards                                        |
 
 What the tools return, what never leaves the device and how that is tested:
-[docs/tools-and-minimization.md](docs/tools-and-minimization.md).
+[docs/tools-and-minimization.md](docs/tools-and-minimization.md). What is kept,
+how and what the server learns from it: [docs/chat-history.md](docs/chat-history.md).
 
 An answer is shown in two parts. **The steps line** says what the assistant is
 doing ("Looking at your portfolio…") and afterwards sums it up in one line that
@@ -77,10 +83,14 @@ changes. Amounts stayed on this device", or "Amounts included, as you asked".
 - **The caption under the box says the answers are AI-written** ("AI answers
   can be wrong. Not investment advice."): people must be told they are talking
   to an AI (EU AI Act, art. 50(1)), and the app gives no investment advice.
-- **One conversation, in memory** (owner's decision, 2026-11-21) until chats
-  are kept encrypted: no list in the menu that would promise what is not
-  there. It survives moving between sections; New chat, Lock and closing the
-  tab end it.
+- **One conversation open at a time**, kept encrypted as it goes (owner's
+  decision, 2026-11-24; two records a chat, no tool results). It survives moving
+  between sections; New chat, opening another chat and Lock take it from memory,
+  and what was written stays kept. An answer still being written when another
+  chat is opened stops.
+- **Words fade in as they come** (approved as a mockup; `animate-word`). Only in
+  the answer being written: one read back appears whole. A plugin for the
+  markdown renderer, since the words have to be wrapped as the tree is drawn.
 - **The chat's code is its own chunk, not fetched ahead** with the sections:
   it carries the AI SDK and the markdown parser (about 155 kB gzip), for those
   who open the chat. The first load stays as it was.
@@ -100,7 +110,10 @@ changes. Amounts stayed on this device", or "Amounts included, as you asked".
   (`failureCode`) and back into a refusal on the page (`failureOf`).
 - **Do not import `conversation.ts` (or anything with the AI SDK) from the
   frame or the app's start**: it would pull the chat's chunk into the first
-  load. `chat-session.ts` is the light way in.
+  load. `chat-session.ts`, `queries.ts`, `useChats.ts` and `deleting.ts` are the
+  light ways in (`saved.ts` and `chat-saver.ts` are not).
+- **Tools in a kept chat are replaced by a note, not by nothing:** the AI SDK
+  refuses a call without a result (`saved.ts`).
 - **A question that is also a starter question** shows twice on an empty
   chat's page; tests that check a question is gone use their own words.
 - **Enter during an input method's composition** (Japanese, Chinese) must not
@@ -127,6 +140,7 @@ and a test that nothing beyond what it promises reaches the model.
 
 - [docs/tools-and-minimization.md](docs/tools-and-minimization.md): what the
   tools send, and what never leaves the device
+- [docs/chat-history.md](docs/chat-history.md): how chats are kept, merged and deleted
 - [worker/chat/](../../../worker/chat/README.md): the server's side, the model and its limits
 - [src/routes/](../../routes/README.md): the app frame and the mockups
 - [src/ui/](../../ui/README.md): the design system these screens are built from

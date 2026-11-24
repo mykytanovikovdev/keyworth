@@ -69,8 +69,9 @@ Covered now:
   Chromium only; local builds only): a question runs the agent's loop and a
   tool in the browser, with the model answered in the browser; the answer's
   markdown without links, images or HTML; no amount in the tool's result on
-  the wire; Stop, New chat, refusals, today's limit, locking forgets the
-  conversation; 320 px and axe in both themes. What it proves:
+  the wire; Stop, New chat, refusals, today's limit; chats kept through a Lock
+  and continued without the old figures, deleted with Undo and all at once; 320
+  px and axe in both themes. What it proves:
   [docs/chat-flows.md](docs/chat-flows.md).
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:

@@ -98,7 +98,8 @@ React reads the state with `useVaultState()`; flows are methods on `vault`
 
 - Run the unit tests: `npx vitest run --project unit tests/unit/vault`.
 - A new record kind: add its plaintext schema in `shared/schemas`, read with
-  `readRecords(vault, httpApi, kind, schema)` and write with `writeRecord`,
+  `readRecords(vault, httpApi, kind, schema)` (one record by its id:
+  `readRecord`) and write with `writeRecord`,
   retrying once on a 409 `conflict` after reading again (see the settings
   feature for an example).
 - Debugging in the browser: the state is `vault.getState()`; the Lock epoch and

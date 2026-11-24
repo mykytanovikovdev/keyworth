@@ -195,7 +195,10 @@ test("stops an answer, and starts over with New chat @chromium-only", async ({
       name: "What would you like to know?",
     }),
   ).toBeVisible();
-  await expect(page.getByText("Which coin fell the most?")).toHaveCount(0);
+  // Gone from the page; it stays in the menu, as a chat to come back to.
+  await expect(
+    page.getByRole("main").getByText("Which coin fell the most?"),
+  ).toHaveCount(0);
 });
 
 test("says when today's limit is reached, and when the AI is not answering @chromium-only", async ({
@@ -226,34 +229,133 @@ test("says when today's limit is reached, and when the AI is not answering @chro
   await expect(page.getByRole("textbox", { name: "Question" })).toBeDisabled();
 });
 
-test("forgets the conversation when the data locks @chromium-only", async ({
-  page,
-  context,
-  baseURL,
-}) => {
-  const { passphrase } = await openApp(page, context, baseURL);
-  await stubModel(page, [{ stream: answerStream("Here it is.") }]);
-  await openChat(page);
-  await ask(page, "Which coin is my largest?");
-  await expect(page.getByText("Here it is.")).toBeVisible();
+/** The chats in the menu, newest first. */
+const chatLinks = (page: Page) =>
+  page.getByRole("navigation", { name: "Chats" }).getByRole("link");
 
+/** Locks, waits for the reload and unlocks again. */
+async function lockAndUnlock(page: Page, passphrase: string) {
   await page.getByRole("link", { name: "Settings" }).click();
   // Lock reloads the tab: unlock once it has.
   const reloaded = page.waitForEvent("load");
   await page.getByRole("button", { name: "Lock now" }).click();
   await reloaded;
   await unlock(page, passphrase);
-  await page
-    .getByRole("link", { name: "New chat" })
-    .click({ timeout: AFTER_ARGON2.timeout });
-
   await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "What would you like to know?",
-    }),
+    page.getByRole("heading", { level: 1, name: "Settings" }),
+  ).toBeVisible(AFTER_ARGON2);
+}
+
+test("keeps the chat through a lock, and goes on without the old figures @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { passphrase } = await openApp(page, context, baseURL);
+  const sent = await stubModel(page, [
+    { stream: WORKERS_AI_TOOL_CALL },
+    { stream: answerStream("Up 4.2% this month.") },
+    { stream: answerStream("Still up.") },
+  ]);
+  await openChat(page);
+  await ask(page, "How did my portfolio do this month?");
+  await expect(page.getByText("Up 4.2% this month.")).toBeVisible();
+  await expect(chatLinks(page)).toHaveText([
+    "How did my portfolio do this month?",
+  ]);
+  // Its own address, without a reload.
+  await expect(page).toHaveURL(/\/chat\/[0-9a-f-]{36}$/);
+
+  await lockAndUnlock(page, passphrase);
+  await expect(
+    page.getByRole("main").getByText("Up 4.2% this month."),
+  ).toHaveCount(0);
+  await chatLinks(page).first().click();
+
+  await expect(page.getByText("Up 4.2% this month.")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /^Looked at your portfolio$/ }),
   ).toBeVisible();
-  await expect(page.getByText("Which coin is my largest?")).toHaveCount(0);
+  // Read back whole: nothing fades in.
+  await expect(page.locator("main .animate-word")).toHaveCount(0);
+  const before = sent.length;
+  await ask(page, "And now?");
+  await expect(page.getByText("Still up.")).toBeVisible();
+  const followUp = JSON.stringify(sent.slice(before));
+  expect(followUp).toContain("Call the tool again");
+  expect(followUp).not.toContain('\\"share\\":1');
+  await expect(chatLinks(page)).toHaveCount(1);
+});
+
+test("deletes a chat with Undo, and all of them in Settings @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { passphrase } = await openApp(page, context, baseURL);
+  await stubModel(page, [
+    { stream: answerStream("One.") },
+    { stream: answerStream("Two.") },
+    { stream: answerStream("Three.") },
+  ]);
+  for (const [question, answer] of [
+    ["First question", "One."],
+    ["Second question", "Two."],
+  ] as const) {
+    await page.getByRole("link", { name: "New chat" }).click();
+    await ask(page, question);
+    await expect(page.getByText(answer)).toBeVisible();
+  }
+  await expect(chatLinks(page)).toHaveText([
+    "Second question",
+    "First question",
+  ]);
+
+  const remove = async (title: string) => {
+    await page
+      .getByRole("button", { name: `Actions for the chat “${title}”` })
+      .click();
+    await page.getByRole("menuitem", { name: "Delete chat" }).click();
+  };
+  // Undo: back as it was.
+  await remove("First question");
+  await expect(chatLinks(page)).toHaveText(["Second question"]);
+  await page.getByRole("button", { name: "Undo" }).click();
+  await expect(chatLinks(page)).toHaveCount(2);
+  // Deleted for good: not back after a reload and an unlock. A Lock does not
+  // leave the delete waiting.
+  await remove("First question");
+  await expect(chatLinks(page)).toHaveText(["Second question"]);
+  await lockAndUnlock(page, passphrase);
+  await expect(chatLinks(page)).toHaveText(["Second question"]);
+
+  await page.getByRole("button", { name: "Delete all chats" }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: "Delete all chats" })
+    .click();
+  await expect(page.getByText("Deleted 1 chat")).toBeVisible();
+  await expect(chatLinks(page)).toHaveCount(0);
+  // A chat begun while Undo is still open is not among those deleted.
+  await page.getByRole("link", { name: "New chat" }).click();
+  await ask(page, "Third question");
+  await expect(page.getByText("Three.")).toBeVisible();
+  await lockAndUnlock(page, passphrase);
+  await expect(chatLinks(page)).toHaveText(["Third question"]);
+});
+
+test("says why a chat's address cannot be opened @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { passphrase } = await openApp(page, context, baseURL);
+  await page.goto("/chat/0b8f6c1e-7d2a-4c3b-9e5f-1a2b3c4d5e6f");
+  await unlock(page, passphrase);
+
+  await expect(page.getByText(/^This chat isn't here/)).toBeVisible(
+    AFTER_ARGON2,
+  );
 });
 
 for (const theme of ["light", "dark"] as const) {

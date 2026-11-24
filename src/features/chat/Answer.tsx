@@ -1,7 +1,8 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 import Markdown, { type Components } from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { answerClassName } from "./answer-styles.ts";
+import { fadeWords } from "./word-fade.ts";
 
 /*
  * An answer's text: the model writes markdown, which becomes plain React
@@ -33,11 +34,21 @@ const COMPONENTS: Components = {
   ),
 };
 
-export function Answer({ text }: { text: string }) {
+interface AnswerProps {
+  text: string;
+  /** Being written now: its words fade in as they come. */
+  streaming?: boolean;
+}
+
+export function Answer({ text, streaming = false }: AnswerProps) {
+  // As it began: an answer that faded in keeps its words as they are when it
+  // ends, and one read back, whole, never fades.
+  const [fades] = useState(streaming);
   return (
     <div className={answerClassName}>
       <Markdown
         remarkPlugins={[remarkGfm]}
+        rehypePlugins={fades ? [fadeWords] : []}
         skipHtml
         disallowedElements={["img"]}
         unwrapDisallowed

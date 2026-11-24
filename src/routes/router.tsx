@@ -88,10 +88,15 @@ const transactionsRoute = createRoute({
   }),
 });
 
+// One route for a new chat and a kept one: a new chat gets its own address once
+// it is kept, and the page stays as it is.
 const chatRoute = createRoute({
   getParentRoute: () => appRoute,
-  path: "/chat",
-  component: ChatPage,
+  path: "/chat/{-$chatId}",
+  component: waitingFor(ChatPage, function ChatAddress() {
+    const { chatId } = chatRoute.useParams();
+    return <ChatPage chatId={chatId} />;
+  }),
 });
 
 const settingsRoute = createRoute({

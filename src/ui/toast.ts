@@ -27,6 +27,8 @@ interface ShowToastOptions {
   description?: string;
   tone?: ToastTone;
   action?: ToastAction;
+  /** Runs when it closes, however: its time is over, dismissed or acted on. */
+  onClose?: () => void;
 }
 
 /**
@@ -36,10 +38,13 @@ interface ShowToastOptions {
  */
 export function showToast(
   title: string,
-  { description, tone = "neutral", action }: ShowToastOptions = {},
+  { description, tone = "neutral", action, onClose }: ShowToastOptions = {},
 ): string {
   const content: ToastContent = { title, tone };
   if (description !== undefined) content.description = description;
   if (action !== undefined) content.action = action;
-  return toastQueue.add(content, tone === "error" ? {} : { timeout: 5000 });
+  return toastQueue.add(content, {
+    ...(tone !== "error" && { timeout: 5000 }),
+    ...(onClose && { onClose }),
+  });
 }

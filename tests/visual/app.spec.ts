@@ -175,7 +175,12 @@ for (const theme of THEMES) {
       await expect(dialog).toBeVisible();
       await page.evaluate(() => document.fonts.ready);
 
-      // The dialog alone: a change to the page behind it is not a change to it.
+      // The dialog alone: a change to the page behind it is not a change to it,
+      // and its text would show in the dialog's rounded corners.
+      await page.evaluate(() => {
+        const root = document.getElementById("root");
+        if (root) root.style.visibility = "hidden";
+      });
       await expect(dialog).toHaveScreenshot(
         `delete-account-${theme}-${String(width)}.png`,
       );

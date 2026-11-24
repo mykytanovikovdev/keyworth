@@ -58,9 +58,11 @@ export function PrivacyPage() {
             Your name, email address and transaction notes never go. Our server
             passes all of this through without storing or logging it, and counts
             only how much the model was used each day, for everyone together.
-            The conversation stays in your browser tab and is gone when you
-            start a new chat, lock Keyworth or close the tab. Legal basis: our
-            contract with you.
+            Your chats are kept for you encrypted in your browser before they
+            reach our server, like your portfolio: we can't read what is in
+            them, or their titles. We can see how many you have, roughly how
+            long each is, and when it was saved. The numbers the assistant
+            looked up are not kept. Legal basis: our contract with you.
           </li>
           <li>
             <strong>Security.</strong> The IP address and browser of each
@@ -133,7 +135,8 @@ export function PrivacyPage() {
             forwards messages sent to our privacy address, and runs the AI model
             that answers the chat (Workers AI), which receives what the chat
             sends it, as described above, without your IP address or who you
-            are. Cloudflare does not keep it or use it to train models.
+            are. Cloudflare does not use it to train AI models, and does not
+            keep it once the answer is delivered, unless the law requires it to.
           </li>
           <li>
             <strong>Neon</strong>, part of Databricks (USA), hosts the database,
@@ -190,8 +193,10 @@ export function PrivacyPage() {
             to show what was asked and done.
           </li>
           <li>
-            <strong>The chat:</strong> not kept. Each question and answer exists
-            only in your browser tab and, while the model answers, in transit.
+            <strong>Your chats:</strong> encrypted, until you delete one, all of
+            them or your account. The database's own history can hold a deleted
+            chat, still encrypted, for up to 7 more days. While the model
+            answers, your question and what it needs are in transit.
           </li>
           <li>
             <strong>Market data:</strong> prices, coin searches and logos for up

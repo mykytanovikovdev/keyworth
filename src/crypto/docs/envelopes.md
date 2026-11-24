@@ -103,8 +103,9 @@ before anything is stored.
 - **A deleted record written back** is stored again with revision 1, so its
   first version (and only that one) decrypts again. Record ids are never
   reused, so the interface treats an id it deleted as gone.
-- **Large chat histories** will need splitting into several records before they
-  reach the 64 KiB bucket limit.
+- **Long chats:** a chat's messages are one record of at most 64 KiB, so the
+  chat stops being saved before that and asks to start a new one
+  ([src/features/chat/docs/chat-history.md](../../features/chat/docs/chat-history.md)).
 
 ## How it is tested
 
@@ -122,4 +123,4 @@ Changing the padding, the AAD or the envelope fields changes what existing
 records need to decrypt: add a version, keep reading the old one, and extend the
 schema and the tests for both.
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-24

@@ -59,9 +59,11 @@ base currency at each day's rate; a day without a rate is left out.
 7. **The model gets at most the latest 40 messages**, cut only before a
    question (`history.ts`): the server refuses more, and a cut after a question
    could leave a tool's result without its call.
-8. **The conversation lives only in the tab's memory.** It is dropped on New
-   chat, when the vault locks (with the decrypted queries, `src/App.tsx`) and
-   when the tab closes. Nothing of it is written to storage of any kind.
+8. **What a tool returned is never kept.** The chat is kept encrypted
+   ([chat-history.md](chat-history.md)) without it, and the open conversation
+   leaves memory on New chat, when another chat is opened and when the vault
+   locks (with the decrypted queries, `src/App.tsx`). Nothing of it is written
+   to the browser's own storage.
 
 ## Decisions and alternatives
 
@@ -112,4 +114,4 @@ definition in `shared/schemas/chat-tools.ts`, its `execute` in `tools.ts`, its
 words in `step-words.ts` (saying what the AI receives), and a test of what it
 keeps back. Never send free text the person wrote other than the question.
 
-Last reviewed: 2026-11-21
+Last reviewed: 2026-11-24

@@ -142,6 +142,15 @@ uninviting, deleting and listing, as described in
   at once one record below either limit (exactly one succeeds); the write rate
   limit answers 429 with `Retry-After` (the seconds left in the window), resets
   after its window, and covers Lock (`DELETE /api/keys/device`).
+- **One record** (`GET /api/vault/:id`): the same JSON as the list's, still
+  decrypting; another user's record, or none, is `not_found`; a malformed id is
+  refused, and it needs a session.
+- **A chat's two records**: written together in one batch or not at all (a taken
+  id writes neither); a batch still takes no settings.
+- **Deleting chats** (`of: "chats"`): by id, only `conversation` and `message`
+  records go, whatever ids are sent; `all` takes every chat and no transaction
+  or settings record; nothing of another user's; `all` for transactions, with
+  ids, of an unknown group or of nothing is refused (400) and deletes nothing.
 - **Deleting several** (`POST /api/vault/delete`): the user's transactions by
   id go and are counted, a settings record named among them stays, an unknown id
   is no error; another user's ids delete nothing of theirs; no list, an empty
@@ -225,4 +234,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-18
+Last reviewed: 2026-11-24

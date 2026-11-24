@@ -21,7 +21,8 @@ the page opens only once the data key is.
 | `DeleteAccountMock.tsx`  | "Delete account" without its logic, for the design page                        |
 
 **Agreed order** (owner, 2026-10-31): Account, Sign out everywhere,
-Passphrase, Recovery key, Lock, Base currency, Theme, Delete account. Below them,
+Passphrase, Recovery key, Lock, Base currency, Theme, Chats (added with the kept
+chats: "Delete all chats", with Undo), Delete account. Below them,
 links to the privacy policy and terms: once signed in, this is the way to reach
 them, and going there and back keeps the data open.
 

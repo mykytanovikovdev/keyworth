@@ -28,12 +28,12 @@ export interface AppLinks {
   settings: string;
 }
 
-/** The menu's chat part: New chat and, once chats are kept, their list. */
+/** The menu's chat part: New chat and the list of kept chats. */
 export interface FrameChats {
   newChat: string;
   /** Runs as New chat is followed: the conversation starts over. */
   onNewChat?: (() => void) | undefined;
-  /** Absent until chats are kept (phase 5.3): the menu shows no list. */
+  /** Absent while it loads. */
   list?:
     | {
         chats: readonly ChatSummary[];

@@ -1,5 +1,9 @@
 import type { DeviceSlotJson, KeysJson } from "../../../shared/schemas/keys.ts";
-import type { RecordKind, VaultWrite } from "../../../shared/schemas/vault.ts";
+import {
+  DELETE_GROUPS,
+  type RecordKind,
+  type VaultWrite,
+} from "../../../shared/schemas/vault.ts";
 import { ApiError, type VaultApi } from "../../../src/vault/api.ts";
 import {
   type DeviceKeyStore,
@@ -129,6 +133,18 @@ export function fakeServer(userId = ALICE) {
       call("forgetDevice", () => {
         device = null;
       }),
+    record: (id) =>
+      call("record", () => {
+        const row = records.get(id);
+        if (!row) throw new ApiError(404, { error: "not_found" });
+        return {
+          id,
+          kind: row.kind,
+          revision: row.revision,
+          envelope: copy(row.envelope),
+          updatedAt: "2026-11-20T12:00:00.000Z",
+        };
+      }),
     records: (kind) =>
       call("records", () =>
         [...records]
@@ -179,12 +195,26 @@ export function fakeServer(userId = ALICE) {
           throw new ApiError(404, { error: "not_found" });
         }
       }),
-    // Like the server: transactions only, an id already gone is no error.
-    deleteRecords: (ids) =>
+    // Like the server: one group's kinds only, an id already gone is no error.
+    deleteRecords: (ids, { of = "transactions" } = {}) =>
       call("deleteRecords", () => {
+        const kinds: readonly string[] = DELETE_GROUPS[of];
         let deleted = 0;
         for (const id of ids) {
-          if (records.get(id)?.kind === "transaction" && records.delete(id)) {
+          if (kinds.includes(records.get(id)?.kind ?? "")) {
+            records.delete(id);
+            deleted += 1;
+          }
+        }
+        return deleted;
+      }),
+    deleteAllChats: () =>
+      call("deleteAllChats", () => {
+        let deleted = 0;
+        const kinds: readonly string[] = DELETE_GROUPS.chats;
+        for (const [id, { kind }] of records) {
+          if (kinds.includes(kind)) {
+            records.delete(id);
             deleted += 1;
           }
         }

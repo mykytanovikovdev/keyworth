@@ -5,6 +5,7 @@ import {
   type RecordKind,
   recordIdSchema,
   recordKindSchema,
+  DELETE_GROUPS,
   VAULT_BATCH,
   VAULT_CURSOR,
   VAULT_DELETE,
@@ -39,7 +40,7 @@ const bytes = (text: string): Uint8Array => {
   return decoded;
 };
 
-interface PageRow extends Record<string, unknown> {
+interface RecordRow extends Record<string, unknown> {
   id: string;
   kind: RecordKind;
   revision: number;
@@ -48,9 +49,20 @@ interface PageRow extends Record<string, unknown> {
   ciphertext: string;
   /** ISO 8601 in UTC: Drizzle has pg leave timestamps as text in raw queries. */
   updated_at: string;
+}
+
+interface PageRow extends RecordRow {
   position: string;
   has_more: boolean;
 }
+
+const recordJson = (row: RecordRow): VaultRecordJson => ({
+  id: row.id,
+  kind: row.kind,
+  revision: row.revision,
+  envelope: { v: 1, alg: "A256GCM", iv: row.iv, ct: row.ciphertext },
+  updatedAt: row.updated_at,
+});
 
 /**
  * The user's records, optionally of one kind, oldest first, a page at a time
@@ -104,22 +116,30 @@ vault.get("/", async (c) => {
     order by created_at, id`);
   const rows = result.rows;
   const last = rows.at(-1);
-  const records: VaultRecordJson[] = rows.map((row) => ({
-    id: row.id,
-    kind: row.kind,
-    revision: row.revision,
-    envelope: {
-      v: 1,
-      alg: "A256GCM",
-      iv: row.iv,
-      ct: row.ciphertext,
-    },
-    updatedAt: row.updated_at,
-  }));
+  const records: VaultRecordJson[] = rows.map(recordJson);
   return c.json<VaultPageJson>({
     records,
     next: last?.has_more ? `${last.position}_${last.id}` : null,
   });
+});
+
+/**
+ * One of the user's records, whatever its kind: a chat's messages are read only
+ * when that chat is opened.
+ */
+vault.get("/:id", async (c) => {
+  const id = recordIdSchema.safeParse(c.req.param("id"));
+  if (!id.success) return c.json({ error: "invalid_id" }, 400);
+  const result = await c.get("db").execute<RecordRow>(sql`
+    select id, kind, revision,
+           ${base64url("iv")} as iv, ${base64url("ciphertext")} as ciphertext,
+           to_char(updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+             as updated_at
+      from vault_records
+     where user_id = ${c.get("user").id} and id = ${id.data}`);
+  const row = result.rows[0];
+  if (!row) return c.json({ error: "not_found" }, 404);
+  return c.json<VaultRecordJson>(recordJson(row));
 });
 
 // Namespace for this route's advisory locks (pg_advisory_xact_lock's first key).
@@ -295,10 +315,10 @@ const limitDeletes = rateLimit("vault-delete", 30);
 const deleteBody = maxBody(VAULT_DELETE.maxBytes);
 
 /**
- * Deletes several of the user's transactions at once: those selected, or all
- * of them. Only records of kind `transaction`, so a list of ids cannot take
- * the settings with it; an id that is not there (deleted on another device
- * meanwhile) is no error. Answers how many went.
+ * Deletes several of the user's records at once: transactions selected or all,
+ * chats selected or all. Only the group's kinds (DELETE_GROUPS), so a list of
+ * ids cannot take the settings with it; an id that is not there (deleted on
+ * another device meanwhile) is no error. Answers how many went.
  */
 vault.post("/delete", limitDeletes, deleteBody, async (c) => {
   const body = vaultDeleteSchema.safeParse(await readJson(c));
@@ -309,8 +329,10 @@ vault.post("/delete", limitDeletes, deleteBody, async (c) => {
     .where(
       and(
         eq(vaultRecords.userId, c.get("user").id),
-        eq(vaultRecords.kind, "transaction"),
-        inArray(vaultRecords.id, body.data.ids),
+        inArray(vaultRecords.kind, [...DELETE_GROUPS[body.data.of]]),
+        "ids" in body.data
+          ? inArray(vaultRecords.id, body.data.ids)
+          : undefined,
       ),
     )
     .returning({ id: vaultRecords.id });

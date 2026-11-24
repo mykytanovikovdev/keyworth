@@ -21,7 +21,9 @@ this folder only starts the flow and shows its outcome.
    `/` on success or to `/sign-in?error=CODE` on refusal.
 3. Routes read `sessionQuery`: signed-in pages redirect to `/sign-in` without a
    session, and `/sign-in` redirects to `/` with one (`src/routes/router.tsx`).
-4. Sign-out and account deletion set the cached session to `null` before
+4. Before signing out, chats whose Undo is still open are deleted: the session
+   that can delete them is about to end.
+5. Sign-out and account deletion set the cached session to `null` before
    navigating, so no stale page flashes. Then the vault locks every tab of the
    browser and forgets the device key (`useSignOut`); the other tabs reload
    into the sign-in page. "Sign out everywhere" is Better Auth's

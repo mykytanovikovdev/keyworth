@@ -4,6 +4,7 @@ import { Button, TextLink, ThemeToggle } from "../../ui/index.ts";
 import { useVaultState } from "../../vault/index.ts";
 import { sessionQuery } from "../auth/client.ts";
 import { useSignOut } from "../auth/useSignOut.ts";
+import { DeleteAllChats } from "../chat/DeleteAllChats.tsx";
 import { DeleteAccount } from "./DeleteAccount.tsx";
 import { SignOutEverywhereSection } from "./EncryptionSettings.tsx";
 import {
@@ -50,6 +51,7 @@ export function SettingsPage({ then }: { then?: SettingsAction | undefined }) {
       <Section title="Theme" description="Saved on this device.">
         <ThemeToggle showLabels />
       </Section>
+      {session && <DeleteAllChats userId={session.user.id} />}
       <Section
         title="Delete account"
         description="Removes your account and everything stored with it."

@@ -51,7 +51,10 @@ whom, and what it does not protect. The mechanisms are described in
   browser).
 - For each record: its kind (trade, chat, alert…), its size bucket, its
   revision, when it was created and changed, and how many records a user has
-  (a CSV import shows as many records created at once).
+  (a CSV import shows as many records created at once). For the chat: how many
+  chats, roughly how long each is and about when and how often it was saved
+  (two records a chat, `conversation` and `message`), and, while a chat is
+  opened, which one. Never the titles, the questions or the answers.
 - The Argon2 settings and salts, that a recovery key exists, and when the
   passphrase or the recovery key was last replaced.
 - When a device was remembered, and in which sign-in session (so from which IP
@@ -89,8 +92,10 @@ By default the model gets shares and percentages, not amounts, and never the
 person's notes or who they are; the tools that pick what it gets run in the
 browser
 ([src/features/chat/docs/tools-and-minimization.md](../../features/chat/docs/tools-and-minimization.md)).
-The conversation itself is kept only in the tab's memory and dropped when the
-vault locks. Cloudflare terminates TLS and technically
+Chats are kept encrypted on the server like trades, without what the tools
+returned; the open one leaves memory when the vault locks
+([src/features/chat/docs/chat-history.md](../../features/chat/docs/chat-history.md)).
+Cloudflare terminates TLS and technically
 sees that traffic. With a user's own API key (phase 13) the browser talks to
 Anthropic directly and the server sees none of it.
 
@@ -206,4 +211,4 @@ Any change to what the server stores, to the key flows or to the CSP must update
 this file in the same commit, and every new "not protected" item must be stated
 here plainly rather than left implicit.
 
-Last reviewed: 2026-11-21
+Last reviewed: 2026-11-24

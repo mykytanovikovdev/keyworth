@@ -8,6 +8,7 @@ import type {
 } from "../../shared/schemas/keys.ts";
 import type { MeJson } from "../../shared/schemas/me.ts";
 import type {
+  DeleteGroup,
   RecordKind,
   VaultBatch,
   VaultPageJson,
@@ -62,6 +63,8 @@ export interface VaultApi {
   forgetDevice(): Promise<void>;
   /** Every record of a kind: all the server's pages, oldest first. */
   records(kind: RecordKind): Promise<VaultRecordJson[]>;
+  /** One record. Fails with ApiError 404 `not_found`. */
+  record(id: string): Promise<VaultRecordJson>;
   /** Returns the record's new revision. */
   putRecord(id: string, write: VaultWrite): Promise<number>;
   /**
@@ -73,19 +76,27 @@ export interface VaultApi {
   /** Fails with ApiError 404 `not_found` when it is already gone. */
   deleteRecord(id: string): Promise<void>;
   /**
-   * Several transactions deleted at once, at most VAULT_DELETE.maxIds; an id
-   * already gone is no error. Returns how many went.
+   * Several records of a group (transactions unless named) deleted at once, at
+   * most VAULT_DELETE.maxIds; an id already gone is no error. Returns how many
+   * went. With `leaving`, the request outlives a page that is going away.
    */
-  deleteRecords(ids: readonly string[]): Promise<number>;
+  deleteRecords(
+    ids: readonly string[],
+    options?: { of?: DeleteGroup; leaving?: boolean },
+  ): Promise<number>;
+  /** Every chat the user has, readable or not. Returns how many records went. */
+  deleteAllChats(options?: { leaving?: boolean }): Promise<number>;
 }
 
 async function request(
   method: "GET" | "POST" | "PUT" | "DELETE",
   path: string,
   body?: unknown,
+  { leaving = false } = {},
 ): Promise<Response> {
   const response = await fetch(path, {
     method,
+    ...(leaving && { keepalive: true }),
     headers: {
       accept: "application/json",
       ...(body !== undefined && { "content-type": "application/json" }),
@@ -158,6 +169,11 @@ export const httpApi: VaultApi = {
     } while (after);
     return records;
   },
+  async record(id) {
+    return json<VaultRecordJson>(
+      await request("GET", `/api/vault/${encodeURIComponent(id)}`),
+    );
+  },
   async putRecord(id, write) {
     const response = await request(
       "PUT",
@@ -172,8 +188,22 @@ export const httpApi: VaultApi = {
   async deleteRecord(id) {
     await request("DELETE", `/api/vault/${encodeURIComponent(id)}`);
   },
-  async deleteRecords(ids) {
-    const response = await request("POST", "/api/vault/delete", { ids });
+  async deleteRecords(ids, { of, leaving = false } = {}) {
+    const response = await request(
+      "POST",
+      "/api/vault/delete",
+      { ids, ...(of && { of }) },
+      { leaving },
+    );
+    return (await json<{ deleted: number }>(response)).deleted;
+  },
+  async deleteAllChats({ leaving = false } = {}) {
+    const response = await request(
+      "POST",
+      "/api/vault/delete",
+      { of: "chats", all: true },
+      { leaving },
+    );
     return (await json<{ deleted: number }>(response)).deleted;
   },
 };

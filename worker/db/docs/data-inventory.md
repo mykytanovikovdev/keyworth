@@ -33,7 +33,10 @@ sign in again and get an empty account) or still blocked.
 - Who uses Keyworth (name, email), when and from where they sign in (IP, user
   agent).
 - How much each user stores: the number of records per kind, their size buckets
-  (256 bytes … 64 KiB), revisions and dates.
+  (256 bytes … 64 KiB), revisions and dates. For the chat that is the number of
+  chats (a `conversation` and a `message` record each, never one per message),
+  how long each one is to the nearest power of two, and roughly how often and
+  when each was saved; and, while a chat is opened, which record is read.
 - That a user has set up encryption, with which Argon2 settings, and when the
   passphrase or the recovery key was last replaced (`updated_at` of a slot).
 - Whether and when a device was remembered, and in which session, so from
@@ -105,4 +108,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-24
