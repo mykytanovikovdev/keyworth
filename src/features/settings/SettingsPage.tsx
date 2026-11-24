@@ -51,14 +51,7 @@ export function SettingsPage({ then }: { then?: SettingsAction | undefined }) {
       <Section title="Theme" description="Saved on this device.">
         <ThemeToggle showLabels />
       </Section>
-      {session && (
-        <Section
-          title="Chats"
-          description="Saved encrypted, like your portfolio. They stay until you delete them."
-        >
-          <DeleteAllChats userId={session.user.id} />
-        </Section>
-      )}
+      {session && <DeleteAllChats userId={session.user.id} />}
       <Section
         title="Delete account"
         description="Removes your account and everything stored with it."

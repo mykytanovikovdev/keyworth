@@ -329,12 +329,12 @@ test("deletes a chat with Undo, and all of them in Settings @chromium-only", asy
   await lockAndUnlock(page, passphrase);
   await expect(chatLinks(page)).toHaveText(["Second question"]);
 
-  await page.getByRole("button", { name: "Delete all chats…" }).click();
+  await page.getByRole("button", { name: "Delete all chats" }).click();
   await page
     .getByRole("alertdialog")
     .getByRole("button", { name: "Delete all chats" })
     .click();
-  await expect(page.getByText("All chats deleted")).toBeVisible();
+  await expect(page.getByText("Deleted 1 chat")).toBeVisible();
   await expect(chatLinks(page)).toHaveCount(0);
   // A chat begun while Undo is still open is not among those deleted.
   await page.getByRole("link", { name: "New chat" }).click();

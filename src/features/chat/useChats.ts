@@ -85,9 +85,11 @@ export function useDeleteChats(userId: string) {
         }),
       );
     },
-    removeAll: () => {
-      start("all", "All chats deleted", (leaving) =>
-        access.api.deleteAllChats({ leaving }),
+    removeAll: (count: number) => {
+      start(
+        "all",
+        count === 1 ? "Deleted 1 chat" : `Deleted ${String(count)} chats`,
+        (leaving) => access.api.deleteAllChats({ leaving }),
       );
     },
   };
