@@ -54,7 +54,7 @@ export function SettingsPage({ then }: { then?: SettingsAction | undefined }) {
       {session && (
         <Section
           title="Chats"
-          description="Kept encrypted, so only you can read them. They stay until you delete them."
+          description="Saved encrypted, like your portfolio. They stay until you delete them."
         >
           <DeleteAllChats userId={session.user.id} />
         </Section>
