@@ -38,9 +38,11 @@ import {
   type ToolStep,
   ToolSteps,
   UserMessage,
+  Working,
 } from "./Messages.tsx";
 import { access, chatsQuery, putChat } from "./queries.ts";
 import { type Failure, failureOf, failureWords } from "./refusals.ts";
+import { carriedOut } from "./saved.ts";
 import { stepWords } from "./step-words.ts";
 
 /*
@@ -56,10 +58,7 @@ function stepsOf(message: ChatUIMessage): { steps: ToolStep[]; done: number } {
   const calls = message.parts.filter(isToolUIPart);
   return {
     steps: calls.map((part) =>
-      stepWords(
-        getToolName(part) as ChatToolName,
-        part.input as Partial<Record<string, unknown>> | undefined,
-      ),
+      stepWords(getToolName(part) as ChatToolName, carriedOut(part)),
     ),
     done: calls.filter((part) => FINISHED.has(part.state)).length,
   };
@@ -70,6 +69,12 @@ const textOf = (message: ChatUIMessage) =>
     .filter(isTextUIPart)
     .map((part) => part.text)
     .join("\n\n");
+
+/** Its words are coming now: they are the sign that it is being written. */
+const isWriting = (message: ChatUIMessage) => {
+  const last = message.parts.at(-1);
+  return last !== undefined && isTextUIPart(last) && last.text !== "";
+};
 
 /** Today's limit was reached, until it resets at midnight UTC. */
 function useLimited(failure: Failure | null): boolean {
@@ -242,7 +247,6 @@ function Conversation({ conversation }: { conversation: OpenConversation }) {
     conversation.saveView,
   );
   const navigate = useNavigate();
-  const endRef = useFollow(messages);
 
   // A new chat gets its own address once it is kept; the question stays where
   // it is.
@@ -257,6 +261,10 @@ function Conversation({ conversation }: { conversation: OpenConversation }) {
   }, [chatId, conversation, navigate]);
 
   const answering = status === "submitted" || status === "streaming";
+  const { endRef, back } = useFollow(
+    messages.findLast(({ role }) => role === "user")?.id,
+    answering,
+  );
   const failure: Failure | null = error ? failureOf(error.message) : null;
   const limited = useLimited(failure);
   const limitNotice = limited && failure && (
@@ -291,6 +299,7 @@ function Conversation({ conversation }: { conversation: OpenConversation }) {
 
   return (
     <ChatLayout
+      onBack={back}
       footer={
         <>
           {limitNotice}
@@ -311,6 +320,11 @@ function Conversation({ conversation }: { conversation: OpenConversation }) {
           return (
             <Fragment key={message.id}>
               <UserMessage>{textOf(message)}</UserMessage>
+              {message === unanswered && answering && (
+                <AssistantMessage>
+                  <Working />
+                </AssistantMessage>
+              )}
               {message === unanswered &&
                 !answering &&
                 (stopped.has(message.id) || failedWords) && (
@@ -332,10 +346,13 @@ function Conversation({ conversation }: { conversation: OpenConversation }) {
         }
         const { steps, done } = stepsOf(message);
         const text = textOf(message);
+        const working =
+          isLast && answering && done === steps.length && !isWriting(message);
         return (
           <AssistantMessage key={message.id}>
             {steps.length > 0 && <ToolSteps steps={steps} done={done} />}
             {text && <Answer text={text} streaming={isLast && answering} />}
+            {working && <Working />}
             {stopped.has(message.id) && !(isLast && answering) && (
               <StoppedNote />
             )}

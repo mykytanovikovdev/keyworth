@@ -40,7 +40,8 @@ A chat is two records, each its own envelope:
 
 ## Invariants
 
-1. **No result of a tool is kept.** `toSaved` keeps a call's name and input, and
+1. **No result of a tool is kept.** `toSaved` keeps a call's name and input (as
+   carried out: `includeAmounts` is off when the amounts were held back), and
    nothing it returned. Read back, each call has a note in its place, and the
    model calls the tool again when it needs the numbers.
 2. **Only whole things are kept:** a call without a result, or an answer with
@@ -110,10 +111,13 @@ A chat is two records, each its own envelope:
 
 ## How to change it safely
 
-A new field in a kept message goes into the schema as optional and is checked by
-a test that it holds nothing a tool returned. A new tool needs nothing here: its
+The schemas are strict, unlike the transactions': a chat with a field or a part
+the code does not know reads as "can't be opened", and saving writes only what
+this version knows. So a new field is a change of shape: it needs a new version
+(`v`) alongside the old one, tabs opened before the deploy show such chats as
+unreadable until they reload, and a test checks that it holds nothing a tool
+returned. A new tool needs nothing here: its
 calls are kept by name and input, and dropped when read if the input no longer
-fits. Changing a record's shape is a new version alongside, never in place: an
-older chat must still open.
+fits. Never change a shape in place: an older chat must still open.
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25

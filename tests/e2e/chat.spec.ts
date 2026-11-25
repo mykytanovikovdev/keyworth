@@ -75,6 +75,105 @@ async function stubModel(page: Page, replies: Reply[]) {
   return sent;
 }
 
+/**
+ * The model answering piece by piece: the test sends each piece itself. The
+ * page's own fetch is wrapped, since a routed answer arrives all at once.
+ */
+async function streamModel(page: Page) {
+  await page.addInitScript(() => {
+    const real = window.fetch.bind(window);
+    const open: ReadableStreamDefaultController<Uint8Array>[] = [];
+    const encoder = new TextEncoder();
+    window.fetch = (input, init) => {
+      const url = input instanceof Request ? input.url : String(input);
+      if (!url.includes("/api/chat/completions")) return real(input, init);
+      return Promise.resolve(
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start: (controller) => {
+              open.push(controller);
+            },
+          }),
+          { headers: { "content-type": "text/event-stream" } },
+        ),
+      );
+    };
+    Object.assign(window, {
+      sendPiece: (text: string) => {
+        open.at(-1)?.enqueue(encoder.encode(text));
+      },
+      endAnswer: () => {
+        open.at(-1)?.close();
+      },
+      answersOpen: () => open.length,
+    });
+  });
+  const run = (name: string, ...args: string[]) =>
+    page.evaluate(
+      ([fn, ...rest]) =>
+        (window as unknown as Record<string, (...a: string[]) => unknown>)[
+          fn ?? ""
+        ]?.(...rest),
+      [name, ...args],
+    );
+  return {
+    /** Waits until the page has asked for the nth answer. */
+    asked: (n: number) =>
+      expect.poll(() => run("answersOpen")).toBeGreaterThanOrEqual(n),
+    /** Adds text to the answer being written. */
+    write: async (text: string) => {
+      const stream = answerStream(text);
+      // The words only: the finish and the usage belong to the end.
+      await run(
+        "sendPiece",
+        stream
+          .slice(0, stream.indexOf('"finish_reason":"stop"'))
+          .replace(/data: [^\n]*$/, ""),
+      );
+    },
+    end: async () => {
+      const stream = answerStream("");
+      await run(
+        "sendPiece",
+        stream.slice(stream.lastIndexOf("data: {", stream.indexOf("stop"))),
+      );
+      await run("endAnswer");
+    },
+  };
+}
+
+const PARAGRAPH =
+  "The portfolio moved a little this week, as the markets did. ";
+
+/** How far the page is from its end, in pixels. */
+const fromBottom = (page: Page) =>
+  page.evaluate(
+    () =>
+      document.documentElement.scrollHeight -
+      window.innerHeight -
+      window.scrollY,
+  );
+
+/** Where the page is once a scroll (a smooth one in some engines) is over. */
+async function settled(page: Page): Promise<number> {
+  let last = -1;
+  await expect
+    .poll(async () => {
+      const y = await page.evaluate(() => window.scrollY);
+      const still = y === last;
+      last = y;
+      return still;
+    })
+    .toBe(true);
+  return last;
+}
+
+/** To the end at once, as dragging the scroll bar does. */
+const dragToEnd = (page: Page) =>
+  page.evaluate(() => {
+    window.scrollTo({ top: document.documentElement.scrollHeight });
+  });
+
 test.beforeEach(async ({ page }) => {
   test.slow();
   await watchCspViolations(page);
@@ -173,6 +272,45 @@ test("answers with the steps it took, and the model never gets an amount", async
 
   expect(await cspViolations(page)).toEqual([]);
   expect(errors).toEqual([]);
+});
+
+/** A step that calls get_portfolio with amounts, as Workers AI streams it. */
+const CALL_WITH_AMOUNTS = WORKERS_AI_TOOL_CALL.replaceAll(
+  '{\\"period\\": \\"1M\\"}',
+  '{\\"period\\": \\"1M\\", \\"includeAmounts\\": true}',
+);
+
+test("keeps amounts back from a model that asks for them unasked @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await openApp(page, context, baseURL);
+  expect(CALL_WITH_AMOUNTS).toContain("includeAmounts");
+  const sent = await stubModel(page, [
+    { stream: CALL_WITH_AMOUNTS },
+    { stream: answerStream("Up a little.") },
+    { stream: CALL_WITH_AMOUNTS },
+    { stream: answerStream("Here you are.") },
+  ]);
+  await openChat(page);
+
+  await ask(page, "How did my portfolio do this month?");
+  await expect(page.getByText("Up a little.")).toBeVisible();
+  expect(toolResults(sent)).not.toMatch(/0\.5|30000|60000|quantity|total/);
+  await expect(
+    page.getByRole("button", { name: /^Looked at your portfolio$/ }),
+  ).toBeVisible();
+
+  // Asked for, they go, and the steps line says so.
+  await ask(page, "And how much is it worth in dollars?");
+  await expect(page.getByText("Here you are.")).toBeVisible();
+  expect(toolResults(sent)).toMatch(/quantity/);
+  await expect(
+    page.getByRole("button", {
+      name: /^Looked at your portfolio, with amounts$/,
+    }),
+  ).toBeVisible();
 });
 
 test("stops an answer, and starts over with New chat @chromium-only", async ({
@@ -342,6 +480,84 @@ test("deletes a chat with Undo, and all of them in Settings @chromium-only", asy
   await expect(page.getByText("Three.")).toBeVisible();
   await lockAndUnlock(page, passphrase);
   await expect(chatLinks(page)).toHaveText(["Third question"]);
+});
+
+test("shows that it is working, and follows the answer down", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const model = await streamModel(page);
+  await openApp(page, context, baseURL);
+  await openChat(page);
+  await page.setViewportSize({ width: 1280, height: 600 });
+
+  await ask(page, "How is the week going?");
+  await model.asked(1);
+  // Nothing has come yet: the page says it is working.
+  const working = page.getByRole("status").filter({ hasText: "Thinking" });
+  await expect(working).toBeVisible();
+  for (let index = 0; index < 8; index++) {
+    await model.write(`${PARAGRAPH.repeat(4)}\n\n`);
+    await expect.poll(() => fromBottom(page)).toBeLessThan(4);
+  }
+  await expect(working).toHaveCount(0);
+  await model.end();
+
+  // The second question, with the page already long: its own line and the
+  // working line are in view at once, and the answer stays so.
+  await ask(page, "And what about the month?");
+  await model.asked(2);
+  await expect(page.getByText("And what about the month?")).toBeInViewport();
+  await expect(working).toBeInViewport();
+  for (let index = 0; index < 8; index++) {
+    await model.write(`${PARAGRAPH.repeat(4)}\n\n`);
+    await expect.poll(() => fromBottom(page)).toBeLessThan(4);
+  }
+});
+
+test("leaves the reader where they are, and follows again at the end", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const model = await streamModel(page);
+  await openApp(page, context, baseURL);
+  await openChat(page);
+  await page.setViewportSize({ width: 1280, height: 600 });
+  await ask(page, "How is the week going?");
+  await model.asked(1);
+  for (let index = 0; index < 16; index++) {
+    await model.write(`${PARAGRAPH.repeat(4)}\n\n`);
+  }
+  await expect.poll(() => fromBottom(page)).toBeLessThan(4);
+
+  // Scrolled up to read: the answer grows below, the page does not move.
+  await page.mouse.move(640, 300);
+  await page.mouse.wheel(0, -400);
+  await expect.poll(() => fromBottom(page)).toBeGreaterThan(200);
+  const reading = await settled(page);
+  for (let index = 0; index < 4; index++) {
+    await model.write(`${PARAGRAPH.repeat(4)}\n\n`);
+  }
+  // Not drawn to the end; a smooth scroll's last pixels up are the engine's.
+  await expect.poll(() => fromBottom(page)).toBeGreaterThan(400);
+  expect(await settled(page)).toBeLessThanOrEqual(reading);
+
+  // Back at the end: it follows, and never pulls the page up again.
+  const back = page.getByRole("button", { name: "Go to the latest" });
+  await back.click();
+  await expect.poll(() => fromBottom(page)).toBeLessThan(4);
+  await expect(back).toHaveCount(0);
+  const positions = [await page.evaluate(() => window.scrollY)];
+  for (let index = 0; index < 8; index++) {
+    await model.write(`${PARAGRAPH.repeat(4)}\n\n`);
+    await dragToEnd(page);
+    await page.waitForTimeout(60);
+    positions.push(await page.evaluate(() => window.scrollY));
+  }
+  expect(positions).toEqual([...positions].sort((a, b) => a - b));
+  await expect.poll(() => fromBottom(page)).toBeLessThan(4);
 });
 
 test("says why a chat's address cannot be opened @chromium-only", async ({

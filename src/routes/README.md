@@ -7,22 +7,22 @@ and the pages that belong to no feature (not found, the dev-only mockups).
 
 ## How it works
 
-| File                             | Role                                                                                              |
-| -------------------------------- | ------------------------------------------------------------------------------------------------- |
-| `router.tsx`                     | Every route, declared in code, and the router factory                                             |
-| `pages.ts`                       | The pages loaded on first use, and the sections' code fetched ahead                               |
-| `AppShell.tsx`                   | Behind the key gate: `AppFrame` around the page, its menu item picked from the address            |
-| `AppFrame.tsx`                   | The frame: the menu in a left column, behind a button in a one-line bar on narrow screens         |
-| `/` → `PortfolioPage`            | The signed-in start page ([src/features/portfolio](../features/portfolio/README.md))              |
-| `/transactions`                  | The transactions and their form ([src/features/transactions](../features/transactions/README.md)) |
-| `/chat`                          | The chat ([src/features/chat](../features/chat/README.md)); its code is not fetched ahead         |
-| `NotFoundPage.tsx`               | Any unknown path                                                                                  |
-| `KdfBenchmarkPage.tsx`           | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                |
-| `EncryptionMockupsPage.tsx`      | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2            |
-| `TransactionsMockupsPage.tsx`    | `/design/transactions`: the transactions screens in every state                                   |
-| `PortfolioMockupsPage.tsx`       | `/design/portfolio`: the portfolio page in every state, from made-up transactions                 |
-| `ChatMockupsPage.tsx`            | `/design/chat`: the chat in every state, and Settings with "Delete all chats"                     |
-| `MockFrame.tsx`, `mock-chats.ts` | The mockups' frame: `AppFrame` with made-up chats, shared by every mockup page                    |
+| File                             | Role                                                                                                         |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `router.tsx`                     | Every route, declared in code, and the router factory                                                        |
+| `pages.ts`                       | The pages loaded on first use, and the sections' code fetched ahead                                          |
+| `AppShell.tsx`                   | Behind the key gate: `AppFrame` around the page, its menu item picked from the address                       |
+| `AppFrame.tsx`                   | The frame: the menu in a left column, behind a button in a one-line bar on narrow screens                    |
+| `/` → `PortfolioPage`            | The signed-in start page ([src/features/portfolio](../features/portfolio/README.md))                         |
+| `/transactions`                  | The transactions and their form ([src/features/transactions](../features/transactions/README.md))            |
+| `/chat`, `/chat/<id>`            | A new chat and a kept one ([src/features/chat](../features/chat/README.md)); their code is not fetched ahead |
+| `NotFoundPage.tsx`               | Any unknown path                                                                                             |
+| `KdfBenchmarkPage.tsx`           | `/design/kdf`: Argon2id timing on this device, and why it is slow (developer tool)                           |
+| `EncryptionMockupsPage.tsx`      | `/design/encryption`: every state of the encryption screens; "try it" with real Argon2                       |
+| `TransactionsMockupsPage.tsx`    | `/design/transactions`: the transactions screens in every state                                              |
+| `PortfolioMockupsPage.tsx`       | `/design/portfolio`: the portfolio page in every state, from made-up transactions                            |
+| `ChatMockupsPage.tsx`            | `/design/chat`: the chat in every state, and Settings with "Delete all chats"                                |
+| `MockFrame.tsx`, `mock-chats.ts` | The mockups' frame: `AppFrame` with made-up chats, shared by every mockup page                               |
 
 ```
              ┌ session layout: no session → redirect to /sign-in

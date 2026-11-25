@@ -113,6 +113,22 @@ export function ToolSteps({ steps, done }: ToolStepsProps) {
   );
 }
 
+/**
+ * While nothing else shows that the answer is on its way: before its first word
+ * or step, and between a step and what comes next. As the running step's line.
+ */
+export function Working() {
+  return (
+    <p
+      role="status"
+      className="inline-flex animate-step items-center gap-1.5 py-0.5 text-sm text-fg-muted"
+    >
+      <LoaderCircle aria-hidden="true" className="motion-safe:animate-spin" />
+      Thinking…
+    </p>
+  );
+}
+
 /** Under an answer that was stopped part way. */
 export function StoppedNote() {
   return <p className="text-xs text-fg-muted">You stopped this answer.</p>;

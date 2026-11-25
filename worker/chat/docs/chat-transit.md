@@ -33,8 +33,9 @@ the answers' quality (the eval set).
 4. **The model's request is written by the server**: the model, the system
    prompt, the latest 20 messages starting at a question, the tools'
    definitions, `tool_choice` (`none` on a question's last step), the token
-   limit, streaming with usage, thinking off. Everything else the browser sent
-   is dropped.
+   limit, temperature 0, streaming with usage, thinking off, and last a line
+   with the language of the latest question (`language.ts`). Everything else
+   the browser sent is dropped.
 5. **The answer streams back untouched**: Workers AI's events go to the browser
    as they come. A copy of the stream is read afterwards, in the background
    (`waitUntil`), for the step's `neurons`, which are added to the day's count.
@@ -50,7 +51,9 @@ the answers' quality (the eval set).
   messages.
 - **The model's instructions, tools and limits come only from the server.** A
   `system` message is refused; the browser's model, tools, `tool_choice`,
-  token limit or other fields are ignored.
+  temperature, token limit or other fields are ignored. The server's own last
+  line names the language of the latest question, from a fixed list; none of the
+  question's words are in it (`language.ts`).
 - **The model cannot run anything on the server.** Its tool calls go to the
   browser; the server only checks them when they come back.
 - **A question is bounded.** At most `maxSteps` (6) model steps: on the last,
@@ -60,7 +63,8 @@ the answers' quality (the eval set).
   free allowance.
 - **The chat stays on its subject.** The system prompt limits it to the user's
   portfolio, the markets and financial ideas; anything else gets a one-sentence
-  refusal (checked by a set of off-topic questions with the eval set).
+  refusal. Asked by hand on the real model in Russian and English (2026-11-25);
+  the eval set of phase 9 will keep asking.
 
 ## Decisions and alternatives
 
@@ -106,4 +110,4 @@ guards fails a test.
 - Never log inside the route beyond `describeError` and a status; never pass
   the browser's body on, only `messages`.
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25
