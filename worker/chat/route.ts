@@ -9,6 +9,7 @@ import { describeError } from "../describe-error.ts";
 import type { AppEnv } from "../env.ts";
 import { maxBody, readJson } from "../limits.ts";
 import { admit, budgetResetsAt, spend } from "./budget.ts";
+import { languageLine } from "./language.ts";
 import { CHAT_MODEL, completionsUrl, mostNeuronsFor } from "./model.ts";
 import { systemPrompt } from "./prompt.ts";
 import { TOOL_DEFINITIONS, toolCallsValid } from "./tools.ts";
@@ -63,11 +64,13 @@ chat.post("/completions", maxBody(CHAT_LIMITS.maxBodyBytes), async (c) => {
           content: systemPrompt(new Date().toISOString().slice(0, 10)),
         },
         ...messages,
+        { role: "system", content: languageLine(latestQuestion(messages)) },
       ],
       tools: TOOL_DEFINITIONS,
       // On the last step the model must answer with what it has.
       tool_choice: lastStep ? "none" : "auto",
       max_tokens: CHAT_MODEL.maxOutputTokens,
+      temperature: CHAT_MODEL.temperature,
       stream: true,
       stream_options: { include_usage: true },
       chat_template_kwargs: { enable_thinking: CHAT_MODEL.thinking },
@@ -124,6 +127,12 @@ function recent(messages: ChatMessage[]): ChatMessage[] {
   const latest = messages.slice(-CHAT_LIMITS.modelMessages);
   const first = latest.findIndex(({ role }) => role === "user");
   return first === -1 ? latest : latest.slice(first);
+}
+
+/** The latest question's words: only its language is told on (language.ts). */
+function latestQuestion(messages: ChatMessage[]): string {
+  const question = messages.findLast(({ role }) => role === "user");
+  return question?.content ?? "";
 }
 
 /** Model steps already taken for the latest question: its answers so far. */

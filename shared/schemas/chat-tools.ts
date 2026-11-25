@@ -25,7 +25,7 @@ const includeAmounts = z
   .boolean()
   .optional()
   .describe(
-    "Leave out unless the latest message asks for money values or quantities (how much, in dollars, worth, сколько). A question about performance, change, share or risk does not.",
+    "Leave out unless the latest message asks for money values or quantities (how much, in dollars, what it is worth). A question about performance, change, share or risk does not.",
   );
 
 const assetId = cryptoAssetIdSchema.describe(

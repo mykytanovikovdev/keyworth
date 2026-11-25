@@ -43,14 +43,15 @@ A question can take several requests: when the model calls a tool, the step
 ends with the call; the browser runs the tool and sends the conversation again
 with the result. Each request is one step.
 
-| File        | Role                                                                                     |
-| ----------- | ---------------------------------------------------------------------------------------- |
-| `route.ts`  | The route: checks, admission, the model's request, the stream back, the cost after it    |
-| `model.ts`  | The model, its endpoint, the longest step, thinking off, the price for an uncounted step |
-| `tools.ts`  | The tools' definitions for the model (built once), and the check of past tool calls      |
-| `budget.ts` | The user's rate and the day's budget in one statement; adding a step's cost              |
-| `usage.ts`  | A step's neurons, from the last kilobytes of the stream                                  |
-| `prompt.ts` | The system prompt, version 0: scope (portfolio and markets only), rules                  |
+| File          | Role                                                                                                    |
+| ------------- | ------------------------------------------------------------------------------------------------------- |
+| `route.ts`    | The route: checks, admission, the model's request, the stream back, the cost after it                   |
+| `model.ts`    | The model, its endpoint, the longest step, thinking off, temperature 0, the price for an uncounted step |
+| `tools.ts`    | The tools' definitions for the model (built once), and the check of past tool calls                     |
+| `budget.ts`   | The user's rate and the day's budget in one statement; adding a step's cost                             |
+| `usage.ts`    | A step's neurons, from the last kilobytes of the stream                                                 |
+| `prompt.ts`   | The system prompt, version 0.2: scope (portfolio and markets only), rules                               |
+| `language.ts` | The latest question's language, for the request's last line                                             |
 
 ## Why this way
 
@@ -72,6 +73,17 @@ with the result. Each request is one step.
 - **Thinking off.** GLM thinks before answering by default: a short answer took
   7.4 s and 18 neurons with it, 1.1 s and 2 neurons without (measured
   2026-11-15). The tools have already done the math the answers explain.
+- **Temperature 0, and a tool before any figure.** At its default temperature the
+  development model made up figures without calling a tool, and now and then
+  wrote nonsense. Compared on the real model (2026-11-25, 34 answers a variant,
+  flagged by a script): 24 clean as it was, 25 with temperature 0 alone, 28 with
+  the rules as well, 32 with the language line too; on questions not used to
+  tune it, 29 of 32 against 26.
+- **The language comes last, from the server.** The model slipped into the
+  conversation's earlier language, or asked which to use, whatever the rules
+  said. `language.ts` recognizes the latest question's language by its script
+  and a few words, and adds one line with its name: never the question's words.
+  Switching from Russian to English in one conversation still fails sometimes.
 - **One round trip before the model.** The rate limit and the budget are one
   SQL statement (`countUse` from `limits.ts` inside a CTE).
 - **The cost from Workers AI's own count.** Its events carry a running

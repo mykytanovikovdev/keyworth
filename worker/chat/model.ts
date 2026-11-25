@@ -19,6 +19,12 @@ export const CHAT_MODEL = Object.freeze({
    * explanations of numbers the tools already computed.
    */
   thinking: false,
+  /**
+   * The likeliest word each time: left to its default, the model invented
+   * figures without calling a tool, and now and then wrote nonsense
+   * (compared 2026-11-25).
+   */
+  temperature: 0,
 });
 
 /** Where the model answers: the account's OpenAI-compatible chat endpoint. */

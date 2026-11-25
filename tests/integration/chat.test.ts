@@ -121,10 +121,12 @@ describe("POST /api/chat/completions", () => {
       stream_options: { include_usage: true },
       chat_template_kwargs: { enable_thinking: false },
     });
-    expect(call?.body).not.toHaveProperty("temperature");
+    // The server's own, not the 2 the browser asked for.
+    expect(call?.body.temperature).toBe(CHAT_MODEL.temperature);
     expect(call?.body.messages.map(({ role }) => role)).toEqual([
       "system",
       "user",
+      "system",
     ]);
     expect(call?.body.messages[0]?.content).toContain("Scope:");
     const tools = call?.body.tools.map(({ function: { name } }) => name);
@@ -156,7 +158,8 @@ describe("POST /api/chat/completions", () => {
 
     expect(response.status).toBe(200);
     await response.text();
-    expect(calls[0]?.body.messages.slice(1)).toEqual(conversation);
+    // Between the instructions and the line about the language.
+    expect(calls[0]?.body.messages.slice(1, -1)).toEqual(conversation);
   });
 
   it("makes the model answer without tools on a question's last step", async () => {

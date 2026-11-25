@@ -50,7 +50,9 @@ the answers' quality (the eval set).
   messages.
 - **The model's instructions, tools and limits come only from the server.** A
   `system` message is refused; the browser's model, tools, `tool_choice`,
-  token limit or other fields are ignored.
+  temperature, token limit or other fields are ignored. The server's own last
+  line names the language of the latest question, from a fixed list; none of the
+  question's words are in it (`language.ts`).
 - **The model cannot run anything on the server.** Its tool calls go to the
   browser; the server only checks them when they come back.
 - **A question is bounded.** At most `maxSteps` (6) model steps: on the last,
@@ -106,4 +108,4 @@ guards fails a test.
 - Never log inside the route beyond `describeError` and a status; never pass
   the browser's body on, only `messages`.
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25
