@@ -15,6 +15,7 @@ market data and shows figures; it computes no money itself (that is
 | ---------------------- | --------------------------------------------------------------------------------------- |
 | `PortfolioPage.tsx`    | The route: transactions, today's quotes, histories and rates in, the view out           |
 | `market-data.ts`       | Queries for histories and rates; the server's answers as `PriceSeries` and `RateLookup` |
+| `histories.ts`         | Histories asked for in the same moment, in one request                                  |
 | `inputs.ts`            | Each coin's first day and the currencies asked for; shared with the chat's tools        |
 | `summary.ts`           | `summarize()`: every figure on the page from `shared/metrics`, for one period           |
 | `PortfolioView.tsx`    | The page itself, from a summary: value, period, chart, four figures, allocation, table  |
@@ -32,10 +33,13 @@ rates ────────────────┘    history, periodGain
 **Market data.** Today's prices come from the shared snapshot of the 250
 largest coins, and from `/api/market/prices?ids=` for the others. Each coin's
 history is asked from the day it was first held; the server's latest close is
-yesterday's, so today's price is added as the last point. Rates are asked for
-the base currency and every price or fee currency used, from a week before the
-first transaction (a weekend's purchase needs Friday's rate). The server gives
-each currency per US dollar; `rateLookup` converts between any two through the
+yesterday's, so today's price is added as the last point. Histories asked for in
+the same moment, a portfolio's or a chat question's, make one request
+(`histories.ts`): the server answers what it has ready, and a coin it must load
+first is then asked for alone, so it holds up no other. Rates are asked for the
+base currency and every price or fee currency used, from a week before the first
+transaction (a weekend's purchase needs Friday's rate). The server gives each
+currency per US dollar; `rateLookup` converts between any two through the
 dollar, and keeps the last rate over a weekend. Everything asked by name is
 cached under `["vault", …]`, cleared when the vault locks.
 
@@ -97,6 +101,11 @@ builds), from made-up transactions through the real `summarize()`.
 - **A query with nothing to ask stays pending** in TanStack Query 5 (the
   quotes for coins outside the snapshot, the rates for a dollar-only
   portfolio). Loading checks use `isLoading`, not `isPending`.
+- **A coin's history stays a query of its own** (`historyQuery`), shared with the
+  chat's tools; only the requests are joined. Ask through it or `askHistory`: a
+  `fetch` of its own for each coin would bring the separate requests back.
+- **One coin the server refuses refuses its whole request**, so `askHistory` checks
+  each against the server's schema first and asks for an odd one alone.
 - **`useQueries` returns a new array every render.** Its `combine` makes one
   stable value; without it, `summarize` would run on every render.
 - **Today is a UTC date** here, as in `shared/metrics`; the transaction form

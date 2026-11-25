@@ -57,7 +57,9 @@ Covered now:
   figure from part of the histories, a period moved to the first fully priced
   day; allocation colors by first purchase, five and "Other"; the server's
   histories and rates as series and a rate lookup through the dollar (a
-  weekend keeps Friday's rate); formats.
+  weekend keeps Friday's rate); histories asked for in the same moment in one
+  request (`histories.test.ts`, a stubbed `fetch`): 20 a request, what is not
+  ready asked for alone, failures, what the server would refuse left out; formats.
 - **Transactions:** `src/features/transactions` (`transactions/`) — what is
   held at a moment for **All** (`held.test.ts`): that day and not today, the
   transaction being edited left out, moments compared as times. Through a

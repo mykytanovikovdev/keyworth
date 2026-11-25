@@ -14,12 +14,18 @@ production settings.
   shows, and the holdings table lists it. A longer period changes the words
   under the value. No console error and no CSP violation on the way.
 - **Hidden amounts stay hidden** after a reload and a new unlock.
+- **One request for every coin's history:** after a reload with two coins held,
+  the page makes a single `POST /api/market/histories` naming both and no request
+  for one coin, and draws the chart. Chromium only: which requests are made is
+  the page's own code.
 - **The sections link through the router:** the Transactions link opens the
   list without a reload, so without unlocking again.
 - **No empty frame between pages:** the Settings page's code is fetched in the
   background before any click; held back by the test, the portfolio stays on
   screen after the click until it arrives, then Settings replaces it. Chromium
   only: the waiting is the router's, the same in every engine.
+- **An empty portfolio offers the import,** which opens at once on the
+  transactions page. Chromium only.
 - **Failing prices show a notice, not zeros:** with `/api/market/prices`
   answering 502, the page says prices couldn't load and shows no "$0.00".
 - **Narrow screens and accessibility:** at 320 px the page does not scroll
@@ -40,9 +46,9 @@ production settings.
 ## Adding a case
 
 Sign in with `openApp(page, context, baseURL)`, add a purchase with
-`buyBitcoin(page)` (half a bitcoin at $60,000 ten days ago), then check the
-screen. Every signed-in spec stubs the market in `beforeEach`
+`buyBitcoin(page)` (half a bitcoin at $60,000 ten days ago) or `buyHalf(page,
+coin, price)` for another coin of `market.ts`, then check the screen. Every signed-in spec stubs the market in `beforeEach`
 (`stubMarket(page)`), or the start page's price requests fail with a console
 error.
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-25

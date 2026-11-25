@@ -57,6 +57,13 @@ through the real Google flow (only Google's token endpoint is replaced).
   nothing usable answers 502 with one log line naming only the source; a
   failed refresh after the answer logs the same line. An answer cut off while
   read counts as a failing source.
+- Several histories at once: the same answers as one by one, in the order
+  asked, each from its own day, from the cache alone. A coin not cached, cached
+  from a later day, or CoinGecko's entry past 12 hours is `null` and costs no
+  call; a stale Coin Metrics series is served and refreshed once after the
+  answer, however often it was asked for; a failed refresh logs the source only.
+  No coins, more than 20, a bad id, day or extra field are refused (400), a body
+  over 4 KB (413), another origin (403); counted with the single histories (429).
 - Rates: units per dollar for each currency asked, USDT and USDC from Coin
   Metrics; only the currencies not cached cost a call; USD, unknown or
   lower-case codes, coins and more than 10 are refused, as are a malformed asset
@@ -234,4 +241,4 @@ it("refuses a revision from the future", async () => {
 });
 ```
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25

@@ -23,10 +23,24 @@ import type { AssetChoice, PriceOnDay } from "./form-values.ts";
  */
 
 /** A JSON answer from Keyworth's server; anything but 2xx is an `ApiError`. */
-export async function getJson<T>(path: string): Promise<T> {
-  const response = await fetch(path, {
-    headers: { accept: "application/json" },
-  });
+export const getJson = <T>(path: string): Promise<T> =>
+  answerOf<T>(fetch(path, { headers: { accept: "application/json" } }));
+
+/** The same, for a question too long or too personal for an address. */
+export const postJson = <T>(path: string, body: object): Promise<T> =>
+  answerOf<T>(
+    fetch(path, {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(body),
+    }),
+  );
+
+async function answerOf<T>(request: Promise<Response>): Promise<T> {
+  const response = await request;
   if (!response.ok) {
     let body: Record<string, unknown> = {};
     try {
