@@ -60,9 +60,10 @@ base currency at each day's rate; a day without a rate is left out.
    changes anything.
 6. **At most six model steps a question** (`CHAT_LIMITS.maxSteps`), the same
    limit the server enforces, and no step is retried on its own.
-7. **The model gets at most the latest 40 messages**, cut only before a
+7. **The browser sends at most the latest 40 messages**, cut only before a
    question (`history.ts`): the server refuses more, and a cut after a question
-   could leave a tool's result without its call.
+   could leave a tool's result without its call. The model gets the latest 20 of
+   them ([chat-transit.md](../../../../worker/chat/docs/chat-transit.md)).
 8. **What a tool returned is never kept.** The chat is kept encrypted
    ([chat-history.md](chat-history.md)) without it, and the open conversation
    leaves memory on New chat, when another chat is opened and when the vault
@@ -93,14 +94,16 @@ base currency at each day's rate; a day without a rate is left out.
 
 ## Edge cases and failures
 
-| Case                                  | What the model gets                                                        |
-| ------------------------------------- | -------------------------------------------------------------------------- |
-| No transactions yet                   | `{ holdings: [], note: "The user has no transactions yet." }`              |
-| A coin without a price today          | Its price is `null`; the portfolio notes that shares leave it out          |
-| A coin without history                | `get_price_history`: `error: "No prices for this coin."`                   |
-| A market request fails inside a tool  | The tool fails; the model is told the call failed and says so              |
-| The server refuses a step (429, 502…) | No retry; the page says why (`refusals.ts`), with Try again where it helps |
-| Today's limit is reached              | The box is disabled until the reset time the server gave, then reopens     |
+| Case                                  | What the model gets                                                                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| Amounts asked for by the model only   | `amounts: "Not sent…"` in place of them, and the steps line says they stayed                                                          |
+| Amounts an earlier question asked for | They stay in the conversation the model gets with later questions, until New chat; a kept chat is read back without any tool's result |
+| No transactions yet                   | `{ holdings: [], note: "The user has no transactions yet." }`                                                                         |
+| A coin without a price today          | Its price is `null`; the portfolio notes that shares leave it out                                                                     |
+| A coin without history                | `get_price_history`: `error: "No prices for this coin."`                                                                              |
+| A market request fails inside a tool  | The tool fails; the model is told the call failed and says so                                                                         |
+| The server refuses a step (429, 502…) | No retry; the page says why (`refusals.ts`), with Try again where it helps                                                            |
+| Today's limit is reached              | The box is disabled until the reset time the server gave, then reopens                                                                |
 
 ## How it is tested
 

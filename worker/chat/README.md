@@ -33,7 +33,8 @@ session, origin, 128 KB ──► messages checked (shared/schemas/chat.ts):
    │
    ▼ the request to the model, written by the server: its model, its system
      prompt, its tool definitions, tool_choice from the step count, max_tokens,
-     stream with usage, thinking off
+     stream with usage, thinking off, temperature 0, and last one line naming
+     the language of the latest question
    │
 Workers AI (/ai/v1/chat/completions) ──► stream ──tee──► browser, untouched
                                                   └────► read after, for `neurons` (waitUntil)
@@ -63,7 +64,7 @@ with the result. Each request is one step.
   where the tools and the decrypted data already are.
 - **The server writes the model's request.** The browser's body is read for
   `messages` only: the model, the instructions, the tools, `tool_choice`, the
-  token limit and the thinking switch are the server's, so a modified browser
+  token limit, the temperature and the thinking switch are the server's, so a modified browser
   can spend no more than the app does, and cannot instruct the model.
 - **Workers AI's OpenAI-compatible endpoint, through REST.** Its stream is the
   standard format the browser's client reads (tested on recorded streams); the
@@ -78,7 +79,8 @@ with the result. Each request is one step.
   wrote nonsense. Compared on the real model (2026-11-25), counting answers a
   script found nothing wrong with, some of its flags being its own mistakes: 24
   of 34 as it was, 25 with temperature 0 alone, 28 with the rules as well; as it
-  is now 46 of 51, and on questions not used to tune it 29 of 32 against 26.
+  is now 46 of 51, and on questions not used to tune it 29 of 32 against 26. The
+  line's present wording came after that: 13 of 14 turns in the right language.
 - **The language comes last, from the server.** The model slipped into the
   conversation's earlier language, or asked which to use, whatever the rules
   said. `language.ts` recognizes the latest question's language by its script

@@ -66,14 +66,14 @@ Covered now:
   as zeros, 320 px with no axe violations. What it proves:
   [docs/portfolio-flows.md](docs/portfolio-flows.md).
 - **`chat.spec.ts`** (Chromium, Firefox, WebKit for the full loop and for
-  following an answer, the rest
-  Chromium only; local builds only): a question runs the agent's loop and a
-  tool in the browser, with the model answered in the browser; the answer's
-  markdown without links, images or HTML; no amount in the tool's result on
-  the wire; the working line and following the answer (all engines); Stop, New
-  chat, refusals, today's limit; chats kept through a Lock
-  and continued without the old figures, deleted with Undo and all at once; 320
-  px and axe in both themes. What it proves:
+  following an answer, the rest Chromium only; local builds only): a question
+  runs the agent's loop and a tool in the browser, with the model answered in
+  the browser; the answer's markdown without links, images or HTML; no amount
+  in the tool's result on the wire, even when the model asks for one the
+  question did not; the working line and following the answer; Stop, New chat,
+  refusals, today's limit; chats kept through a Lock and continued without the
+  old figures, deleted with Undo and all at once; 320 px and axe in both themes.
+  What it proves:
   [docs/chat-flows.md](docs/chat-flows.md).
 - **`design-system.spec.ts`** (`/design` in Chromium, Firefox, WebKit, plus an
   emulated iPhone), in both themes:

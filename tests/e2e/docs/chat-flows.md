@@ -67,7 +67,10 @@ differently enough to matter
 `openApp(page, context, baseURL)` signs in with a purchase of 0.5 BTC at
 $60,000; `stubModel(page, replies)` answers each model step in turn (a stream,
 an error status with JSON, or never) and returns the request bodies;
-`answerStream(text)` makes a stream in Workers AI's format. Ask with
+`answerStream(text)` makes a stream in Workers AI's format. `streamModel(page)`,
+before the page opens, lets the test send an answer piece by piece
+(`write`, `end`), since a routed answer arrives all at once; for where the page
+is after a scroll use `settled`, as some engines scroll smoothly. Ask with
 `ask(page, question)` after `openChat(page)`. Do not ask a starter question in
 a test that checks the question is gone: the empty chat shows it as a
 suggestion.

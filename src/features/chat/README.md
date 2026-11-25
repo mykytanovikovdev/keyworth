@@ -93,8 +93,11 @@ changes. Amounts stayed on this device", or "Amounts included, as you asked".
   the answer being written: one read back appears whole. A plugin for the
   markdown renderer, since the words have to be wrapped as the tree is drawn.
 - **The chat's code is its own chunk, not fetched ahead** with the sections:
-  it carries the AI SDK and the markdown parser (about 155 kB gzip), for those
-  who open the chat. The first load stays as it was.
+  it carries the AI SDK and the markdown parser (about 160 kB gzip), for those
+  who open the chat. The first load has only the list of chats (about 2.5 kB).
+- **"Thinking…" and the button back to the end** (owner's request, 2026-11-25):
+  something always shows that an answer is coming, and the page goes with it
+  until the reader scrolls up, as in other chats.
 - **The box stays at the bottom while the page scrolls** (`sticky`), rather than
   a scrolling box inside a fixed-height page: on iOS the page's own scroll
   behaves with the on-screen keyboard.

@@ -33,8 +33,9 @@ the answers' quality (the eval set).
 4. **The model's request is written by the server**: the model, the system
    prompt, the latest 20 messages starting at a question, the tools'
    definitions, `tool_choice` (`none` on a question's last step), the token
-   limit, streaming with usage, thinking off. Everything else the browser sent
-   is dropped.
+   limit, temperature 0, streaming with usage, thinking off, and last a line
+   with the language of the latest question (`language.ts`). Everything else
+   the browser sent is dropped.
 5. **The answer streams back untouched**: Workers AI's events go to the browser
    as they come. A copy of the stream is read afterwards, in the background
    (`waitUntil`), for the step's `neurons`, which are added to the day's count.
@@ -62,7 +63,8 @@ the answers' quality (the eval set).
   free allowance.
 - **The chat stays on its subject.** The system prompt limits it to the user's
   portfolio, the markets and financial ideas; anything else gets a one-sentence
-  refusal (checked by a set of off-topic questions with the eval set).
+  refusal. Asked by hand on the real model in Russian and English (2026-11-25);
+  the eval set of phase 9 will keep asking.
 
 ## Decisions and alternatives
 

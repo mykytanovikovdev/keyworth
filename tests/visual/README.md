@@ -26,7 +26,8 @@ Covered (Chromium):
 - settings, for a signed-in user with a fixed name and email, unlocked with
   the production Argon2 settings (slow in the emulated browser: those tests
   allow two minutes).
-- the account deletion dialog alone, with the red `danger` confirm button.
+- the account deletion dialog alone, with the red `danger` confirm button. The
+  page behind it is hidden, or its text would show in the rounded corners.
 
 Not covered here:
 
