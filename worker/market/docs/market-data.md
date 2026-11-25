@@ -27,14 +27,14 @@ browser ── /api/market/prices ──────────┐
 | `market/cache.ts`       | `cached`, `readCached`, `storeCached` over the `market_cache` table           |
 | `market/upstream.ts`    | Time and size limits, `MarketError`, plain digits, raster images only         |
 
-| Route                                  | Source call                                                         | Fresh for                                   | Kept for                   |
-| -------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------- | -------------------------- |
-| `GET /api/market/prices`               | CoinGecko: 250 largest coins, one call                              | 10 minutes                                  | a day                      |
-| `GET /api/market/prices?ids=`          | CoinGecko: the coins not in the snapshot, one call                  | 10 minutes                                  | a day                      |
-| `GET /api/market/history?asset=&from=` | Frankfurter (Coin Metrics) for 35 coins, else CoinGecko's past year | 6 hours; CoinGecko's 12 hours               | 90 days; CoinGecko's a day |
-| `GET /api/market/rates?quotes=&from=`  | Frankfurter: a call per currency and year                           | 6 hours                                     | 90 days                    |
-| `GET /api/assets/search?q=`            | CoinGecko: one call per distinct search                             | a day                                       | a day                      |
-| `GET /api/assets/:id/logo`             | CoinGecko's image host                                              | a day (Cloudflare's cache, per data center) | a day                      |
+| Route                                  | Source call                                                         | Fresh for                                               | Kept for                   |
+| -------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | -------------------------- |
+| `GET /api/market/prices`               | CoinGecko: 250 largest coins, one call                              | 10 minutes; under an hour, served while newer ones load | a day                      |
+| `GET /api/market/prices?ids=`          | CoinGecko: the coins not in the snapshot, one call                  | the same                                                | a day                      |
+| `GET /api/market/history?asset=&from=` | Frankfurter (Coin Metrics) for 35 coins, else CoinGecko's past year | 6 hours; CoinGecko's 12 hours                           | 90 days; CoinGecko's a day |
+| `GET /api/market/rates?quotes=&from=`  | Frankfurter: a call per currency and year                           | 6 hours                                                 | 90 days                    |
+| `GET /api/assets/search?q=`            | CoinGecko: one call per distinct search                             | a day                                                   | a day                      |
+| `GET /api/assets/:id/logo`             | CoinGecko's image host                                              | a day (Cloudflare's cache, per data center)             | a day                      |
 
 `POST /api/market/histories` (`{ assets: [{ asset, from }] }`, at most 20 coins)
 answers from the same entries as `/history` and never calls a source before its
@@ -84,6 +84,26 @@ anyone has asked for.
   from a week before its last day, or before the last refresh when it has been
   silent since, never more than a month back: late publications and revised
   blends replace what was there, and the rest stays.
+
+### Prices
+
+Opening the app used to wait for CoinGecko whenever nobody had asked in the last
+10 minutes: 0.4 to 2.7 seconds on production, the page showing nothing in the
+meantime.
+
+- **Under 10 minutes old:** served, no call.
+- **Under an hour old:** served at once with `refreshing: true` and their real
+  `fetchedAt` (the page shows the time); the source is asked after the answer.
+  The browser asks once more 5 seconds later
+  ([useNewerPrices.ts](../../../src/features/transactions/useNewerPrices.ts)), and
+  not again if the newer prices did not come. Prices marked so are stale to the
+  browser's cache after 5 seconds, so the chat's next question gets newer ones.
+- **An hour old or more, or none:** the request waits for the source. If that
+  fails, prices up to a day old are served, as before.
+- **Coins by id** go together: after the answer when every one that is not fresh
+  is under an hour old, else in one call before it. Such a request takes the
+  snapshot as it is, and leaves refreshing it to the snapshot's own request, or
+  a user with a coin outside it would cost two calls for the same 250 coins.
 
 ### Several histories at once
 
@@ -189,6 +209,11 @@ in the order asked, each from its own day, exactly what `/history` would:
 - **Refresh only while someone uses the app.** No schedule spends calls while
   nobody looks: a stale entry is replaced by the next request (after its
   answer, for a series).
+- **An hour is the most a price is shown without waiting** (owner's decision,
+  2026-11-25): long enough that most visits open at once, short enough that a
+  price with its time beside it misleads nobody. Rejected: refreshing on a
+  schedule (calls and database wake-ups while nobody looks) and never waiting
+  (yesterday's prices on the first visit of the day).
 - **A stale price beats none.** When a source fails, an entry that has not
   expired is served (prices with their real `fetchedAt`, so the screen can say
   how old they are). With nothing usable: 502 `market_unavailable`.
@@ -231,6 +256,7 @@ in the order asked, each from its own day, exactly what `/history` would:
 | `from` before the days asked so far                                            | Those days asked for and added; the source failing: what is kept |
 | A first load needing more than its share of 30 calls                           | The newest days; the next request asks for the rest              |
 | A stale series                                                                 | Served at once, refreshed after the answer; a failure is logged  |
+| Prices over 10 minutes old, under an hour                                      | Served at once, loaded again after the answer                    |
 | A source down, unexpired entry                                                 | Served as it is                                                  |
 | A source down, nothing usable                                                  | 502 `market_unavailable`, one log line                           |
 | Answer too large, not JSON, unexpected shape, timeout, cut off mid-answer      | Same as down                                                     |
@@ -248,18 +274,20 @@ in the order asked, each from its own day, exactly what `/history` would:
 `tests/integration/market.test.ts` replaces the sources' answers at `fetch`, and
 the Worker tests have no real network at all (`outboundService` in
 `vitest.config.ts`), so a request that slips past the mock fails loudly instead
-of reaching a source. It covers which source each coin uses and how it is asked,
-the day a close belongs to, the rows a series drops, a first load from a week
-before the day asked, earlier days added on their own, pieces of a year newest
-first, the 30-call share, a stale series served at once and refreshed after the
-answer from a week before its last day (a month at most for a silent source),
-stale entries while a source fails, each 400, each read's
-limit a minute (429 before any call), several histories at once (the same
+of reaching a source. It covers prices under an hour old served before the
+source answers and loaded after it, older ones waited for, coins by id refreshed
+together and the snapshot not with them; which source each coin uses and how it
+is asked, the day a close belongs to, the rows a series drops, a first load from
+a week before the day asked, earlier days added on their own, pieces of a year
+newest first, the 30-call share, a stale series served at once and refreshed
+after the answer from a week before its last day (a month at most for a silent
+source), stale entries while a source fails; several histories at once (the same
 answers as one by one, no call before the answer, which coins are left to be
-asked alone, one refresh for a series asked twice, the body's limits), a redirect refused, a logo over 100 KB or
-in SVG refused, prices that cannot be real dropped, an unexpected error logged
-by route and not by coin, and how long each source's data is kept. The 8-second
-limit itself is not tested: the runner cannot wait that long or fake the clock
+asked alone, one refresh for a series asked twice, the body's limits); each 400,
+each read's limit a minute (429 before any call), a redirect refused, a logo over
+100 KB or in SVG refused, prices that cannot be real dropped, an unexpected error
+logged by route and not by coin, and how long each source's data is kept. The
+8-second limit itself is not tested: the runner cannot wait that long or fake the clock
 under `AbortSignal.timeout`; what it does to an answer being read (the body's
 stream errors) is. What it proves about storage:
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).

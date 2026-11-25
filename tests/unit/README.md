@@ -72,7 +72,8 @@ Covered now:
   what typing and pasting let through. Hostile text (`rendering.test.ts`): a note
   or a coin's name with markup reaches the page as text, rendered to a string
   with `react-dom/server`; an asset id in a logo's address stays encoded.
-  "Price that day" (`market.test.ts`, a stubbed `fetch`): today's current
+  Prices the server is loading again: the oldest's time of several answers, good
+  for 5 seconds. "Price that day" (`market.test.ts`, a stubbed `fetch`): today's current
   price, an earlier day's close with its source, a rate from the day or the last
   one before it, six significant digits under a dollar, none before a history
   starts. The coins a sale offers (`held.test.ts`): those held now, the edited

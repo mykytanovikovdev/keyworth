@@ -46,6 +46,7 @@ import {
   type TransactionList,
 } from "./service.ts";
 import { TransactionForm } from "./TransactionForm.tsx";
+import { useNewerPrices } from "./useNewerPrices.ts";
 
 /*
  * Adding, editing and deleting a transaction, for any page: the form, the
@@ -123,6 +124,8 @@ export function useTransactionEditor() {
     queries: quotesQueries(userId, outsideIds),
     combine: combineQuotes,
   });
+  // Prices under an hour old come at once, and newer ones a moment later.
+  useNewerPrices(snapshot.data, outside.data);
   const assets = useMemo(() => {
     const known = new Map<string, AssetChoice>();
     for (const coin of [

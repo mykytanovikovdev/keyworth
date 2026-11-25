@@ -21,8 +21,10 @@ import type { AppEnv } from "../env.ts";
 import { maxBody, rateLimit, readJson } from "../limits.ts";
 import { spendCoinGeckoCall } from "../market/budget.ts";
 import {
+  afterAnswer,
   type Cached,
   cached,
+  type Defer,
   readCached,
   storeCached,
 } from "../market/cache.ts";
@@ -66,7 +68,9 @@ export const assets = new Hono<AppEnv>();
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 const DAY = 24 * HOUR;
-const PRICES = { freshForMs: 10 * MINUTE, keepForMs: DAY };
+// Older than fresh, prices are shown with their time while newer ones load;
+// past an hour they are too old for that (owner's decision, 2026-11-25).
+const PRICES = { freshForMs: 10 * MINUTE, serveForMs: HOUR, keepForMs: DAY };
 // CoinGecko's terms: refresh what is kept at least once a day.
 const SEARCH = { freshForMs: DAY, keepForMs: DAY };
 const COINGECKO_HISTORY = { freshForMs: 12 * HOUR, keepForMs: DAY };
@@ -88,10 +92,12 @@ const RATE_CODES: ReadonlySet<string> = new Set([
   ...STABLECOINS,
 ]);
 
-/** Work that may finish after the answer, such as refreshing a stale series. */
-const later = (c: Context<AppEnv>) => (work: Promise<void>) => {
-  c.executionCtx.waitUntil(work);
-};
+/** Work that may finish after the answer, such as refreshing stale prices. */
+const later =
+  (c: Context<AppEnv>): Defer =>
+  (work) => {
+    c.executionCtx.waitUntil(work());
+  };
 
 /** A source's failure is a 502 and one log line, which names neither assets nor searches. */
 function onMarketError(error: Error, c: Context<AppEnv>) {
@@ -114,11 +120,20 @@ const publicQuote = (quote: StoredQuote): QuoteJson => ({
   price: quote.price,
 });
 
-function topSnapshot(c: Context<AppEnv>) {
-  return cached(c.get("db"), TOP, PRICES, async () => {
-    await spendCoinGeckoCall(c, { forUser: false });
-    return topQuotes(c.env.COINGECKO_API_KEY);
-  });
+/** The snapshot's own request loads it again; others take it as it is. */
+const asItIs: Defer = () => undefined;
+
+function topSnapshot(c: Context<AppEnv>, defer: Defer) {
+  return cached(
+    c.get("db"),
+    TOP,
+    PRICES,
+    async () => {
+      await spendCoinGeckoCall(c, { forUser: false });
+      return topQuotes(c.env.COINGECKO_API_KEY);
+    },
+    defer,
+  );
 }
 
 /** A coin outside the snapshot; `quote` is null for one the source does not know. */
@@ -127,41 +142,47 @@ interface QuoteEntry {
 }
 
 /**
- * Coins outside the snapshot, each cached on its own; the ones not cached are
- * fetched together in one call. A coin the source does not know is cached too,
- * so asking again does not spend another call.
+ * Coins outside the snapshot, each cached on its own; the ones not fresh are
+ * fetched together in one call, after the answer when every one of them is
+ * cached and recent enough to serve. A coin the source does not know is cached
+ * too, so asking again does not spend another call.
  */
 async function quotesOutsideTop(
   c: Context<AppEnv>,
   ids: readonly string[],
-): Promise<Cached<QuoteEntry>[]> {
+): Promise<{ entries: Cached<QuoteEntry>[]; refreshing: boolean }> {
   const db = c.get("db");
   const known = await readCached<QuoteEntry>(db, ids.map(quoteKey));
-  const fresh = (id: string) => {
+  const ageOf = (id: string) => {
     const entry = known.get(quoteKey(id));
-    return entry && Date.now() - entry.fetchedAt.getTime() < PRICES.freshForMs
-      ? entry
-      : undefined;
+    return entry ? Date.now() - entry.fetchedAt.getTime() : Infinity;
   };
-  const missing = ids.filter((id) => !fresh(id));
+  const missing = ids.filter((id) => ageOf(id) >= PRICES.freshForMs);
+  const refreshing =
+    missing.length > 0 && missing.every((id) => ageOf(id) < PRICES.serveForMs);
   const fetchedAt = new Date();
   const found = new Map<string, StoredQuote>();
-  if (missing.length > 0) {
+  const load = async () => {
+    await spendCoinGeckoCall(c, { forUser: true });
+    const quotes = await quotesFor(
+      c.env.COINGECKO_API_KEY,
+      missing.map((id) => id.slice("crypto:".length)),
+    );
+    for (const quote of quotes) found.set(quote.id, quote);
+    await storeCached(
+      db,
+      missing.map((id) => ({
+        key: quoteKey(id),
+        value: { quote: found.get(id) ?? null },
+      })),
+      PRICES.keepForMs,
+    );
+  };
+  if (refreshing) {
+    later(c)(() => afterAnswer(load));
+  } else if (missing.length > 0) {
     try {
-      await spendCoinGeckoCall(c, { forUser: true });
-      const quotes = await quotesFor(
-        c.env.COINGECKO_API_KEY,
-        missing.map((id) => id.slice("crypto:".length)),
-      );
-      for (const quote of quotes) found.set(quote.id, quote);
-      await storeCached(
-        db,
-        missing.map((id) => ({
-          key: quoteKey(id),
-          value: { quote: found.get(id) ?? null },
-        })),
-        PRICES.keepForMs,
-      );
+      await load();
     } catch (error) {
       // Stale but unexpired entries stand in, as for the snapshot.
       if (
@@ -172,24 +193,26 @@ async function quotesOutsideTop(
       }
     }
   }
-  return ids.flatMap((id) => {
+  const entries = ids.flatMap((id) => {
     const quote = found.get(id);
     if (quote) return [{ value: { quote }, fetchedAt }];
     const entry = known.get(quoteKey(id));
     return entry ? [entry] : [];
   });
+  return { entries, refreshing };
 }
 
 const limitPrices = rateLimit("market", 120);
 
 /** The snapshot; with `?ids=`, those coins only, wherever they come from. */
 market.get("/prices", limitPrices, async (c) => {
-  const top = await topSnapshot(c);
   const param = c.req.query("ids");
   if (param === undefined) {
+    const top = await topSnapshot(c, later(c));
     return c.json<PricesJson>({
       currency: "USD",
       fetchedAt: top.fetchedAt.toISOString(),
+      refreshing: top.refreshing,
       quotes: top.value.map(publicQuote),
     });
   }
@@ -201,6 +224,7 @@ market.get("/prices", limitPrices, async (c) => {
   ) {
     return c.json({ error: "invalid_ids" }, 400);
   }
+  const top = await topSnapshot(c, asItIs);
   const inTop = new Map(top.value.map((quote) => [quote.id, quote]));
   const outside = await quotesOutsideTop(
     c,
@@ -211,15 +235,14 @@ market.get("/prices", limitPrices, async (c) => {
       const quote = inTop.get(id);
       return quote ? [{ value: { quote }, fetchedAt: top.fetchedAt }] : [];
     }),
-    ...outside,
+    ...outside.entries,
   ];
-  const oldest = Math.min(
-    ...entries.map(({ fetchedAt }) => fetchedAt.getTime()),
-    top.fetchedAt.getTime(),
-  );
+  const times = entries.map(({ fetchedAt }) => fetchedAt.getTime());
+  const oldest = times.length > 0 ? Math.min(...times) : Date.now();
   return c.json<PricesJson>({
     currency: "USD",
     fetchedAt: new Date(oldest).toISOString(),
+    refreshing: outside.refreshing,
     quotes: entries.flatMap(({ value }) =>
       value.quote ? [publicQuote(value.quote)] : [],
     ),

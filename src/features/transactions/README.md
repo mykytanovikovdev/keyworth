@@ -28,6 +28,7 @@ calculations.
 | `editor.tsx`           | Adding, editing, deleting with Undo, for any page: the form, refusals in words, coin names    |
 | `TransactionsPage.tsx` | `/transactions`: the list, and the editor for each row                                        |
 | `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
+| `useNewerPrices.ts`    | Prices the server is loading again are asked for again, once                                  |
 | `market.ts`            | The snapshot, coins outside it, the server's search, "Price that day" from history and rates  |
 | `csv.ts`               | CSV as RFC 4180 has it: reading, writing, and cells kept from turning into formulas           |
 | `csv-import.ts`        | A file checked before anything is written: size, UTF-8, columns, each row, duplicates, ledger |

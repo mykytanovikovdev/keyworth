@@ -58,6 +58,16 @@ async function answerOf<T>(request: Promise<Response>): Promise<T> {
 
 const FIVE_MINUTES = 5 * 60 * 1000;
 
+/** Long enough for the server to have loaded the newer prices it spoke of. */
+export const ASK_AGAIN_MS = 5 * 1000;
+
+/** Prices the server is loading again are worth asking for again soon. */
+const staleAfter = ({
+  state: { data },
+}: {
+  state: { data: PricesJson | undefined };
+}) => (data?.refreshing ? ASK_AGAIN_MS : FIVE_MINUTES);
+
 const choiceOf = ({ id, symbol, name }: QuoteJson): AssetChoice => ({
   id,
   symbol,
@@ -68,7 +78,7 @@ const choiceOf = ({ id, symbol, name }: QuoteJson): AssetChoice => ({
 export const snapshotQuery = queryOptions({
   queryKey: ["market", "snapshot"],
   queryFn: () => getJson<PricesJson>("/api/market/prices"),
-  staleTime: FIVE_MINUTES,
+  staleTime: staleAfter,
 });
 
 /** Coins outside the snapshot, by id: what the user holds, so a vault query. */
@@ -81,7 +91,7 @@ export const quotesQuery = (userId: string, ids: readonly string[]) => {
         `/api/market/prices?ids=${encodeURIComponent(asked.join(","))}`,
       ),
     enabled: asked.length > 0,
-    staleTime: FIVE_MINUTES,
+    staleTime: staleAfter,
   });
 };
 
@@ -129,6 +139,7 @@ export function combineQuotes(results: UseQueryResult<PricesJson>[]) {
           fetchedAt: answers
             .map(({ fetchedAt }) => fetchedAt)
             .reduce((a, b) => (b < a ? b : a)),
+          refreshing: answers.some(({ refreshing }) => refreshing),
           quotes: answers.flatMap(({ quotes }) => quotes),
         };
   return {

@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  combineQuotes,
   outsideSnapshot,
   priceOnDay,
   quotesQueries,
@@ -46,7 +47,7 @@ describe("coins asked for by name", () => {
     expect(outsideSnapshot(undefined, held)).toEqual([]);
     expect(
       outsideSnapshot(
-        { currency: "USD", fetchedAt: "", quotes: [quote] },
+        { currency: "USD", fetchedAt: "", refreshing: false, quotes: [quote] },
         held,
       ),
     ).toEqual(["crypto:rare"]);
@@ -61,6 +62,57 @@ describe("coins asked for by name", () => {
 
     expect(asked.map((chunk) => chunk.length)).toEqual([50, 50, 20]);
     expect(asked.flat().sort()).toEqual([...ids].sort());
+  });
+});
+
+describe("several answers read as one", () => {
+  const answer = (fetchedAt: string, refreshing: boolean) => ({
+    data: {
+      currency: "USD" as const,
+      fetchedAt,
+      refreshing,
+      quotes: [quote],
+    },
+    isLoading: false,
+    refetch: () => Promise.resolve(),
+  });
+  type Results = Parameters<typeof combineQuotes>[0];
+
+  it("are as old as the oldest, and being loaded again while any is", () => {
+    const older = answer("2026-11-25T09:30:00.000Z", false);
+    const newer = answer("2026-11-25T10:05:00.000Z", true);
+
+    expect(
+      combineQuotes([newer, older] as unknown as Results).data,
+    ).toMatchObject({
+      fetchedAt: "2026-11-25T09:30:00.000Z",
+      refreshing: true,
+      quotes: [quote, quote],
+    });
+    expect(combineQuotes([older] as unknown as Results).data?.refreshing).toBe(
+      false,
+    );
+    expect(combineQuotes([]).data).toBeUndefined();
+  });
+});
+
+describe("how long prices stay good", () => {
+  const staleTime = (refreshing: boolean) => {
+    const { staleTime: after } = quotesQuery("user", ["crypto:rare"]);
+    if (typeof after !== "function") throw new Error("Not a function.");
+    return after({
+      state: {
+        data: { currency: "USD", fetchedAt: "", refreshing, quotes: [] },
+      },
+    } as never);
+  };
+
+  it("is five minutes, or a moment while the server loads newer ones", () => {
+    expect(staleTime(false)).toBe(5 * 60 * 1000);
+    expect(staleTime(true)).toBe(5 * 1000);
+    expect(snapshotQuery.staleTime).toBe(
+      quotesQuery("user", ["crypto:rare"]).staleTime,
+    );
   });
 });
 

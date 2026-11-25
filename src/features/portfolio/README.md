@@ -31,17 +31,22 @@ rates ────────────────┘    history, periodGain
 ```
 
 **Market data.** Today's prices come from the shared snapshot of the 250
-largest coins, and from `/api/market/prices?ids=` for the others. Each coin's
-history is asked from the day it was first held; the server's latest close is
-yesterday's, so today's price is added as the last point. Histories asked for in
-the same moment, a portfolio's or a chat question's, make one request
-(`histories.ts`): the server answers what it has ready, and a coin it must load
-first is then asked for alone, so it holds up no other. Rates are asked for the
-base currency and every price or fee currency used, from a week before the first
-transaction (a weekend's purchase needs Friday's rate). The server gives each
-currency per US dollar; `rateLookup` converts between any two through the
-dollar, and keeps the last rate over a weekend. Everything asked by name is
-cached under `["vault", …]`, cleared when the vault locks.
+largest coins, and from `/api/market/prices?ids=` for the others. They can be up
+to an hour old for the first seconds: the server answers with what it has while
+it loads newer ones, the page shows their time, and asks once more 5 seconds
+later (`useNewerPrices`).
+
+Each coin's history is asked from the day it was first held; the server's latest
+close is yesterday's, so today's price is added as the last point. Histories
+asked for in the same moment, a portfolio's or a chat question's, make one
+request (`histories.ts`): the server answers what it has ready, and a coin it
+must load first is then asked for alone, so it holds up no other.
+
+Rates are asked for the base currency and every price or fee currency used, from
+a week before the first transaction (a weekend's purchase needs Friday's rate).
+The server gives each currency per US dollar; `rateLookup` converts between any
+two through the dollar, and keeps the last rate over a weekend. Everything asked
+by name is cached under `["vault", …]`, cleared when the vault locks.
 
 **The figures** (owner's decisions, 2026-11-09):
 

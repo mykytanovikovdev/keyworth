@@ -25,13 +25,17 @@ through the real Google flow (only Google's token endpoint is replaced).
   `0.000000355498`), symbols in upper case, names without control or invisible
   characters; coins with no price, a negative one or a malformed id are left out;
   the logo's location never reaches the browser; the API key goes in its header.
-- One call serves every user for 10 minutes, then the next request refreshes it.
+- One call serves every user for 10 minutes. Under an hour old, prices are served
+  at once, marked as being refreshed and with their real age, while the source
+  has not answered yet, and the newer ones are there after it; an hour old, the
+  request waits. A failed refresh logs the source only.
 - A failing source: an unexpired entry is served with its real age; with nothing
   usable, 502 and exactly one log line, which names neither the asset nor the
   request; past a day nothing is served.
 - By id: coins in the snapshot cost no call; the others are asked for together,
-  once, and an unknown coin is cached too. Malformed ids and more than 50 are
-  refused.
+  once, and an unknown coin is cached too. Under an hour old, they are served at
+  once and refreshed in one call, the snapshot not with them; one an hour old or
+  not cached, and the request waits. Malformed ids and more than 50 are refused.
 - Search: one call per distinct search whatever its case and spaces, at most 20
   results; empty or over-long searches, and searches with a hidden character or
   a line break, are refused.

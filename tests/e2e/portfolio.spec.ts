@@ -209,6 +209,84 @@ test("offers an empty portfolio the import, open on the transactions page @chrom
   await expect(page).toHaveURL(/\/transactions$/);
 });
 
+/**
+ * Answers the snapshot with these prices of Bitcoin, one a request and the last
+ * one from then on. Returns how many times it was asked for.
+ */
+async function servePrices(
+  page: Page,
+  answers: { price: string; refreshing: boolean }[],
+) {
+  const started = Date.now();
+  let asked = 0;
+  await page.route("**/api/market/prices", (route) => {
+    const answer = answers[Math.min(asked, answers.length - 1)];
+    asked += 1;
+    return route.fulfill({
+      json: {
+        currency: "USD",
+        // Half an hour old while newer ones load.
+        fetchedAt: new Date(
+          started - (answer?.refreshing ? 30 * 60_000 : 0),
+        ).toISOString(),
+        refreshing: answer?.refreshing,
+        quotes: [
+          {
+            id: "crypto:bitcoin",
+            symbol: "BTC",
+            name: "Bitcoin",
+            rank: 1,
+            price: answer?.price,
+          },
+        ],
+      },
+    });
+  });
+  return () => asked;
+}
+
+// When prices are asked for is the page's own code, the same in every engine.
+test("shows prices half an hour old at once, and the newer ones when they are in @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { passphrase } = await openApp(page, context, baseURL);
+  await buyBitcoin(page);
+  const asked = await servePrices(page, [
+    { price: "75000", refreshing: true },
+    { price: "80000", refreshing: false },
+  ]);
+
+  await page.reload();
+  await unlock(page, passphrase);
+
+  await expect(page.getByText("$37,500.00").first()).toBeVisible(AFTER_ARGON2);
+  await expect(page.getByText("$40,000.00").first()).toBeVisible({
+    timeout: 10_000,
+  });
+  expect(asked()).toBe(2);
+});
+
+test("asks for newer prices once, though they do not come @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { passphrase } = await openApp(page, context, baseURL);
+  await buyBitcoin(page);
+  const asked = await servePrices(page, [{ price: "75000", refreshing: true }]);
+
+  await page.reload();
+  await unlock(page, passphrase);
+
+  await expect(page.getByText("$37,500.00").first()).toBeVisible(AFTER_ARGON2);
+  await expect.poll(asked, { timeout: 10_000 }).toBe(2);
+  // Longer than the wait before the second request.
+  await page.waitForTimeout(6_500);
+  expect(asked()).toBe(2);
+});
+
 test("says when prices couldn't load, and shows no zero for them", async ({
   page,
   context,

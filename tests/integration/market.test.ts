@@ -179,20 +179,93 @@ describe("prices", () => {
     expect(calls[0]?.url.searchParams.get("precision")).toBe("full");
   });
 
-  it("asks the source once for everyone within 10 minutes, then again", async () => {
+  const ageTop = (minutes: number) =>
+    query(
+      "update market_cache set fetched_at = now() - make_interval(mins => $1) where key = 'coingecko:top'",
+      [minutes],
+    );
+
+  it("asks the source once for everyone within 10 minutes", async () => {
     const alice = await signedIn("prices-a");
     const bob = await signedIn("prices-b");
     const { calls } = mockSources(defaultAnswer);
 
     await prices(alice.cookie);
-    await prices(bob.cookie);
-    expect(calls).toHaveLength(1);
+    await ageTop(9);
+    const second = await prices(bob.cookie);
 
-    await query(
-      "update market_cache set fetched_at = now() - interval '11 minutes' where key = 'coingecko:top'",
+    expect(calls).toHaveLength(1);
+    expect(second.body?.refreshing).toBe(false);
+  });
+
+  it("serves prices under an hour old at once, and loads newer ones after the answer", async () => {
+    const { cookie } = await signedIn("prices-refresh");
+    let price = 75966;
+    // Held back until the old prices have been served: nothing waits for it.
+    let release: () => void = () => undefined;
+    let held: Promise<void> = Promise.resolve();
+    const { calls } = mockSources(async () => {
+      await held;
+      return json([coin({ id: "bitcoin", current_price: price })]);
+    });
+    await prices(cookie);
+    await ageTop(59);
+    price = 80000;
+    held = new Promise((resolve) => {
+      release = resolve;
+    });
+
+    const old = await prices(cookie);
+    release();
+
+    expect(old.body?.refreshing).toBe(true);
+    expect(old.body?.quotes[0]?.price).toBe("75966");
+    expect(Date.now() - Date.parse(old.body?.fetchedAt ?? "")).toBeGreaterThan(
+      58 * 60 * 1000,
     );
-    await prices(alice.cookie);
+    await vi.waitFor(async () => {
+      const newer = await prices(cookie);
+      expect(newer.body?.refreshing).toBe(false);
+      expect(newer.body?.quotes[0]?.price).toBe("80000");
+    });
     expect(calls).toHaveLength(2);
+  });
+
+  it("waits for the source once prices are an hour old", async () => {
+    const { cookie } = await signedIn("prices-hour");
+    let price = 75966;
+    mockSources(() => json([coin({ id: "bitcoin", current_price: price })]));
+    await prices(cookie);
+    await ageTop(61);
+    price = 80000;
+
+    const { body } = await prices(cookie);
+
+    expect(body?.refreshing).toBe(false);
+    expect(body?.quotes[0]?.price).toBe("80000");
+  });
+
+  it("logs a failed refresh by its source, and goes on serving what it has", async () => {
+    let up = true;
+    const { cookie } = await signedIn("prices-refresh-down");
+    mockSources((url) =>
+      up ? defaultAnswer(url) : new Response("down", { status: 503 }),
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const first = await prices(cookie);
+    await ageTop(30);
+    up = false;
+
+    const second = await prices(cookie);
+
+    expect(second.body?.quotes).toEqual(first.body?.quotes);
+    expect(second.body?.refreshing).toBe(true);
+    await vi.waitFor(() => {
+      expect(log).toHaveBeenCalledTimes(1);
+    });
+    expect(log.mock.calls).toEqual([
+      ["Market data unavailable: coingecko: status 503"],
+    ]);
   });
 
   it("keeps serving older prices while the source fails, saying how old they are", async () => {
@@ -313,6 +386,75 @@ describe("prices by id", () => {
     expect(calls.filter(({ url }) => url.searchParams.has("ids"))).toHaveLength(
       1,
     );
+  });
+
+  const age = (id: string, minutes: number) =>
+    query(
+      "update market_cache set fetched_at = now() - make_interval(mins => $2) where key = $1",
+      [`coingecko:${id}`, minutes],
+    );
+
+  it("serves coins under an hour old at once and loads them again together, not the snapshot", async () => {
+    const { cookie } = await signedIn("ids-refresh");
+    // Held back until the old prices have been served: nothing waits for it.
+    let release: () => void = () => undefined;
+    let held: Promise<void> = Promise.resolve();
+    const { calls } = mockSources(async (url) => {
+      await held;
+      return outsideTop(url);
+    });
+    const ids = "crypto:obscure-coin,crypto:unknown-coin";
+    await prices(cookie, ids);
+    await age("quote:crypto:obscure-coin", 30);
+    await age("quote:crypto:unknown-coin", 59);
+    await age("top", 30);
+    const asked = calls.length;
+    held = new Promise((resolve) => {
+      release = resolve;
+    });
+
+    const { body } = await prices(cookie, ids);
+    release();
+
+    expect(body?.refreshing).toBe(true);
+    expect(body?.quotes.map(({ price }) => price)).toEqual(["0.5"]);
+    // As old as the oldest coin in the answer.
+    expect(Date.now() - Date.parse(body?.fetchedAt ?? "")).toBeGreaterThan(
+      58 * 60 * 1000,
+    );
+    await vi.waitFor(async () => {
+      const [row] = await query<{ fresh: boolean }>(
+        "select bool_and(fetched_at > now() - interval '1 minute') as fresh from market_cache where key like 'coingecko:quote:%'",
+      );
+      expect(row?.fresh).toBe(true);
+    });
+    // The snapshot's own request refreshes it.
+    expect(
+      calls.slice(asked).map(({ url }) => url.searchParams.get("ids")),
+    ).toEqual(["obscure-coin,unknown-coin"]);
+  });
+
+  it("waits for the source when one of them is an hour old, or not cached", async () => {
+    const { cookie } = await signedIn("ids-wait");
+    const { calls } = mockSources(outsideTop);
+    await prices(cookie, "crypto:obscure-coin");
+    await age("quote:crypto:obscure-coin", 61);
+    // Not in the answer, so it does not make it older.
+    await age("top", 30);
+
+    const hour = await prices(cookie, "crypto:obscure-coin");
+    await age("quote:crypto:obscure-coin", 30);
+    const mixed = await prices(cookie, "crypto:obscure-coin,crypto:new-coin");
+
+    for (const { body } of [hour, mixed]) {
+      expect(body?.refreshing).toBe(false);
+      expect(Date.now() - Date.parse(body?.fetchedAt ?? "")).toBeLessThan(
+        60 * 1000,
+      );
+    }
+    expect(
+      calls.flatMap(({ url }) => url.searchParams.get("ids") ?? []),
+    ).toEqual(["obscure-coin", "obscure-coin", "obscure-coin,new-coin"]);
   });
 
   it.each([
@@ -591,7 +733,7 @@ describe("CoinGecko's budget", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     expect((await prices(cookie)).status).toBe(200);
     await query(
-      `update market_cache set fetched_at = now() - interval '11 minutes'
+      `update market_cache set fetched_at = now() - interval '2 hours'
         where key = 'coingecko:top'`,
     );
     await query(`update upstream_calls set day_count = $1`, [
