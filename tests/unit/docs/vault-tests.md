@@ -120,4 +120,4 @@ it("…", async () => {
 Close every tab (the helpers register `closeAll` for `afterEach`), or open
 BroadcastChannels keep the test process alive.
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-25

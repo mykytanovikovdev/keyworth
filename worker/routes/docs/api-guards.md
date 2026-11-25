@@ -2,8 +2,8 @@
 
 Everything that stands between a request and the database on the app's own
 routes (`/api/keys`, `/api/vault`, and every route added later). Code:
-`../index.ts` (`requireSession`), `../limits.ts`, `keys.ts`, `vault.ts`;
-schemas in `shared/schemas/`.
+`../index.ts` (`requireSession`), `../limits.ts`, `keys.ts`, `vault.ts`,
+`market.ts`; schemas in `shared/schemas/`.
 
 ## The order of checks
 

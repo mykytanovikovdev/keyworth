@@ -5,8 +5,8 @@
 Transactions are the source of truth: positions, P&L and every figure are
 computed from them in the browser ([shared/metrics/](../../../shared/metrics/README.md)),
 and none of those results is stored. This folder is the one way to add, change
-or delete a transaction, whether it comes from the form, the chat (phase 7) or
-a CSV file (4.5): each change meets the same rules before anything is
+or delete a transaction, whether it comes from the form, a CSV file or, later,
+the chat: each change meets the same rules before anything is
 encrypted. It also holds the screens that add, edit and list transactions.
 Not here: the schema itself
 ([shared/schemas/transaction.ts](../../../shared/schemas/transaction.ts)) and the

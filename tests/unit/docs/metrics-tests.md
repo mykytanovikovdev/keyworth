@@ -69,8 +69,10 @@ after a large change to the rules.
 
 - Real prices and rates: tested where they arrive, in the Worker's market tests
   ([storage-and-isolation.md](../../integration/docs/storage-and-isolation.md));
-  turning their answers into `PriceSeries` and `RateLookup` comes with the screens.
-- Screens and formatting: they come with the portfolio page.
+  turning their answers into `PriceSeries` and `RateLookup` is in
+  `tests/unit/portfolio/market-data.test.ts`.
+- The page's own figures and formats: `tests/unit/portfolio/summary.test.ts` and
+  `format.test.ts`; the screen itself, `tests/e2e/portfolio.spec.ts`.
 - Whether a form refuses an oversold sale: that is the transaction service
   (`src/features/transactions`, tested in
   `tests/unit/transactions/service.test.ts`). Here, only what the calculations do
@@ -94,4 +96,4 @@ it("realizes the move in the rate too", () => {
 });
 ```
 
-Last reviewed: 2026-11-09
+Last reviewed: 2026-11-25

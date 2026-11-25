@@ -2,10 +2,12 @@
 
 > Your net worth. Your key.
 
-**Status: early development.** Google sign-in, security headers, tests, the deployment pipeline,
-end-to-end encryption of user data, the privacy policy and terms, transactions (with CSV import and
-export) and the portfolio page (value, gains and risk figures for crypto) are in place; the assistant is next. Nothing here is
-ready for real data yet.
+**Status: early development.** In place: Google sign-in, end-to-end encryption of user data,
+transactions (with CSV import and export), the portfolio page (value, gains and risk figures for
+crypto), the chat that answers from tools running in the browser, with its history kept encrypted,
+the privacy policy and terms, and the deployment pipeline. The chat still runs on a development
+model; recording trades from it, alerts and charts in answers are next. Nothing here is ready for
+real data yet.
 
 Keyworth is an investment portfolio tracker (crypto first; stocks, ETFs and metals
 next) with an AI assistant you can ask questions in plain language, in any
@@ -61,7 +63,6 @@ Cloudflare Worker (Hono) — sees encrypted envelopes only, except the chat's tr
 | Tests    | Vitest (Node and workerd + Postgres), Playwright (Chromium, Firefox, WebKit), axe, screenshots                                                         |
 | Crypto   | WebCrypto (AES-256-GCM, HKDF), Argon2id from @noble/hashes (plain JavaScript), zod schemas                                                             |
 | Money    | big.js decimals, pure calculations in `shared/metrics`; prices and rates through the Worker                                                            |
-| Planned  | Claude Haiku for the chat                                                                                                                              |
 
 ## Getting started
 
@@ -101,6 +102,7 @@ Playwright Docker image with `npm run test:e2e:docker`, as CI does.
 | `npm run licenses`           | Dependency license check                                                  |
 | `npm run docs:check`         | Links, review dates and forbidden content in READMEs and `docs/`          |
 | `npm run bundle:size`        | Script chunks and the largest one by package                              |
+| `npm run perf`               | CPU and time per route on production, live                                |
 | `npm run mutate -- <plan>`   | Break lines on purpose and see whether the tests notice                   |
 | `npm run cf:types`           | Regenerate Worker types after changing `wrangler.jsonc`                   |
 | `npm run hooks:install`      | Install git hooks                                                         |
@@ -121,12 +123,12 @@ Playwright Docker image with `npm run test:e2e:docker`, as CI does.
 src/        React SPA; src/ui/ is the design system, src/crypto/ the encryption core
 shared/     definitions and logic shared by the browser and the Worker: zod schemas,
             decimal money and the portfolio calculations
-worker/     Cloudflare Worker (Hono): API, sign-in, security headers, market data, daily cleanup;
-            db/ is the database
+worker/     Cloudflare Worker (Hono): API, sign-in, security headers, market data, the chat's
+            transit, daily cleanup; db/ is the database
 drizzle/    SQL migrations
 public/     static files, including _headers (page CSP) and robots.txt
 design/     design exploration: a dev-only prototype, never deployed
-scripts/    project tooling (user management, license and docs checks, visual test runner)
+scripts/    project tooling (user management, license and docs checks, test runners, timings)
 tests/      unit/, integration/ (workerd), e2e/ and visual/ (Playwright)
 .github/    CI, deployment and Dependabot
 ```
@@ -137,9 +139,9 @@ depth in `docs/` folders next to the code. READMEs: [design system](src/ui/READM
 [encryption](src/crypto/README.md), [privacy policy and terms](src/features/legal/README.md),
 [shared schemas](shared/schemas/README.md), [money](shared/money/README.md),
 [calculations](shared/metrics/README.md), [transactions](src/features/transactions/README.md),
-[portfolio](src/features/portfolio/README.md),
+[portfolio](src/features/portfolio/README.md), [chat](src/features/chat/README.md),
 [worker](worker/README.md), [database](worker/db/README.md), [market data](worker/market/README.md),
-[design](design/README.md),
+[the chat's transit](worker/chat/README.md), [design](design/README.md),
 [scripts](scripts/README.md), [tests](tests/README.md).
 
 ## Quality gates
@@ -148,13 +150,12 @@ Every pull request and every push to `main` runs, on GitHub Actions:
 
 - **`npm run check`** — formatting, lint, types, stale Worker types, unit and
   Worker tests, license check, documentation check, production build; plus
-  `npm audit` for runtime
-  dependencies;
+  `npm audit` for runtime dependencies;
 - **end-to-end tests** in three browser engines against the production build,
   and against the `/design` page with every UI component (CSP, keyboard, themes,
   axe accessibility checks);
-- **visual tests**: screenshots of `/design`, sign-in and settings in both themes, rendered in the
-  official Playwright Docker image and compared with committed baselines;
+- **visual tests**: screenshots of `/design`, sign-in, the key screens and settings in both
+  themes, rendered in the official Playwright Docker image and compared with committed baselines;
 - **gitleaks** over the full git history.
 
 A push to `main` applies database migrations and deploys to Cloudflare **only

@@ -30,8 +30,7 @@ What the server learns by serving prices, the cache lifetimes and every decision
   wherever they are and the monthly allowance holds.
 - **Sources' answers are data.** They are checked (with zod, or by hand for
   series of thousands of rows), reduced to what is shown and cleaned before
-  anything keeps them, because coin names will reach the assistant's context
-  later.
+  anything keeps them: coin names reach the chat's model.
 - **One source per coin's history**, so a chart has no seam: Coin Metrics for
   the 35 coins it covers, CoinGecko's past year for the rest.
 

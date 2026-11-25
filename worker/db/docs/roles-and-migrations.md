@@ -97,4 +97,4 @@ empties it before a run; the Worker tests connect as `keyworth_app`, so a
 missing grant fails them. See
 [tests/integration/docs/storage-and-isolation.md](../../../tests/integration/docs/storage-and-isolation.md).
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-25

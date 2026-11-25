@@ -17,7 +17,7 @@ and `/api/vault`, locking and unlocking the app live in
 screens that use them ([src/vault](../vault/README.md),
 [src/features/unlock](../features/unlock/README.md)), with Argon2's progress
 shown as a ring around the mark and a first onboarding screen that shows what
-is encrypted where, are implemented and tested (phase 3).
+is encrypted where, are implemented and tested.
 
 ## How it works
 
@@ -155,8 +155,7 @@ const value = await decryptRecord(dataKey, ref, envelope); // validate with the 
 ## Related
 
 - [docs/](docs/): the threat model and the detailed design of every part
-
 - [shared/schemas/](../../shared/schemas/README.md): envelope, Argon2 settings and record kinds
-- [src/ui/](../ui/README.md): the design system the encryption screens will use
+- [src/ui/](../ui/README.md): the design system the encryption screens use
 - [worker/](../../worker/README.md): the CSP that protects these keys
 - [tests/unit/](../../tests/unit/README.md): the tests for this module

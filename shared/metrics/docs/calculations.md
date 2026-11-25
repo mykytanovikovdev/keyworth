@@ -15,7 +15,7 @@ and exchange rates come in as parameters.
 | `ledger.ts`    | What every calculation shares: the order of transactions, their effect on a holding |
 | `positions.ts` | `computePositions`: quantity, cost, average cost, realized P&L, income, and issues  |
 | `valuation.ts` | `valuePositions`: value, unrealized P&L and share of the portfolio today            |
-| `history.ts`   | `portfolioHistory`: value per day, and the money moved that day                     |
+| `history.ts`   | `portfolioHistory`, `periodGain`: value and money moved per day; what was made      |
 | `risk.ts`      | Returns, period change, maximum drawdown, volatility, correlation (`number`s)       |
 
 Transactions are applied in time order. At the same moment, what adds units
@@ -166,4 +166,4 @@ A new transaction type needs a row in the rules table and a decision about wheth
 it moves money for `portfolioHistory`. Never compute money through `number`, and
 never let a missing input become zero.
 
-Last reviewed: 2026-11-11
+Last reviewed: 2026-11-25

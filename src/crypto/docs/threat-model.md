@@ -1,6 +1,6 @@
 # Threat model
 
-Version 1 (phase 3). What Keyworth's end-to-end encryption promises, against
+Version 1. What Keyworth's end-to-end encryption promises, against
 whom, and what it does not protect. The mechanisms are described in
 [key-hierarchy.md](key-hierarchy.md), [envelopes.md](envelopes.md),
 [argon2.md](argon2.md) and [remember-device.md](remember-device.md).
@@ -77,7 +77,9 @@ whom, and what it does not protect. The mechanisms are described in
   accepted.
   A CSV import looks up by id the coins it names outside the snapshot, before
   its preview.
-- Token usage (phase 5).
+- How much the chat's model was used today by everyone together and, per user,
+  when they last asked it something and how often in that minute (the rate-limit
+  counter).
 
 ## In transit through the server
 

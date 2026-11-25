@@ -37,7 +37,7 @@ this folder only starts the flow and shows its outcome.
   codes, such as Google's `access_denied` when the user cancels, get a generic
   message.
 - **One session cache.** TanStack Query holds the session for the router, the
-  header and settings, refreshed every five minutes. The server still checks
+  frame and settings, refreshed every five minutes. The server still checks
   the session on every API call; the cache only decides which page to show.
 - **No Google avatar.** The CSP allows images from our own origin only, and the
   server does not even store the avatar URL.

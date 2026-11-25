@@ -3,9 +3,9 @@
 ## Purpose
 
 Small project tooling run by Node directly: the dependency license check, the
-documentation check, the mutation runner and the bundle size report, the local
-runner for visual tests, user management (invites, sessions, blocks, account
-deletion) and the auth schema generator. Not application code: nothing here is bundled into
+documentation check, the mutation runner, the bundle size and production timing
+reports, the runners for visual and end-to-end tests in Docker, user management
+(invites, sessions, blocks, account deletion) and the auth schema generator. Not application code: nothing here is bundled into
 the SPA or the Worker.
 
 ## How it works
@@ -182,6 +182,5 @@ check`). A false positive: use an example address or range rather than widen
 ## Related
 
 - [docs/user-management.md](docs/user-management.md): invites, blocks, deletion, IP blocking
-
 - [Root README](../README.md)
 - [Unit tests](../tests/unit/README.md)

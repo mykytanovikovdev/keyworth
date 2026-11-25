@@ -79,4 +79,4 @@ and existing accounts; unblock does not invite again; revoke and uninvite end
 sessions; `sessions` never returns the token; delete removes the account with
 its sessions and Google link; `list` reports each state.
 
-Last reviewed: 2026-10-27
+Last reviewed: 2026-11-25

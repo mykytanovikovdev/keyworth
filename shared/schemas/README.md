@@ -80,6 +80,5 @@ Tests: `tests/unit/schemas.test.ts` (accepted and rejected inputs for each schem
   checklist for a new field
 - [src/crypto/docs/envelopes.md](../../src/crypto/docs/envelopes.md): what the envelope schema enforces and why
 - [worker/routes/docs/api-guards.md](../../worker/routes/docs/api-guards.md): how the Worker uses these schemas
-
 - [src/crypto/](../../src/crypto/README.md): produces and consumes these shapes
 - [worker/routes/](../../worker/routes/README.md): validates request bodies with them

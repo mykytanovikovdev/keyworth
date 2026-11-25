@@ -12,8 +12,8 @@ production build and never deployed.
 **The design system now lives in [`src/ui/`](../src/ui/README.md)**, which is
 the source of truth for tokens and components. The prototype keeps its own copy
 of the tokens as they were when the direction was chosen, and is kept for now as
-a reference for the chat screens (agent steps, streamed answer, chart, trade
-confirmation) in phases 5–7. Whether it stays after that is decided later.
+a reference for the chat screens still to come (charts in answers, the trade
+confirmation). Whether it stays after that is decided later.
 
 ## Design brief
 

@@ -49,7 +49,6 @@ Covered now:
   this device", the idle lock, replacing keys after a lost answer or a
   conflict, records with revisions. What each file proves:
   [docs/vault-tests.md](docs/vault-tests.md).
-
 - **Portfolio:** `src/features/portfolio` (`portfolio/`) — `summarize()`
   with numbers worked out by hand: profit sold and still held with income
   apart, the period's chart and gain, a coin without a price listed but left
@@ -72,11 +71,12 @@ Covered now:
   what typing and pasting let through. Hostile text (`rendering.test.ts`): a note
   or a coin's name with markup reaches the page as text, rendered to a string
   with `react-dom/server`; an asset id in a logo's address stays encoded.
-  Prices the server is loading again: the oldest's time of several answers, good
-  for 5 seconds. "Price that day" (`market.test.ts`, a stubbed `fetch`): today's current
-  price, an earlier day's close with its source, a rate from the day or the last
-  one before it, six significant digits under a dollar, none before a history
-  starts. The coins a sale offers (`held.test.ts`): those held now, the edited
+  Prices (`market.test.ts`, a stubbed `fetch`): which coins are asked for by name,
+  several answers read as one, as old as the oldest, good for five minutes or,
+  while the server loads newer ones, for a moment; "Price that day": today's
+  current price, an earlier day's close with its source, a rate from the day or
+  the last one before it, six significant digits under a dollar, none before a
+  history starts. The coins a sale offers (`held.test.ts`): those held now, the edited
   transaction left out, the largest value first. CSV (`csv.test.ts`,
   `csv-import.test.ts`): quotes, separators and line ends read back as written,
   formulas kept as text; a file refused before reading (size, not UTF-8, NUL),
@@ -95,7 +95,6 @@ Covered now:
 - **Free text:** `shared/schemas/text.ts` (in `schemas.test.ts`) — hidden
   characters dropped as typed, refused by the schema, cleaning twice changes
   nothing ([input-validation.md](../../shared/schemas/docs/input-validation.md)).
-
 - **Calculations:** `shared/money` and `shared/metrics` (positions, average cost,
   P&L, splits, transfers, currencies, time-weighted returns, drawdown, volatility,
   correlation), every expected number worked out by hand. These are the numbers
