@@ -27,15 +27,15 @@ how the figures are computed, in
    steps line shows each call and what the AI received from it
    (`step-words.ts`).
 
-| Tool                     | Sends by default                                                                   | Adds with `includeAmounts`                                                                         |
-| ------------------------ | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| `search_asset`           | Coins found by name or ticker: id, ticker, name                                    | —                                                                                                  |
-| `get_portfolio`          | The period's dates and change; each coin held: share, price change over the period | Quantities, values, average cost, unrealized profit; the total, the period's gain, all-time profit |
-| `list_transactions`      | Newest first: day, kind, coin, price per coin and its currency; how many match     | Quantities; fees and their currency                                                                |
-| `get_prices`             | Today's price of each coin asked, in the base currency                             | —                                                                                                  |
-| `get_price_history`      | A coin's change, high and low over a period, and up to 30 of its daily prices      | —                                                                                                  |
-| `calc_portfolio_metrics` | The period's change, largest drop and volatility; each coin's share and change     | —                                                                                                  |
-| `compare_assets`         | 2–5 coins: change, volatility, largest drop, and their correlations                | —                                                                                                  |
+| Tool                     | Sends by default                                                                                                                                           | Adds with `includeAmounts`                                                                         |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| `search_asset`           | Coins found by name or ticker: id, ticker, name                                                                                                            | —                                                                                                  |
+| `get_portfolio`          | The period's dates and change; each coin held: share, price change over the period, the gain or loss on it against its cost                                | Quantities, values, average cost, unrealized profit; the total, the period's gain, all-time profit |
+| `list_transactions`      | Newest first: day, kind, coin, price per coin and its currency; how many match                                                                             | Quantities; fees and their currency                                                                |
+| `get_prices`             | Today's price of each coin asked, in the base currency                                                                                                     | —                                                                                                  |
+| `get_price_history`      | A coin's change, high and low over a period, and up to 30 of its daily prices; "All" is since the first transaction of the coin, a year for one never held | —                                                                                                  |
+| `calc_portfolio_metrics` | The period's change, largest drop and volatility; each coin's share and price change                                                                       | —                                                                                                  |
+| `compare_assets`         | 2–5 coins: change, volatility, largest drop, and their correlations                                                                                        | —                                                                                                  |
 
 Ratios are rounded to four places (a percentage to one decimal), money to two,
 prices to six significant digits. Prices and histories are converted to the
@@ -78,8 +78,14 @@ base currency at each day's rate; a day without a rate is left out.
   `useChat`'s default HTTP transport, which would need a route of ours to run
   the loop on the server.
 - **Each coin's price change, not its "part in the change"**: a contribution
-  per coin needs a calculation `shared/metrics` does not have yet. The tool's
-  description says what it returns, so the model does not claim more.
+  per coin needs a calculation `shared/metrics` does not have yet. The field is
+  called `priceChange` and the tool's description says what it is: a coin bought
+  yesterday can be down 30% over the month in a portfolio that is not.
+- **The gain or loss on a coin goes as a ratio to its cost** (`returnOnCost`, the
+  portfolio page's "Profit / loss" in percent). Without it, "What did LTC bring
+  me?" had no figure to answer with, and the model gave the coin's price change
+  instead (2026-11-25). It covers what is held now; what was sold is in the
+  all-time profit, an amount.
 - **Prices in the base currency**, at each day's rate, so the model never
   mixes currencies in one answer.
 - **Words, not the model, decide about amounts.** The development model asked for

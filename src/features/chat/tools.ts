@@ -22,6 +22,7 @@ import {
   toNumber,
 } from "../../../shared/money/decimal.ts";
 import { CHAT_TOOLS } from "../../../shared/schemas/chat-tools.ts";
+import { firstDaysOf } from "../portfolio/inputs.ts";
 import { type Period, periodStart } from "../portfolio/summary.ts";
 import { searchCoins } from "../transactions/market.ts";
 import type { ChatData } from "./chat-data.ts";
@@ -41,7 +42,7 @@ import type { ChatData } from "./chat-data.ts";
 
 const ONE = decimal("1");
 
-/** A coin's prices without a transaction to start from: a year back. */
+/** A coin's prices when no transaction of it sets the start: a year back. */
 const COIN_DAYS = 365;
 /** Points of a price history the model gets: enough to describe its shape. */
 const HISTORY_POINTS = 30;
@@ -102,8 +103,21 @@ function sample<T>(points: readonly T[], count: number): T[] {
   );
 }
 
-const coinStart = (data: ChatData, period: Period) =>
-  periodStart(period, addDays(data.today, -COIN_DAYS), data.today);
+/**
+ * Where coins' prices start: "All" is since the first transaction of any of
+ * them, or a year back for coins the user never had.
+ */
+function coinStart(
+  data: ChatData,
+  period: Period,
+  assetIds: readonly string[],
+): string {
+  const yearBack = addDays(data.today, -COIN_DAYS);
+  if (period !== "All") return periodStart(period, yearBack, data.today);
+  const firstDays = firstDaysOf(data.records);
+  const days = assetIds.flatMap((id) => firstDays.get(id) ?? []).sort();
+  return days[0] ?? yearBack;
+}
 
 /** The tools, reading the data afresh at each call (it is cached). */
 /** In place of the amounts the model asked for and the user did not. */
@@ -150,7 +164,8 @@ export function chatTools(
               symbol,
               name,
               share: ratio(holding.share),
-              change: ratio(changeOf(points)),
+              priceChange: ratio(changeOf(points)),
+              returnOnCost: ratio(holding.unrealizedReturn),
               ...(includeAmounts && {
                 quantity: holding.quantity.toString(),
                 value: money(holding.value),
@@ -274,7 +289,11 @@ export function chatTools(
       ...CHAT_TOOLS.get_price_history,
       execute: async ({ assetId, period }) => {
         const data = await load();
-        const points = await pricesFrom(data, assetId, coinStart(data, period));
+        const points = await pricesFrom(
+          data,
+          assetId,
+          coinStart(data, period, [assetId]),
+        );
         const { symbol } = data.assetOf(assetId);
         if (points.length === 0) {
           return { id: assetId, symbol, error: "No prices for this coin." };
@@ -309,7 +328,7 @@ export function chatTools(
             id: holding.assetId,
             symbol: data.assetOf(holding.assetId).symbol,
             share: ratio(holding.share),
-            change: ratio(
+            priceChange: ratio(
               changeOf(
                 await pricesFrom(data, holding.assetId, summary.period.from),
               ),
@@ -331,7 +350,7 @@ export function chatTools(
       ...CHAT_TOOLS.compare_assets,
       execute: async ({ assetIds, period }) => {
         const data = await load();
-        const from = coinStart(data, period);
+        const from = coinStart(data, period, assetIds);
         const series = await Promise.all(
           assetIds.map((assetId) => pricesFrom(data, assetId, from)),
         );
