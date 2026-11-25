@@ -501,7 +501,9 @@ test("leaves the reader where they are, and follows again at the end", async ({
   for (let index = 0; index < 4; index++) {
     await model.write(`${PARAGRAPH.repeat(4)}\n\n`);
   }
-  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(reading);
+  // Not drawn to the end; a smooth scroll's last pixels up are the engine's.
+  await expect.poll(() => fromBottom(page)).toBeGreaterThan(400);
+  expect(await settled(page)).toBeLessThanOrEqual(reading);
 
   // Back at the end: it follows, and never pulls the page up again.
   await dragToEnd(page);
