@@ -25,7 +25,8 @@ Covered now:
   saved and what is not (no tool result), reading back, size, titles, merging;
   saving in order, creating once, gone and full; deleting with Undo
   ([src/features/chat/docs/chat-history.md](../../src/features/chat/docs/chat-history.md));
-  the words of an answer fading in.
+  the words of an answer fading in; which questions ask for amounts; the language
+  the answer is told to be in (`worker/chat/language.ts`).
 - `src/ui/tokens.css` — both themes define every semantic color and data
   series, and every text/background pair meets WCAG AA (4.5:1 for text, 3:1 for
   field borders and focus). The test parses the CSS, so a token change that

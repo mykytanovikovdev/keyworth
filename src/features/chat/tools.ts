@@ -33,9 +33,10 @@ import type { ChatData } from "./chat-data.ts";
  * return (CLAUDE.md, rule 7).
  *
  * Minimization (rule 5): shares, percentages, changes and market prices by
- * default. Money values and quantities only with `includeAmounts`, which the
- * model is told to set only when the user asks about them. Notes, which are
- * the user's own words, never go to the model.
+ * default. Money values and quantities only with `includeAmounts`, and only
+ * when the question itself asks for them (amounts.ts): the model is told so too,
+ * but does not always keep to it. Notes, which are the user's own words, never
+ * go to the model.
  */
 
 const ONE = decimal("1");
@@ -105,7 +106,15 @@ const coinStart = (data: ChatData, period: Period) =>
   periodStart(period, addDays(data.today, -COIN_DAYS), data.today);
 
 /** The tools, reading the data afresh at each call (it is cached). */
-export function chatTools(load: () => Promise<ChatData>) {
+/** In place of the amounts the model asked for and the user did not. */
+export const WITHHELD =
+  "Not sent: the user's latest message does not ask for amounts. Answer with shares and changes.";
+
+export function chatTools(
+  load: () => Promise<ChatData>,
+  /** Whether the latest question asks for amounts. */
+  amountsAsked: () => boolean,
+) {
   return {
     search_asset: tool({
       ...CHAT_TOOLS.search_asset,
@@ -121,7 +130,8 @@ export function chatTools(load: () => Promise<ChatData>) {
 
     get_portfolio: tool({
       ...CHAT_TOOLS.get_portfolio,
-      execute: async ({ period = "1M", includeAmounts = false }) => {
+      execute: async ({ period = "1M", includeAmounts: wanted = false }) => {
+        const includeAmounts = wanted && amountsAsked();
         const data = await load();
         if (data.records.length === 0) {
           return { holdings: [], note: "The user has no transactions yet." };
@@ -157,6 +167,7 @@ export function chatTools(load: () => Promise<ChatData>) {
             change: ratio(summary.period.return),
           },
           holdings,
+          ...(wanted && !includeAmounts && { amounts: WITHHELD }),
           ...(includeAmounts && {
             currency: data.baseCurrency,
             total: money(summary.total),
@@ -177,8 +188,9 @@ export function chatTools(load: () => Promise<ChatData>) {
         from,
         to,
         limit = DEFAULT_TRANSACTIONS,
-        includeAmounts = false,
+        includeAmounts: wanted = false,
       }) => {
+        const includeAmounts = wanted && amountsAsked();
         const data = await load();
         const matching = data.records
           .filter(({ value }) => {
@@ -192,6 +204,7 @@ export function chatTools(load: () => Promise<ChatData>) {
           .sort((a, b) => (a.value.executedAt < b.value.executedAt ? 1 : -1));
         return {
           count: matching.length,
+          ...(wanted && !includeAmounts && { amounts: WITHHELD }),
           transactions: matching.slice(0, limit).map(({ value }) => {
             const { symbol } = data.assetOf(value.assetId);
             const base = {

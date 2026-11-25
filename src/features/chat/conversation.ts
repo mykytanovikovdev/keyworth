@@ -11,13 +11,14 @@ import {
 import { CHAT_LIMITS } from "../../../shared/schemas/chat.ts";
 import type { SavedMessage } from "../../../shared/schemas/chat-history.ts";
 import type { ChatData } from "./chat-data.ts";
+import { asksForAmounts } from "./amounts.ts";
 import { ChatSaver, type SaveResult } from "./chat-saver.ts";
 import { chatSession } from "./chat-session.ts";
 import type { ChatEntry, VaultAccess } from "./chats.ts";
 import { chatDeletes } from "./deleting.ts";
 import { latestMessages } from "./history.ts";
 import { failureCode } from "./refusals.ts";
-import { fromSaved, toSaved } from "./saved.ts";
+import { fromSaved, questionsOf, toSaved } from "./saved.ts";
 import { type ChatTools, chatTools } from "./tools.ts";
 
 /*
@@ -81,6 +82,12 @@ interface Start {
   };
 }
 
+/** Whether the latest question asks for amounts, or goes on with one that did. */
+export function amountsAsked(messages: readonly ChatUIMessage[]): boolean {
+  const [latest = "", before] = questionsOf(messages).reverse();
+  return asksForAmounts(latest, before);
+}
+
 let current: Conversation | null = null;
 let keys = 0;
 
@@ -120,7 +127,7 @@ export function startConversation({
   void current?.chat.stop();
   const agent = new ToolLoopAgent({
     model,
-    tools: chatTools(load),
+    tools: chatTools(load, () => amountsAsked(chat.messages)),
     stopWhen: isStepCount(CHAT_LIMITS.maxSteps),
     // A refused or failed call is not asked again on its own: each try spends
     // the day's budget and the minute's limit.
@@ -152,7 +159,7 @@ export function startConversation({
     for (const listener of listeners) listener();
   };
 
-  const chat = new Chat<ChatUIMessage>({
+  const chat: Chat<ChatUIMessage> = new Chat<ChatUIMessage>({
     messages: before.messages,
     transport: new DirectChatTransport({ agent, onError: failureCode }),
     onFinish: ({ messages, message, isAbort }) => {

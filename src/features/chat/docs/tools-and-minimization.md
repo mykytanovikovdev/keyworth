@@ -43,9 +43,13 @@ base currency at each day's rate; a day without a rate is left out.
 
 ## Invariants
 
-1. **Amounts only when asked.** Without `includeAmounts`, no result holds a
-   quantity, value, total, gain, cost, profit or fee. The model is told to set
-   it only when the question is about amounts (`shared/schemas/chat-tools.ts`).
+1. **Amounts only when the question asks for them.** Without `includeAmounts`, no
+   result holds a quantity, value, total, gain, cost, profit or fee. The model is
+   told to set it only then (`shared/schemas/chat-tools.ts`), and **the browser
+   decides**: `asksForAmounts` (`amounts.ts`) reads the latest question, and a
+   follow-up ("And Bitcoin?") the one before it. Otherwise the amounts stay here,
+   whatever the model asked for; it is told so in the result, and the steps line
+   says what was really sent.
 2. **Notes never go.** A transaction's note is the person's own words; no tool
    sends it, with or without `includeAmounts`.
 3. **Nothing says who is asking.** No tool sends the name, email or user id,
@@ -77,6 +81,13 @@ base currency at each day's rate; a day without a rate is left out.
   description says what it returns, so the model does not claim more.
 - **Prices in the base currency**, at each day's rate, so the model never
   mixes currencies in one answer.
+- **Words, not the model, decide about amounts.** The development model asked for
+  them on "How did my portfolio do this month?" (2026-11-25) although told not to.
+  `amounts.ts` holds words and signs that can hardly mean anything else, in the
+  languages people here write in, with currency signs and codes for the rest. It
+  errs on the side of keeping back: a question it misses is asked again with
+  "in dollars". Rejected: asking the person to confirm each time (a click for
+  every question about money) and trusting the model.
 - **At most 30 points of a price history**: enough to describe its shape at a
   fraction of the tokens; the change, high and low come from every day.
 
@@ -96,8 +107,11 @@ base currency at each day's rate; a day without a rate is left out.
 - `tests/unit/chat/tools.test.ts`: each tool on made-up transactions and
   markets; without `includeAmounts` no amount key and no note anywhere in the
   results, with it the amounts are there; prices in a base currency other than
-  the dollar; history sampling; correlations. Mutation-checked: making any
-  amount unconditional, sending a note or skipping the conversion fails it.
+  the dollar; history sampling; correlations; amounts asked for by the model
+  and not by the question kept back. Mutation-checked: making any amount
+  unconditional, sending a note or skipping the conversion fails it.
+- `tests/unit/chat/amounts.test.ts`: which questions ask for amounts, in six
+  languages, the starter questions among those that do not; follow-ups.
 - `tests/unit/chat/history.test.ts`: the latest messages within the limit, cut
   only before a question, each tool result counted.
 - `tests/e2e/chat.spec.ts`: the whole loop in the production build with the
@@ -114,4 +128,4 @@ definition in `shared/schemas/chat-tools.ts`, its `execute` in `tools.ts`, its
 words in `step-words.ts` (saying what the AI receives), and a test of what it
 keeps back. Never send free text the person wrote other than the question.
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25

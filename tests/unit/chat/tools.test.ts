@@ -8,7 +8,7 @@ import {
 import { decimal } from "../../../shared/money/decimal.ts";
 import type { ChatData } from "../../../src/features/chat/chat-data.ts";
 import { stepWords } from "../../../src/features/chat/step-words.ts";
-import { chatTools } from "../../../src/features/chat/tools.ts";
+import { chatTools, WITHHELD } from "../../../src/features/chat/tools.ts";
 import { summarize } from "../../../src/features/portfolio/summary.ts";
 import { buy, entries, sell, transferOut, USD } from "../metrics/fixtures.ts";
 
@@ -121,7 +121,11 @@ async function run<INPUT, OUTPUT>(
   return result;
 }
 
-const tools = chatTools(() => Promise.resolve(fakeData(RECORDS, MARKETS)));
+let asked = true;
+const tools = chatTools(
+  () => Promise.resolve(fakeData(RECORDS, MARKETS)),
+  () => asked,
+);
 
 /** Every key anywhere in a tool's result. */
 function keysOf(value: unknown): string[] {
@@ -193,8 +197,32 @@ describe("get_portfolio", () => {
     });
   });
 
+  it("keeps the amounts back when the question does not ask for them", async () => {
+    asked = false;
+    const portfolio = await run(tools.get_portfolio.execute, {
+      period: "1M",
+      includeAmounts: true,
+    });
+    const transactions = await run(tools.list_transactions.execute, {
+      includeAmounts: true,
+    });
+    asked = true;
+
+    for (const result of [portfolio, transactions]) {
+      expect(keysOf(result).filter((key) => AMOUNT_KEYS.includes(key))).toEqual(
+        [],
+      );
+      expect(JSON.stringify(result)).not.toMatch(/0\.4|"3"|37080|salary/);
+      // The model is told why, so that it does not say there are none.
+      expect(result).toMatchObject({ amounts: WITHHELD });
+    }
+  });
+
   it("says so when there are no transactions", async () => {
-    const empty = chatTools(() => Promise.resolve(fakeData([], MARKETS)));
+    const empty = chatTools(
+      () => Promise.resolve(fakeData([], MARKETS)),
+      () => true,
+    );
 
     expect(await run(empty.get_portfolio.execute, {})).toEqual({
       holdings: [],
@@ -291,16 +319,18 @@ describe("market tools", () => {
 
   it("gives prices in the base currency, at each day's rate", async () => {
     // 0.9 euros a dollar; the rate before last week is unknown.
-    const euros = chatTools(() =>
-      Promise.resolve(
-        fakeData(RECORDS, MARKETS, {
-          baseCurrency: "EUR",
-          rate: (from, to, date) =>
-            from === "USD" && to === "EUR" && date >= addDays(TODAY, -7)
-              ? decimal("0.9")
-              : null,
-        }),
-      ),
+    const euros = chatTools(
+      () =>
+        Promise.resolve(
+          fakeData(RECORDS, MARKETS, {
+            baseCurrency: "EUR",
+            rate: (from, to, date) =>
+              from === "USD" && to === "EUR" && date >= addDays(TODAY, -7)
+                ? decimal("0.9")
+                : null,
+          }),
+        ),
+      () => true,
     );
 
     expect(

@@ -12,6 +12,7 @@ import {
 import type { ChatUIMessage } from "../../../src/features/chat/conversation.ts";
 import { fits, mergeSaved, titleOf } from "../../../src/features/chat/kept.ts";
 import { fromSaved, toSaved } from "../../../src/features/chat/saved.ts";
+import { WITHHELD } from "../../../src/features/chat/tools.ts";
 
 /*
  * A chat as it is kept: no tool result, only what is finished, and a form the
@@ -101,6 +102,28 @@ describe("keeping and reading back", () => {
     expect(
       chatMessagesSchema.safeParse({ v: 1, messages: saved }).success,
     ).toBe(true);
+  });
+
+  it("keeps a call as it was carried out: amounts held back are not in it", () => {
+    const [, kept] = toSaved([
+      question("q1", "How did it do?"),
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "tool-get_portfolio",
+            toolCallId: "call-1",
+            state: "output-available",
+            input: { period: "1M", includeAmounts: true },
+            output: { holdings: [], amounts: WITHHELD },
+          },
+        ],
+      } as unknown as ChatUIMessage,
+    ]);
+    expect(kept).toMatchObject({
+      parts: [{ input: { period: "1M", includeAmounts: false } }],
+    });
   });
 
   it("leaves out a call without a result, and an answer with nothing in it", () => {

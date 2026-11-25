@@ -19,6 +19,30 @@ const OMITTED = {
   note: "Not kept. Call the tool again for the current numbers.",
 };
 
+/** What the person asked, oldest first. */
+export const questionsOf = (messages: readonly ChatUIMessage[]): string[] =>
+  messages
+    .filter(({ role }) => role === "user")
+    .map(({ parts }) =>
+      parts
+        .filter(isTextUIPart)
+        .map(({ text }) => text)
+        .join("\n\n"),
+    );
+
+/**
+ * A call's input as it was carried out: amounts the model asked for and the
+ * tool kept back (tools.ts) are not in it.
+ */
+export function carriedOut(part: {
+  input?: unknown;
+  output?: unknown;
+}): Record<string, unknown> {
+  const input = inputOf(part.input);
+  const withheld = "amounts" in inputOf(part.output);
+  return withheld ? { ...input, includeAmounts: false } : input;
+}
+
 const inputOf = (input: unknown): Record<string, unknown> =>
   typeof input === "object" && input !== null && !Array.isArray(input)
     ? (input as Record<string, unknown>)
@@ -48,7 +72,7 @@ export function toSaved(
         {
           type: "tool",
           name: getToolName(part) as ChatToolName,
-          input: inputOf(part.input),
+          input: carriedOut(part),
           ...(part.state === "output-error" && { failed: true as const }),
         },
       ];
