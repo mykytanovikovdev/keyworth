@@ -97,8 +97,7 @@ The details live in [`docs/`](docs/):
   `assertKdfParams` refuses anything below OWASP's minimum or large enough to
   hang the page.
 - **WebCrypto needs a secure context.** `crypto.subtle` is undefined on
-  `http://<LAN IP>`; `localhost` and HTTPS are fine. The benchmark page uses
-  noble alone, so it also works on a phone over the local network.
+  `http://<LAN IP>`; `localhost` and HTTPS are fine.
 - **Normalization is part of the key.** Changing how passphrases are normalized
   (NFKC, spaces, trimmed ends) or the plain-Latin rule locks everyone out.
 - **Plain Latin only** for everything typed by hand to reach the keys (the
@@ -142,11 +141,10 @@ const value = await decryptRecord(dataKey, ref, envelope); // validate with the 
   9106's vector, noble against Node's native Argon2id with the production
   settings, every flow, wrong secrets, swapped slots, tampering, moved records,
   IV uniqueness and padding.
-- Timing on a device: `npm run dev -- --host --port 5180 --strictPort`, then
-  open `http://<this computer's LAN address>:5180/design/kdf` on the phone (same
-  Wi-Fi). The page checks the RFC 9106 vector and times the production
-  settings. The e2e suite runs the same page under the production CSP in every
-  engine.
+- Timing on a device: `/design/kdf` on the phone, over HTTPS on the same Wi-Fi
+  (how, and why not plain http: [docs/argon2.md](docs/argon2.md)). The page checks
+  the RFC 9106 vector and times the production settings. The e2e suite unlocks
+  with those settings under the production CSP in every engine.
 - Changing the Argon2 settings: update `CURRENT_KDF_PARAMS`, measure on a phone,
   keep `KDF_LIMITS` in `shared/schemas/keys.ts` consistent; existing slots are
   rewrapped at the first unlock within 10 minutes of a Google sign-in

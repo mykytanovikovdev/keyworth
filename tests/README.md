@@ -10,9 +10,9 @@ details.
 | [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic, the encryption core, shared schemas                             |
 | [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes: sign-in, storage, isolation, market data, the chat's transit |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes                      |
-|                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe; Argon2id under the CSP |
+|                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe                         |
 |                                         |                   | the same, with the local test database                 | Sign-in pages, sign-out, account deletion                                   |
-|                                         |                   | the same                                               | Encryption flows, transactions, CSV, the portfolio page, the chat           |
+|                                         |                   | the same                                               | Encryption flows with real Argon2id, transactions, CSV, portfolio, chat     |
 | [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design`, sign-in, settings, deletion                       |
 
 Planned, each arriving with the code it tests:
