@@ -165,7 +165,7 @@ export function chatTools(
               name,
               share: ratio(holding.share),
               priceChange: ratio(changeOf(points)),
-              returnOnCost: ratio(holding.unrealizedReturn),
+              allTimeReturn: ratio(holding.unrealizedReturn),
               ...(includeAmounts && {
                 quantity: holding.quantity.toString(),
                 value: money(holding.value),

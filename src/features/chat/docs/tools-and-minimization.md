@@ -81,7 +81,7 @@ base currency at each day's rate; a day without a rate is left out.
   per coin needs a calculation `shared/metrics` does not have yet. The field is
   called `priceChange` and the tool's description says what it is: a coin bought
   yesterday can be down 30% over the month in a portfolio that is not.
-- **The gain or loss on a coin goes as a ratio to its cost** (`returnOnCost`, the
+- **The gain or loss on a coin goes as a ratio to its cost** (`allTimeReturn`, the
   portfolio page's "Profit / loss" in percent). Without it, "What did LTC bring
   me?" had no figure to answer with, and the model gave the coin's price change
   instead (2026-11-25). It covers what is held now; what was sold is in the

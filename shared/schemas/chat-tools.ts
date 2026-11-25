@@ -46,7 +46,7 @@ export const CHAT_TOOLS = {
   },
   get_portfolio: {
     description:
-      "The user's holdings now. Each coin: its share of the portfolio; priceChange, how its market price changed over the period, whenever the user bought it; returnOnCost, the user's own gain or loss on what they hold of it, all time, against what it cost them. The whole portfolio's change over the period, which counts each coin only while it was held.",
+      "The user's holdings now. Each coin: its share of the portfolio; priceChange, how its market price changed over the period, whenever the user bought it; allTimeReturn, the user's own gain or loss on what they hold of it since they bought it, as a share of what it cost them, whatever the period. The whole portfolio's change over the period, which counts each coin only while it was held.",
     inputSchema: z.object({
       period: period.optional(),
       includeAmounts,
@@ -71,7 +71,7 @@ export const CHAT_TOOLS = {
   },
   get_price_history: {
     description:
-      "A coin's daily market prices over a period, with their change. Not what the user gained or lost on it: that is get_portfolio's returnOnCost.",
+      "A coin's daily market prices over a period, with their change. Not what the user gained or lost on it: that is get_portfolio's allTimeReturn.",
     inputSchema: z.object({ assetId, period }),
   },
   calc_portfolio_metrics: {

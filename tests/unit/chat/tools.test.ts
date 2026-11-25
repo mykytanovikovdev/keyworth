@@ -172,14 +172,14 @@ describe("get_portfolio", () => {
           symbol: "BIT",
           share: 0.7767,
           priceChange: 0.0435,
-          returnOnCost: 0.2,
+          allTimeReturn: 0.2,
         },
         {
           id: "crypto:ethereum",
           symbol: "ETH",
           share: 0.2233,
           priceChange: -0.0213,
-          returnOnCost: -0.0802,
+          allTimeReturn: -0.0802,
         },
       ],
     });
