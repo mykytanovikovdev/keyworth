@@ -31,7 +31,8 @@ question ─► Chat (@ai-sdk/react) ─► DirectChatTransport ─► ToolLoopA
 | `ChatPage.tsx`               | `/chat`, a new chat, and `/chat/<id>`, a kept one; Stop, refusals, today's limit, saving notices                          |
 | `conversation.ts`            | The agent (`ToolLoopAgent`, ≤ 6 steps, no retries) and the open conversation, saved as it goes                            |
 | `chat-session.ts`            | When the conversation starts over (New chat, locking), without loading the AI SDK                                         |
-| `tools.ts`                   | The seven read-only tools, on the data `chat-data.ts` loads; amounts only with `includeAmounts`                           |
+| `tools.ts`                   | The seven read-only tools, on the data `chat-data.ts` loads; amounts only when the question asks                          |
+| `amounts.ts`                 | Whether a question asks for amounts: the browser decides, not the model                                                   |
 | `chat-data.ts`               | The transactions, settings and market data through the pages' own queries and cache                                       |
 | `history.ts`                 | The latest messages within the server's limit, cut only before a question                                                 |
 | `refusals.ts`                | The server's refusals (`budget`, `rate_limited`…) as a code through the transport, then as words                          |
@@ -45,7 +46,7 @@ question ─► Chat (@ai-sdk/react) ─► DirectChatTransport ─► ToolLoopA
 | `follow.ts`                  | The starter questions; following an answer to the page's end until the reader scrolls up                                  |
 | `Composer.tsx`               | The question box: Enter sends, Shift+Enter is a new line, Stop while answering; the caption                               |
 | `Messages.tsx`               | A question, an answer, the steps line (`ToolSteps`), "Thinking…" while nothing else shows, a stopped or broken-off answer |
-| `ChatLayout.tsx`             | The reading column with the box kept at the bottom; `EmptyChat`, a new chat with ideas                                    |
+| `ChatLayout.tsx`             | The reading column with the box kept at the bottom, a button back to the end; `EmptyChat`                                 |
 | `answer-styles.ts`           | How an answer's paragraphs, lists, bold, tables and code look                                                             |
 | `ChatList.tsx`               | The chats in the menu, each with a "⋯" menu (Delete chat)                                                                 |
 | `chat-list.ts`               | `ChatSummary`; `groupChats`: Today, Previous 7 days, Previous 30 days, Older, newest first                                |

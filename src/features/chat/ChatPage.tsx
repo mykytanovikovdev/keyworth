@@ -42,6 +42,7 @@ import {
 } from "./Messages.tsx";
 import { access, chatsQuery, putChat } from "./queries.ts";
 import { type Failure, failureOf, failureWords } from "./refusals.ts";
+import { carriedOut } from "./saved.ts";
 import { stepWords } from "./step-words.ts";
 
 /*
@@ -57,10 +58,7 @@ function stepsOf(message: ChatUIMessage): { steps: ToolStep[]; done: number } {
   const calls = message.parts.filter(isToolUIPart);
   return {
     steps: calls.map((part) =>
-      stepWords(
-        getToolName(part) as ChatToolName,
-        part.input as Partial<Record<string, unknown>> | undefined,
-      ),
+      stepWords(getToolName(part) as ChatToolName, carriedOut(part)),
     ),
     done: calls.filter((part) => FINISHED.has(part.state)).length,
   };
@@ -263,7 +261,7 @@ function Conversation({ conversation }: { conversation: OpenConversation }) {
   }, [chatId, conversation, navigate]);
 
   const answering = status === "submitted" || status === "streaming";
-  const endRef = useFollow(
+  const { endRef, back } = useFollow(
     messages.findLast(({ role }) => role === "user")?.id,
     answering,
   );
@@ -301,6 +299,7 @@ function Conversation({ conversation }: { conversation: OpenConversation }) {
 
   return (
     <ChatLayout
+      onBack={back}
       footer={
         <>
           {limitNotice}

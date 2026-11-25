@@ -461,9 +461,10 @@ function Conversation({
   limit?: boolean;
 }) {
   const { turns, playing, ask, end, retry } = useConversation(start);
-  const endRef = useFollow(turns.length, playing);
+  const { endRef, back } = useFollow(turns.length, playing);
   return (
     <ChatLayout
+      onBack={back}
       footer={
         <>
           {limit && <LimitNotice />}

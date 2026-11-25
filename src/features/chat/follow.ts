@@ -11,22 +11,26 @@ export const STARTER_QUESTIONS = [
 /** Scrolled down to within this of the end, the reader is following again. */
 const NEAR_END = 48;
 
+/** Further than this from the end, a way back to it shows. */
+const AWAY = 160;
+
 const fromEnd = () =>
   document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
 
-const toEnd = () => {
+const toEnd = (behavior: ScrollBehavior = "auto") => {
   // The page's end, not the last line: the question box is part of the page
   // (sticky), and stopping at the line above it left the page short of its end,
   // pulling a reader who scrolled on back up at every piece of the answer.
-  window.scrollTo({ top: document.documentElement.scrollHeight });
+  window.scrollTo({ top: document.documentElement.scrollHeight, behavior });
 };
 
 /**
  * Keeps the end of the conversation in view while an answer is being written,
  * until the reader scrolls up; scrolling back down to the end follows again,
  * and so does a new question (`questionId`). Not while nothing is written: a
- * reader who opens the steps of an answer keeps their place. Returns the ref of
- * an element at the end of the column.
+ * reader who opens the steps of an answer keeps their place. `endRef` goes on an
+ * element at the end of the column; `back` is there while the reader is away from
+ * the end, and takes them to it.
  */
 export function useFollow(
   questionId: string | number | undefined,
@@ -34,6 +38,7 @@ export function useFollow(
 ) {
   const [end, setEnd] = useState<HTMLDivElement | null>(null);
   const following = useRef(true);
+  const [away, setAway] = useState(false);
 
   useEffect(() => {
     if (!end) return;
@@ -45,6 +50,7 @@ export function useFollow(
       if (y < lastY && fromEnd() > 2) following.current = false;
       else if (fromEnd() <= NEAR_END) following.current = true;
       lastY = y;
+      setAway(fromEnd() > AWAY);
     };
     // Before the scroll it causes, so that a piece of the answer arriving in
     // between does not pull the page back.
@@ -68,6 +74,7 @@ export function useFollow(
     if (!answering) return;
     const observer = new ResizeObserver(() => {
       if (following.current) toEnd();
+      setAway(fromEnd() > AWAY);
     });
     observer.observe(column);
     return () => {
@@ -81,5 +88,10 @@ export function useFollow(
     toEnd();
   }, [end, questionId]);
 
-  return setEnd;
+  const back = () => {
+    following.current = true;
+    const reduced = matchMedia("(prefers-reduced-motion: reduce)").matches;
+    toEnd(reduced ? "auto" : "smooth");
+  };
+  return { endRef: setEnd, back: away ? back : undefined };
 }

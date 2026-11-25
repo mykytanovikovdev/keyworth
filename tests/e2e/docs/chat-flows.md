@@ -18,6 +18,9 @@ stored encrypted through the form; only the model is answered in the browser
   the coin's share and none of the quantity, the price paid or the value; no
   request carries a `system` message or the user's email. No console error and
   no CSP violation.
+- **Amounts unasked:** the model calls `get_portfolio` with `includeAmounts` on a
+  question about performance; nothing of the kind is sent and the steps line does
+  not say it was. Asked in dollars, they go and it does.
 - **Stop and New chat:** an answer still streaming stops with "You stopped
   this answer."; New chat on the chat's own page starts over with nothing of
   the last conversation.
@@ -28,8 +31,8 @@ stored encrypted through the form; only the model is answered in the browser
   piece through a wrapped `fetch`, `streamModel`): "Thinking…" shows until the
   first word, for the first question and for one asked on a long page, where it
   and the question are in view; the page stays at its end while the answer grows;
-  a reader who scrolled up is not moved; back at the end, it follows again and
-  never moves up.
+  a reader who scrolled up is not moved; "Go to the latest" takes them back, it
+  follows again and never moves up.
 - **Chats are kept:** the address becomes `/chat/<id>` without a reload and the
   menu lists the chat; after Lock (which reloads the tab) and unlocking, the
   page holds nothing of it, and opening it from the menu shows the question, the

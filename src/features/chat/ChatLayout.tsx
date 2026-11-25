@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
+import { ArrowDown } from "lucide-react";
 import { Button as AriaButton } from "react-aria-components";
+import { Tooltip } from "../../ui/index.ts";
 import { ChatDisclaimer, Composer } from "./Composer.tsx";
 
 /**
@@ -9,10 +11,13 @@ import { ChatDisclaimer, Composer } from "./Composer.tsx";
 export function ChatLayout({
   children,
   footer,
+  onBack,
 }: {
   children: ReactNode;
   /** The box, with a notice above it when there is one. */
   footer: ReactNode;
+  /** There while the reader is away from the end: takes them to it. */
+  onBack?: (() => void) | undefined;
 }) {
   return (
     <div className="flex flex-1 flex-col">
@@ -20,11 +25,29 @@ export function ChatLayout({
         {children}
       </div>
       <div className="sticky bottom-0 bg-canvas pt-2 pb-3">
+        {onBack && <BackToEnd onPress={onBack} />}
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-2 px-4 sm:px-6">
           {footer}
           <ChatDisclaimer />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** A round button over the question box, as chats have it. */
+function BackToEnd({ onPress }: { onPress: () => void }) {
+  return (
+    <div className="pointer-events-none absolute inset-x-0 -top-11 flex justify-center">
+      <Tooltip content="Go to the latest">
+        <AriaButton
+          aria-label="Go to the latest"
+          onPress={onPress}
+          className="pointer-events-auto inline-flex size-9 animate-fade-in items-center justify-center rounded-full border border-line bg-raised text-fg-muted shadow-raised transition-colors duration-(--kw-duration-fast) data-hovered:bg-hover data-hovered:text-fg"
+        >
+          <ArrowDown aria-hidden="true" />
+        </AriaButton>
+      </Tooltip>
     </div>
   );
 }

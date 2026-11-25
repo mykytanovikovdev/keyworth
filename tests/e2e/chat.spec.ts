@@ -274,6 +274,45 @@ test("answers with the steps it took, and the model never gets an amount", async
   expect(errors).toEqual([]);
 });
 
+/** A step that calls get_portfolio with amounts, as Workers AI streams it. */
+const CALL_WITH_AMOUNTS = WORKERS_AI_TOOL_CALL.replaceAll(
+  '{\\"period\\": \\"1M\\"}',
+  '{\\"period\\": \\"1M\\", \\"includeAmounts\\": true}',
+);
+
+test("keeps amounts back from a model that asks for them unasked @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  await openApp(page, context, baseURL);
+  expect(CALL_WITH_AMOUNTS).toContain("includeAmounts");
+  const sent = await stubModel(page, [
+    { stream: CALL_WITH_AMOUNTS },
+    { stream: answerStream("Up a little.") },
+    { stream: CALL_WITH_AMOUNTS },
+    { stream: answerStream("Here you are.") },
+  ]);
+  await openChat(page);
+
+  await ask(page, "How did my portfolio do this month?");
+  await expect(page.getByText("Up a little.")).toBeVisible();
+  expect(toolResults(sent)).not.toMatch(/0\.5|30000|60000|quantity|total/);
+  await expect(
+    page.getByRole("button", { name: /^Looked at your portfolio$/ }),
+  ).toBeVisible();
+
+  // Asked for, they go, and the steps line says so.
+  await ask(page, "And how much is it worth in dollars?");
+  await expect(page.getByText("Here you are.")).toBeVisible();
+  expect(toolResults(sent)).toMatch(/quantity/);
+  await expect(
+    page.getByRole("button", {
+      name: /^Looked at your portfolio, with amounts$/,
+    }),
+  ).toBeVisible();
+});
+
 test("stops an answer, and starts over with New chat @chromium-only", async ({
   page,
   context,
@@ -506,8 +545,10 @@ test("leaves the reader where they are, and follows again at the end", async ({
   expect(await settled(page)).toBeLessThanOrEqual(reading);
 
   // Back at the end: it follows, and never pulls the page up again.
-  await dragToEnd(page);
+  const back = page.getByRole("button", { name: "Go to the latest" });
+  await back.click();
   await expect.poll(() => fromBottom(page)).toBeLessThan(4);
+  await expect(back).toHaveCount(0);
   const positions = [await page.evaluate(() => window.scrollY)];
   for (let index = 0; index < 8; index++) {
     await model.write(`${PARAGRAPH.repeat(4)}\n\n`);
