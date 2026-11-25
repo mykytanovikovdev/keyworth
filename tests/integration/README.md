@@ -144,13 +144,14 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
   restores the real `fetch` when it is done, which removes any earlier mock.
 - **The database must be running** (`npm run db:up`); the setup fails with that
   hint otherwise.
-- **Requests in this runner keep their database connections until the file
-  ends** (they share one isolate; in production each request closes its own).
-  A test that sends a hundred requests can exhaust Postgres's connections:
-  seed counters and data with `query()` instead (see the rate-limit tests).
-  Files also run in parallel, so `compose.yaml` raises `max_connections` to
-  500; "remaining connection slots are reserved" (53300) means that budget ran
-  out, not that the code is wrong.
+- **A pool made in a test keeps its connections until the file ends,** and it may
+  not end them (below), so run SQL through `query()`, which shares one pool a file.
+  It used to make a pool for each call: about 500 connections for the whole
+  suite, and 53300 ("remaining connection slots are reserved") in whichever test
+  came last; with one pool the suite peaks at about 45 (measured 2026-11-25). The
+  requests themselves let go of theirs.
+- **Seed counters and data with `query()`** instead of sending a hundred requests
+  (see the rate-limit tests): it is faster, and the test says what it needs.
 - **Never let pg end a connection inside workerd.** "TypeError: This socket has
   been closed" as an unhandled error after the tests pass means a pool ended
   one: `pool.end()`, or the idle timeout (10 seconds by default; slow CI runs

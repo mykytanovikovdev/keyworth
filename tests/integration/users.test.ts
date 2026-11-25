@@ -23,7 +23,10 @@ import {
 // The operations behind `npm run users`, run as the Worker's restricted role
 // (they must need nothing more than DML) next to real sign-ins. Never ended:
 // see worker/db/client.ts.
-const pool = new Pool({ connectionString: env.HYPERDRIVE.connectionString });
+const pool = new Pool({
+  connectionString: env.HYPERDRIVE.connectionString,
+  idleTimeoutMillis: 0,
+});
 
 const status = async (cookie: string) =>
   (await fetchWorker("/api/me", { headers: { cookie } })).status;

@@ -687,7 +687,7 @@ describe("limits", () => {
       ["rates", 60, "/api/market/rates?quotes=EUR&from=2026-01-01"],
       ["search", 60, "/api/assets/search?q=bit"],
     ] as const;
-    // Seeded, not sent: every request here keeps a database connection.
+    // Seeded, not sent: 120 requests would only take time.
     for (const [bucket, limit] of reads) {
       await query(
         `insert into api_rate_limits (user_id, bucket, window_start, count)

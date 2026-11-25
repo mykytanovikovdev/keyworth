@@ -222,12 +222,10 @@ deploys that touch sign-in), the browser part of "Remember this device"
 - Every test signs in its own user (`signedIn()`, `uniqueUser()`: unique email
   and client IP), so tests never share data or rate limits.
 - Argon2 runs at OWASP's minimum here (`FAST_KDF`) to keep the suite fast.
-- **Requests in this runner keep their database connections until the file
-  ends** (they share one isolate). Sending a hundred requests exhausts
-  Postgres's connections, so rate limits and quotas are tested by seeding the
-  counter or the rows with `query()` and sending one request (races send six
-  at once, no more). `compose.yaml` sets `max_connections` to 500 because
-  files run in parallel.
+- **Rate limits and quotas are tested by seeding** the counter or the rows with
+  `query()` and sending one request (races send six at once): a hundred requests
+  would only be slow. `query()` shares one pool a file; a pool for each call kept
+  its connection until the file ended and ran the database out of them.
 - A `beforeAll` warm-up (`setup.ts`) keeps the Worker's cold start out of each
   file's first test.
 

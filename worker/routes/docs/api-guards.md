@@ -133,9 +133,7 @@ record that is not the user's is `not_found`, like one that does not exist.
   are stated in the
   [threat model](../../../src/crypto/docs/threat-model.md); a CSV export of the
   transactions is the defense against losing them.
-- **In the Workers test runner every request keeps its database connection
-  until the test file ends,** so tests seed rate-limit counters instead of
-  sending a hundred requests.
+- **Tests seed rate-limit counters** instead of sending a hundred requests.
 
 ## How it is tested
 
