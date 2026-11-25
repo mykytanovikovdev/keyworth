@@ -226,7 +226,7 @@ deploys that touch sign-in), the browser part of "Remember this device"
   ends** (they share one isolate). Sending a hundred requests exhausts
   Postgres's connections, so rate limits and quotas are tested by seeding the
   counter or the rows with `query()` and sending one request (races send six
-  at once, no more). `compose.yaml` sets `max_connections` to 300 because
+  at once, no more). `compose.yaml` sets `max_connections` to 500 because
   files run in parallel.
 - A `beforeAll` warm-up (`setup.ts`) keeps the Worker's cold start out of each
   file's first test.
