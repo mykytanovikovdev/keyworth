@@ -43,11 +43,15 @@ function tenDaysAgo(): string {
 }
 
 /** Half a bitcoin at $60,000, ten days ago, through the form on the portfolio. */
-async function buyBitcoin(page: Page) {
+const buyBitcoin = (page: Page) => buyHalf(page, "Bitcoin", "60000");
+
+async function buyHalf(page: Page, coin: string, price: string) {
   await page.getByRole("button", { name: "Add transaction" }).first().click();
   const dialog = page.getByRole("dialog", { name: "Add transaction" });
-  await dialog.getByRole("combobox", { name: "Coin" }).fill("bit");
-  await page.getByRole("option", { name: /Bitcoin/ }).click();
+  await dialog
+    .getByRole("combobox", { name: "Coin" })
+    .fill(coin.slice(0, 3).toLowerCase());
+  await page.getByRole("option", { name: new RegExp(coin) }).click();
   await dialog
     .getByRole("group", { name: "Date" })
     .getByRole("spinbutton")
@@ -55,9 +59,9 @@ async function buyBitcoin(page: Page) {
     .click();
   await page.keyboard.type(tenDaysAgo());
   await dialog.getByRole("textbox", { name: "Quantity" }).fill("0.5");
-  await dialog.getByRole("textbox", { name: "Price per coin" }).fill("60000");
+  await dialog.getByRole("textbox", { name: "Price per coin" }).fill(price);
   await dialog.getByRole("button", { name: "Add transaction" }).click();
-  await expect(page.getByText("Transaction added")).toBeVisible();
+  await expect(page.getByText("Transaction added").first()).toBeVisible();
 }
 
 const figures = (page: Page) =>
@@ -121,6 +125,39 @@ test("keeps amounts hidden after a reload, and opens the transactions without on
     page.getByRole("heading", { level: 1, name: "Transactions" }),
   ).toBeVisible();
   await expect(page).toHaveURL(/\/transactions$/);
+});
+
+// Which requests are made is the page's own code, the same in every engine.
+test("asks for every coin's history in one request @chromium-only", async ({
+  page,
+  context,
+  baseURL,
+}) => {
+  const { passphrase } = await openApp(page, context, baseURL);
+  await buyBitcoin(page);
+  await buyHalf(page, "Ethereum", "2000");
+  await page.reload();
+  const asked: string[] = [];
+  page.on("request", (request) => {
+    const { pathname } = new URL(request.url());
+    if (!pathname.startsWith("/api/market/histor")) return;
+    // Only the request for several has a body.
+    const body = request.postDataJSON() as {
+      assets: { asset: string }[];
+    } | null;
+    const coins = body?.assets.map(({ asset }) => asset).sort() ?? [];
+    asked.push([request.method(), pathname, ...coins].join(" "));
+  });
+
+  await unlock(page, passphrase);
+  await expect(appHome(page)).toBeVisible(AFTER_ARGON2);
+  await expect(
+    page.getByRole("img", { name: /^Portfolio value, since / }),
+  ).toBeVisible();
+
+  expect(asked).toEqual([
+    "POST /api/market/histories crypto:bitcoin crypto:ethereum",
+  ]);
 });
 
 // The waiting is the router's, the same in every engine.

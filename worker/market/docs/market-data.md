@@ -100,6 +100,10 @@ in the order asked, each from its own day, exactly what `/history` would:
   spent in one place.
 - **A stale Coin Metrics series is served, then refreshed** after the answer,
   once however often it was asked for, as `/history` does it.
+- **The browser collects** what is asked in the same moment into one request
+  ([src/features/portfolio/histories.ts](../../../src/features/portfolio/histories.ts)):
+  the pages and the chat's tools still ask coin by coin, and the browser's
+  cache is per coin.
 
 ## What the server learns
 

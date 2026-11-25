@@ -27,10 +27,16 @@ export const HISTORY_START = "2010-07-18";
 /** A UTC day, as `from` in the history and rates requests. */
 export const daySchema = z.iso.date();
 
+/** A coin's history, from a day. */
+export const historyRequestSchema = z.strictObject({
+  asset: cryptoAssetIdSchema,
+  from: daySchema,
+});
+
 /** The body of `POST /api/market/histories`: coins, each from its own day. */
 export const historiesRequestSchema = z.strictObject({
   assets: z
-    .array(z.strictObject({ asset: cryptoAssetIdSchema, from: daySchema }))
+    .array(historyRequestSchema)
     .min(1)
     .max(MARKET_LIMITS.historiesPerRequest),
 });

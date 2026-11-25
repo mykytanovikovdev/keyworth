@@ -11,6 +11,7 @@ import {
   type RatesJson,
 } from "../../../shared/schemas/market.ts";
 import { getJson, valueOn } from "../transactions/market.ts";
+import { askHistory } from "./histories.ts";
 
 /*
  * The portfolio's market data, from Keyworth's own server, turned into what
@@ -22,14 +23,14 @@ import { getJson, valueOn } from "../transactions/market.ts";
 const THIRTY_MINUTES = 30 * 60 * 1000;
 const ONE = decimal("1");
 
-/** A coin's daily closes in US dollars from `from`; yesterday is the latest. */
+/**
+ * A coin's daily closes in US dollars from `from`; yesterday is the latest.
+ * Several coins' queries started together make one request.
+ */
 export const historyQuery = (userId: string, assetId: string, from: string) =>
   queryOptions({
     queryKey: ["vault", userId, "history", assetId, from],
-    queryFn: () =>
-      getJson<HistoryJson>(
-        `/api/market/history?asset=${encodeURIComponent(assetId)}&from=${from}`,
-      ),
+    queryFn: () => askHistory(assetId, from),
     staleTime: THIRTY_MINUTES,
   });
 
