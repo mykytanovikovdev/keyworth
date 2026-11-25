@@ -75,10 +75,10 @@ with the result. Each request is one step.
   2026-11-15). The tools have already done the math the answers explain.
 - **Temperature 0, and a tool before any figure.** At its default temperature the
   development model made up figures without calling a tool, and now and then
-  wrote nonsense. Compared on the real model (2026-11-25, 34 answers a variant,
-  flagged by a script): 24 clean as it was, 25 with temperature 0 alone, 28 with
-  the rules as well, 32 with the language line too; on questions not used to
-  tune it, 29 of 32 against 26.
+  wrote nonsense. Compared on the real model (2026-11-25), counting answers a
+  script found nothing wrong with, some of its flags being its own mistakes: 24
+  of 34 as it was, 25 with temperature 0 alone, 28 with the rules as well; as it
+  is now 46 of 51, and on questions not used to tune it 29 of 32 against 26.
 - **The language comes last, from the server.** The model slipped into the
   conversation's earlier language, or asked which to use, whatever the rules
   said. `language.ts` recognizes the latest question's language by its script
