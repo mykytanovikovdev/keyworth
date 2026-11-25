@@ -15,11 +15,12 @@ const CURRENCY =
 const PHRASES: readonly RegExp[] = [
   // English
   /\bhow (much|many)\b/i,
-  /\b(amounts?|worth|money|cash|dollars?|euros?|pounds?|quantit(y|ies)|units?|profits?|p&l|pnl|earnings|balance|fees?|value|invested|spent|paid|cost)\b/i,
+  /\b(amounts?|worth|money|cash|dollars?|euros?|pounds?|quantit(y|ies)|units?|profits?|p&l|pnl|income|earn(ed|ings)?|balance|fees?|value|invested|spent|paid|cost)\b/i,
   /\bmy (gains?|loss(es)?|total)\b/i,
   // Russian and Ukrainian, at the start of a word: "насколько" (how) and
-  // "состоит" (consists) do not ask. Nor does "стоит ли": "should I".
-  /(?<!\p{L})(сколько|скільки|сумм|сума|стоимост|вартіст|стоит(?! ли)|доллар|долар|бакс|рубл|гривн|евро|євро|деньг|денег|грош|количеств|кількіст|штук|прибыл|прибут|убыт|збит|заработал|заробив|потерял|вложил|потратил|баланс|комисси|комісі)/iu,
+  // "состоит" (consists) do not ask. Nor does "стоит ли": "should I", nor
+  // "доходность": a rate of return, not the income.
+  /(?<!\p{L})(сколько|скільки|сумм|сума|стоимост|вартіст|стоит(?! ли)|доллар|долар|бакс|рубл|гривн|евро|євро|деньг|денег|грош|количеств|кількіст|штук|прибыл|прибут|доход(?!н)|дохід(?!н)|убыт|збит|заработал|заробив|потерял|вложил|потратил|баланс|комисси|комісі)/iu,
   // Romanian
   /(?<!\p{L})(cât|câți|câte|câtă|suma|sumă|valoarea?|valorează|bani|dolari|profitul?|pierderea?|cantitatea?)(?!\p{L})/iu,
   // Japanese, Georgian
