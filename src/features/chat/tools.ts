@@ -271,6 +271,7 @@ export function chatTools(
         await data.quotes(assetIds);
         return {
           currency: data.baseCurrency,
+          asOf: data.pricesAsOf(),
           prices: assetIds.map((assetId) => {
             const quote = data.quote(assetId);
             const rate =

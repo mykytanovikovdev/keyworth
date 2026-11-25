@@ -50,6 +50,8 @@ export interface ChatData {
   money: MoneyContext;
   /** Today's price, in its own currency (US dollars); null when unknown. */
   quote: (assetId: string) => PriceQuote | null;
+  /** When the oldest of today's prices is from (ISO 8601): up to an hour ago. */
+  pricesAsOf: () => string;
   /** A coin's name and ticker; its id's last part when unknown. */
   assetOf: (assetId: string) => AssetChoice;
   /** The portfolio over a period, as the portfolio page computes it. */
@@ -144,6 +146,10 @@ export async function loadChatData(
     today,
     money,
     quote,
+    pricesAsOf: () =>
+      answers
+        .map(({ fetchedAt }) => fetchedAt)
+        .reduce((a, b) => (b < a ? b : a)),
     assetOf,
     summary,
     history,
