@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   AssetSearchJson,
+  HistoriesJson,
   HistoryJson,
   PricesJson,
   RatesJson,
@@ -126,6 +127,14 @@ describe("the market routes", () => {
       expect(response.status, path).toBe(401);
       expectWorkerHeaders(response);
     }
+    const several = await fetchWorker("/api/market/histories", {
+      method: "POST",
+      body: JSON.stringify({
+        assets: [{ asset: "crypto:bitcoin", from: "2026-01-01" }],
+      }),
+    });
+    expect(several.status).toBe(401);
+    expectWorkerHeaders(several);
   });
 });
 
@@ -545,10 +554,18 @@ describe("limits", () => {
       );
     }
 
-    for (const [, , path] of reads) {
-      const response = await api(path, { cookie: user.cookie });
-      expect(response.status, path).toBe(429);
-      expect(response.headers.get("retry-after"), path).toBe("60");
+    const answers = await Promise.all([
+      ...reads.map(([, , path]) => api(path, { cookie: user.cookie })),
+      // Counted with the single histories.
+      api("/api/market/histories", {
+        cookie: user.cookie,
+        method: "POST",
+        body: { assets: [{ asset: "crypto:bitcoin", from: "2026-01-01" }] },
+      }),
+    ]);
+    for (const response of answers) {
+      expect(response.status, response.url).toBe(429);
+      expect(response.headers.get("retry-after"), response.url).toBe("60");
     }
     expect(calls).toEqual([]);
   });
@@ -674,6 +691,17 @@ const history = async (cookie: string, asset: string, from: string) => {
     status: response.status,
     body: response.ok ? await response.json<HistoryJson>() : null,
   };
+};
+
+/** Several coins' histories at once: `[asset, from]` each. */
+const histories = async (cookie: string, ...coins: [string, string][]) => {
+  const response = await api("/api/market/histories", {
+    cookie,
+    method: "POST",
+    body: { assets: coins.map(([asset, from]) => ({ asset, from })) },
+  });
+  expect(response.status).toBe(200);
+  return (await response.json<HistoriesJson>()).histories;
 };
 
 const rates = async (cookie: string, quotes: string, from: string) => {
@@ -920,6 +948,227 @@ describe("history from CoinGecko", () => {
     mockSources(() => json(CHART));
     const response = await api(`/api/market/history?${params}`, { cookie });
     expect(response.status).toBe(400);
+  });
+});
+
+describe("several histories at once", () => {
+  const midnight = (day: string) => Date.parse(`${day}T00:00:00Z`);
+  /** Each coin's prices, from its own source. */
+  const sources = (url: URL) => {
+    if (url.hostname !== "api.frankfurter.dev") {
+      return json({
+        prices: [
+          [midnight("2026-03-06"), 4.2e-7],
+          [midnight("2026-03-07"), 0.75],
+        ],
+      });
+    }
+    const base = url.searchParams.get("base") ?? "";
+    const price = base === "BTC" ? 61000 : 2300;
+    return json(
+      fxRows(base, "USD", [
+        ["2026-03-01", price],
+        ["2026-03-02", price + 1],
+        // 2026-03-03 missing: a gap stays a gap.
+        ["2026-03-04", price + 3],
+      ]),
+    );
+  };
+  const age = (key: string, hours: number) =>
+    query(
+      `update market_cache set fetched_at = now() - make_interval(hours => $2)
+        where key = $1`,
+      [key, hours],
+    );
+
+  it("come from the cache in the order asked, each from its own day, like each alone", async () => {
+    const { cookie } = await signedIn("histories");
+    const { calls } = mockSources(sources);
+    const bitcoin = await history(cookie, "crypto:bitcoin", "2026-03-01");
+    const rare = await history(cookie, "crypto:rare-coin", "2026-03-06");
+    const ether = await history(cookie, "crypto:ethereum", "2026-03-02");
+    const asked = calls.length;
+
+    const answer = await histories(
+      cookie,
+      ["crypto:ethereum", "2026-03-02"],
+      ["crypto:rare-coin", "2026-03-06"],
+      ["crypto:bitcoin", "2026-03-01"],
+    );
+
+    expect(answer).toEqual([ether.body, rare.body, bitcoin.body]);
+    expect(answer[0]?.prices).toEqual({
+      from: "2026-03-02",
+      values: ["2301", null, "2303"],
+    });
+    expect(answer[1]).toEqual({
+      asset: "crypto:rare-coin",
+      currency: "USD",
+      source: "coingecko",
+      prices: { from: "2026-03-06", values: ["0.75"] },
+    });
+    expect(calls).toHaveLength(asked);
+  });
+
+  it("ask no source: a coin not cached, or not from that far back, is left to be asked alone", async () => {
+    const { cookie } = await signedIn("histories-missing");
+    const { calls } = mockSources(sources);
+    await history(cookie, "crypto:bitcoin", "2026-03-02");
+    const asked = calls.length;
+
+    const answer = await histories(
+      cookie,
+      ["crypto:ethereum", "2026-03-02"],
+      ["crypto:rare-coin", "2026-03-02"],
+      // A day before the first one cached, then the first one.
+      ["crypto:bitcoin", "2026-03-01"],
+      ["crypto:bitcoin", "2026-03-02"],
+    );
+
+    expect(answer.map((one) => one?.prices.values ?? null)).toEqual([
+      null,
+      null,
+      null,
+      ["61001", null, "61003"],
+    ]);
+    expect(calls).toHaveLength(asked);
+  });
+
+  it("serve a stale Coin Metrics series and ask for it once after the answer", async () => {
+    const { cookie } = await signedIn("histories-stale");
+    const { calls } = mockSources(sources);
+    await history(cookie, "crypto:bitcoin", "2026-03-01");
+    await history(cookie, "crypto:ethereum", "2026-03-01");
+    await age("frankfurter:price:BTC", 7);
+    await age("frankfurter:price:ETH", 5);
+    const asked = calls.length;
+
+    const answer = await histories(
+      cookie,
+      ["crypto:bitcoin", "2026-03-01"],
+      ["crypto:bitcoin", "2026-03-04"],
+      ["crypto:ethereum", "2026-03-04"],
+    );
+
+    expect(answer.map((one) => one?.prices.values)).toEqual([
+      ["61000", "61001", null, "61003"],
+      ["61003"],
+      ["2303"],
+    ]);
+    await vi.waitFor(async () => {
+      const [row] = await query<{ fresh: boolean }>(
+        "select fetched_at > now() - interval '1 hour' as fresh from market_cache where key = 'frankfurter:price:BTC'",
+      );
+      expect(row?.fresh).toBe(true);
+    });
+    expect(
+      calls.slice(asked).map(({ url }) => url.searchParams.get("base")),
+    ).toEqual(["BTC"]);
+  });
+
+  it("leave CoinGecko's to be asked alone once it is stale", async () => {
+    const { cookie } = await signedIn("histories-stale-cg");
+    const { calls } = mockSources(sources);
+    await history(cookie, "crypto:rare-coin", "2026-03-01");
+    await history(cookie, "crypto:other-coin", "2026-03-01");
+    await age("coingecko:history:rare-coin", 13);
+    await age("coingecko:history:other-coin", 11);
+    const asked = calls.length;
+
+    const answer = await histories(
+      cookie,
+      ["crypto:rare-coin", "2026-03-01"],
+      ["crypto:other-coin", "2026-03-01"],
+    );
+
+    expect(answer.map((one) => one?.asset ?? null)).toEqual([
+      null,
+      "crypto:other-coin",
+    ]);
+    expect(calls).toHaveLength(asked);
+  });
+
+  it("log a failed refresh by its source, never by the coins", async () => {
+    let up = true;
+    const { cookie } = await signedIn("histories-down");
+    mockSources((url) =>
+      up ? sources(url) : new Response("down", { status: 503 }),
+    );
+    const log = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await history(cookie, "crypto:bitcoin", "2026-03-01");
+    await age("frankfurter:price:BTC", 7);
+    up = false;
+
+    const [bitcoin] = await histories(cookie, ["crypto:bitcoin", "2026-03-01"]);
+
+    expect(bitcoin?.prices.values).toHaveLength(4);
+    await vi.waitFor(() => {
+      expect(log).toHaveBeenCalledTimes(1);
+    });
+    expect(log.mock.calls).toEqual([
+      ["Market data unavailable: frankfurter: status 503"],
+    ]);
+  });
+
+  const one = { asset: "crypto:bitcoin", from: "2026-01-01" };
+  it.each([
+    ["no coins", { assets: [] }],
+    ["more than 20", { assets: Array.from({ length: 21 }, () => one) }],
+    ["no body", undefined],
+    ["a list alone", [one]],
+    ["a field it does not know", { assets: [{ ...one, userId: "x" }] }],
+    ["an asset without its kind", { assets: [{ ...one, asset: "bitcoin" }] }],
+    ["a day that does not exist", { assets: [{ ...one, from: "2026-02-30" }] }],
+    ["one bad coin among good ones", { assets: [one, { asset: one.asset }] }],
+  ])("refuse %s", async (_, body) => {
+    const { cookie } = await signedIn("histories-bad");
+    const { calls } = mockSources(sources);
+
+    const response = await api("/api/market/histories", {
+      cookie,
+      method: "POST",
+      body,
+    });
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: "invalid_body" });
+    expect(calls).toEqual([]);
+  });
+
+  it("take 20 coins with the longest ids, and no body beyond that", async () => {
+    const { cookie } = await signedIn("histories-size");
+    mockSources(sources);
+    const longest = { ...one, asset: `crypto:${"a".repeat(90)}` };
+
+    const largest = await histories(
+      cookie,
+      ...Array.from({ length: 20 }, (): [string, string] => [
+        longest.asset,
+        longest.from,
+      ]),
+    );
+    const beyond = await api("/api/market/histories", {
+      cookie,
+      method: "POST",
+      body: { assets: [one], padding: "x".repeat(4096) },
+    });
+
+    expect(largest).toEqual(Array.from({ length: 20 }, () => null));
+    expect(beyond.status).toBe(413);
+  });
+
+  it("are refused from another origin, like a write", async () => {
+    const { cookie } = await signedIn("histories-origin");
+    mockSources(sources);
+
+    const response = await api("/api/market/histories", {
+      cookie,
+      method: "POST",
+      body: { assets: [one] },
+      origin: "https://evil.example",
+    });
+
+    expect(response.status).toBe(403);
   });
 });
 

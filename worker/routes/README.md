@@ -33,6 +33,7 @@ replace would then refuse.
 | `DELETE /api/vault/:id`                | Delete a record                                                                              | 120 writes/min                              |
 | `GET /api/market/prices[?ids=]`        | Prices in US dollars: the snapshot of the 250 largest coins, or the coins asked for          | 120 reads/min                               |
 | `GET /api/market/history?asset=&from=` | A coin's daily closing prices in US dollars from a day: Coin Metrics or CoinGecko            | 120 reads/min                               |
+| `POST /api/market/histories`           | Several coins' histories (at most 20), each from its own day, from the cache alone           | counted with `/history`, 4 KB               |
 | `GET /api/market/rates?quotes=&from=`  | Units of each currency (at most 10) per US dollar, day by day from a day                     | 60 reads/min                                |
 | `GET /api/assets/search?q=`            | Coins matching a search, at most 20                                                          | 60 reads/min, 50 characters                 |
 | `GET /api/assets/:id/logo`             | A coin's logo, through the Worker and cached a day                                           | none, on purpose (one per coin shown)       |

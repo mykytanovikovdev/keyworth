@@ -9,6 +9,8 @@ import {
   type AssetSearchJson,
   cryptoAssetIdSchema,
   daySchema,
+  historiesRequestSchema,
+  type HistoriesJson,
   type HistoryJson,
   MARKET_LIMITS,
   type PricesJson,
@@ -16,7 +18,7 @@ import {
   type RatesJson,
 } from "../../shared/schemas/market.ts";
 import type { AppEnv } from "../env.ts";
-import { rateLimit } from "../limits.ts";
+import { maxBody, rateLimit, readJson } from "../limits.ts";
 import { spendCoinGeckoCall } from "../market/budget.ts";
 import {
   type Cached,
@@ -42,8 +44,11 @@ import {
 import {
   dailySeries,
   emptySeries,
+  keptSeries,
   mergeSeries,
+  type SeriesRequest,
   sliceSeries,
+  type StoredSeries,
 } from "../market/series.ts";
 import { fetchImage, MarketError } from "../market/upstream.ts";
 
@@ -223,6 +228,13 @@ market.get("/prices", limitPrices, async (c) => {
 
 const limitHistory = rateLimit("history", 120);
 
+/** A coin's history from Coin Metrics, by its code there. */
+const coinMetricsRequest = (code: string, from: string): SeriesRequest => ({
+  key: coinMetricsKey(code),
+  from,
+  load: (since, until) => coinMetricsPricesSince(code, since, until),
+});
+
 /**
  * A coin's daily prices from `from` (a day): Coin Metrics' long history for the
  * 35 coins it covers, otherwise CoinGecko's past year. One source per coin, so
@@ -243,13 +255,7 @@ market.get("/history", limitHistory, async (c) => {
   if (code) {
     const [series] = await dailySeries(
       db,
-      [
-        {
-          key: coinMetricsKey(code),
-          from,
-          load: (since, until) => coinMetricsPricesSince(code, since, until),
-        },
-      ],
+      [coinMetricsRequest(code, from)],
       SERIES,
       later(c),
     );
@@ -274,6 +280,56 @@ market.get("/history", limitHistory, async (c) => {
     currency: "USD",
     source: "coingecko",
     prices: sliceSeries(value, from),
+  });
+});
+
+/**
+ * Several coins' histories in one request, from the cache alone: a portfolio's
+ * chart needs all of its coins, and each request costs a session check and a
+ * counter. What is not cached from the day asked is null, and the browser asks
+ * for that coin above, so a slow source holds up no other coin. A POST: which
+ * coins someone holds, and since when, stays out of the address.
+ */
+market.post("/histories", limitHistory, maxBody(4 * 1024), async (c) => {
+  const body = historiesRequestSchema.safeParse(await readJson(c));
+  if (!body.success) return c.json({ error: "invalid_body" }, 400);
+  const coins = body.data.assets.map(({ asset, from }) => {
+    const id = asset.slice("crypto:".length);
+    const code = COIN_METRICS_CODES.get(id);
+    const series = code ? coinMetricsRequest(code, from) : undefined;
+    return { asset, from, id, series };
+  });
+  const db = c.get("db");
+  const known = await readCached<StoredSeries>(db, [
+    ...new Set(coins.map(({ id, series }) => series?.key ?? historyKey(id))),
+  ]);
+  const kept = keptSeries(
+    db,
+    known,
+    coins.flatMap(({ series }) => series ?? []),
+    SERIES,
+    later(c),
+  );
+  // Stale, CoinGecko's is loaded again before it is served: no refresh of days.
+  const fresh = (id: string) => {
+    const entry = known.get(historyKey(id));
+    return entry &&
+      Date.now() - entry.fetchedAt.getTime() < COINGECKO_HISTORY.freshForMs
+      ? entry.value
+      : undefined;
+  };
+  return c.json<HistoriesJson>({
+    histories: coins.map(({ asset, from, id, series }) => {
+      const prices = series ? kept.get(series) : fresh(id);
+      return prices
+        ? {
+            asset,
+            currency: "USD",
+            source: series ? "coinmetrics" : "coingecko",
+            prices: sliceSeries(prices, from),
+          }
+        : null;
+    }),
   });
 });
 

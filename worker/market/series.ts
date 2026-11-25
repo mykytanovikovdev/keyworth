@@ -4,7 +4,12 @@ import {
 } from "../../shared/schemas/market.ts";
 import type { Database } from "../db/client.ts";
 import { describeError } from "../describe-error.ts";
-import { type CacheTimes, readCached, storeCached } from "./cache.ts";
+import {
+  type Cached,
+  type CacheTimes,
+  readCached,
+  storeCached,
+} from "./cache.ts";
 import { MarketError } from "./upstream.ts";
 
 /*
@@ -110,7 +115,7 @@ export interface SeriesRequest {
 }
 
 /** What the cache keeps for a series. */
-interface StoredSeries extends DailySeriesJson {
+export interface StoredSeries extends DailySeriesJson {
   /**
    * The first day the source was asked from: every day from here on is known,
    * as a value or as none. Absent in entries written before series began at
@@ -180,6 +185,67 @@ interface Plan {
   later: boolean;
 }
 
+/** What a request needs of its source, given what the cache has. */
+function planOf(
+  request: SeriesRequest,
+  entry: Cached<StoredSeries> | undefined,
+  { freshForMs }: CacheTimes,
+  deferrable: boolean,
+): Plan {
+  const now = Date.now();
+  const latest = Math.floor(now / DAY_MS) + 1;
+  const old = entry?.value ?? null;
+  const asked = dayNumber(request.from) ?? FIRST_DAY;
+  const want = Math.max(FIRST_DAY, asked - OVERLAP_DAYS);
+  if (!entry || !old) {
+    return { request, old, ranges: pieces(want, null, latest), later: false };
+  }
+  const askedFrom = dayNumber(old.askedFrom ?? HISTORY_START) ?? FIRST_DAY;
+  const ranges: [string, string | undefined][] = [];
+  const stale = now - entry.fetchedAt.getTime() >= freshForMs;
+  if (stale) {
+    // From the last week before the last day known, or before the last
+    // refresh when the source has been silent since.
+    const fetched = Math.floor(entry.fetchedAt.getTime() / DAY_MS);
+    const oldFrom = old.values.length > 0 ? dayNumber(old.from) : null;
+    const lastDay =
+      oldFrom === null ? fetched : oldFrom + old.values.length - 1;
+    const since = Math.max(
+      askedFrom,
+      Math.min(lastDay, fetched) - OVERLAP_DAYS,
+      fetched - REFRESH_DAYS_AT_MOST,
+    );
+    ranges.push(...pieces(since, null, latest));
+  }
+  if (want < askedFrom) ranges.push(...pieces(want, askedFrom - 1, latest));
+  // Only a refresh can wait: days asked for and not cached cannot.
+  const later = stale && want >= askedFrom && deferrable;
+  return { request, old, ranges, later };
+}
+
+/**
+ * Starts the calls of `count` plans: each gets an equal share of the request's
+ * calls, newest days first; the next request goes on from where this one
+ * stopped.
+ */
+function updater(count: number) {
+  const share = Math.max(1, Math.floor(CALLS_PER_REQUEST / Math.max(1, count)));
+  const limit = limiter(CALLS_AT_ONCE);
+  return (plan: Plan): Update => {
+    const ranges = plan.ranges.slice(0, share);
+    // Started now, all of them, so the calls of every series overlap.
+    const loads = Promise.allSettled(
+      ranges.map(([since, until]) =>
+        limit(() => plan.request.load(since, until)),
+      ),
+    );
+    const firstAsked = Math.min(
+      ...ranges.map(([since]) => dayNumber(since) ?? FIRST_DAY),
+    );
+    return { plan, loads, firstAsked };
+  };
+}
+
 /**
  * The series, in the order asked for, each from the day asked (a week earlier,
  * so a weekend at the start has the Friday before it). The cache keeps each
@@ -195,80 +261,67 @@ interface Plan {
 export async function dailySeries(
   db: Database,
   requests: readonly SeriesRequest[],
-  { freshForMs, keepForMs }: CacheTimes,
+  times: CacheTimes,
   defer?: (work: Promise<void>) => void,
 ): Promise<DailySeriesJson[]> {
   const known = await readCached<StoredSeries>(
     db,
     requests.map(({ key }) => key),
   );
-  const now = Date.now();
-  const latest = Math.floor(now / DAY_MS) + 1;
-  const plans: Plan[] = requests.map((request) => {
-    const entry = known.get(request.key);
-    const old = entry?.value ?? null;
-    const asked = dayNumber(request.from) ?? FIRST_DAY;
-    const want = Math.max(FIRST_DAY, asked - OVERLAP_DAYS);
-    if (!entry || !old) {
-      return { request, old, ranges: pieces(want, null, latest), later: false };
-    }
-    const askedFrom = dayNumber(old.askedFrom ?? HISTORY_START) ?? FIRST_DAY;
-    const ranges: [string, string | undefined][] = [];
-    const stale = now - entry.fetchedAt.getTime() >= freshForMs;
-    if (stale) {
-      // From the last week before the last day known, or before the last
-      // refresh when the source has been silent since.
-      const fetched = Math.floor(entry.fetchedAt.getTime() / DAY_MS);
-      const oldFrom = old.values.length > 0 ? dayNumber(old.from) : null;
-      const lastDay =
-        oldFrom === null ? fetched : oldFrom + old.values.length - 1;
-      const since = Math.max(
-        askedFrom,
-        Math.min(lastDay, fetched) - OVERLAP_DAYS,
-        fetched - REFRESH_DAYS_AT_MOST,
-      );
-      ranges.push(...pieces(since, null, latest));
-    }
-    if (want < askedFrom) ranges.push(...pieces(want, askedFrom - 1, latest));
-    // Only a refresh can wait: days asked for and not cached cannot.
-    const later = stale && want >= askedFrom && defer !== undefined;
-    return { request, old, ranges, later };
-  });
-
-  // Each series that needs calls gets an equal share of the request's calls,
-  // newest days first; the next request goes on from where this one stopped.
-  const needing = plans.filter(({ ranges }) => ranges.length > 0).length;
-  const share = Math.max(
-    1,
-    Math.floor(CALLS_PER_REQUEST / Math.max(1, needing)),
+  const plans = requests.map((request) =>
+    planOf(request, known.get(request.key), times, defer !== undefined),
   );
-  const limit = limiter(CALLS_AT_ONCE);
-  const update = (plan: Plan): Update => {
-    const ranges = plan.ranges.slice(0, share);
-    // Started now, all of them, so the calls of every series overlap.
-    const loads = Promise.allSettled(
-      ranges.map(([since, until]) =>
-        limit(() => plan.request.load(since, until)),
-      ),
-    );
-    const firstAsked = Math.min(
-      ...ranges.map(([since]) => dayNumber(since) ?? FIRST_DAY),
-    );
-    return { plan, loads, firstAsked };
-  };
 
   const asking = plans.filter(({ ranges }) => ranges.length > 0);
+  const update = updater(asking.length);
   const immediate = asking.filter(({ later }) => !later).map(update);
   const afterwards = asking.filter(({ later }) => later);
   const results = new Map<SeriesRequest, DailySeriesJson>();
-  for (const update of immediate) {
-    results.set(update.plan.request, await store(db, update, keepForMs));
+  for (const started of immediate) {
+    results.set(
+      started.plan.request,
+      await store(db, started, times.keepForMs),
+    );
   }
   if (afterwards.length > 0 && defer) {
-    defer(refresh(db, afterwards.map(update), keepForMs));
+    defer(refresh(db, afterwards.map(update), times.keepForMs));
   }
   return plans.map(({ request, old }) =>
     shown(results.get(request) ?? old ?? emptySeries()),
+  );
+}
+
+/**
+ * The series that `known` (what the cache has) can answer without a source.
+ * The others are left out: none cached, or not from the day asked. A stale one
+ * is served as it is and asked again after the answer, as `dailySeries` does.
+ */
+export function keptSeries(
+  db: Database,
+  known: ReadonlyMap<string, Cached<StoredSeries>>,
+  requests: readonly SeriesRequest[],
+  times: CacheTimes,
+  defer: (work: Promise<void>) => void,
+): Map<SeriesRequest, DailySeriesJson> {
+  const plans = requests.map((request) =>
+    planOf(request, known.get(request.key), times, true),
+  );
+  // Once each, however many times a series was asked for.
+  const stale = new Map(
+    plans.flatMap((plan) =>
+      plan.later ? [[plan.request.key, plan] as const] : [],
+    ),
+  );
+  if (stale.size > 0) {
+    const updates = [...stale.values()].map(updater(stale.size));
+    defer(refresh(db, updates, times.keepForMs));
+  }
+  return new Map(
+    plans.flatMap(({ request, old, ranges, later }) =>
+      old && (later || ranges.length === 0)
+        ? [[request, shown(old)] as const]
+        : [],
+    ),
   );
 }
 

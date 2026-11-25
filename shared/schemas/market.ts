@@ -17,6 +17,8 @@ export const MARKET_LIMITS = {
   searchResults: 20,
   /** Currencies in one rates request. */
   quotesPerRequest: 10,
+  /** Coins in one request for several histories. */
+  historiesPerRequest: 20,
 } as const;
 
 /** The first day with a market price for Bitcoin: no series starts earlier. */
@@ -24,6 +26,16 @@ export const HISTORY_START = "2010-07-18";
 
 /** A UTC day, as `from` in the history and rates requests. */
 export const daySchema = z.iso.date();
+
+/** The body of `POST /api/market/histories`: coins, each from its own day. */
+export const historiesRequestSchema = z.strictObject({
+  assets: z
+    .array(z.strictObject({ asset: cryptoAssetIdSchema, from: daySchema }))
+    .min(1)
+    .max(MARKET_LIMITS.historiesPerRequest),
+});
+
+export type HistoriesRequest = z.infer<typeof historiesRequestSchema>;
 
 export interface AssetJson {
   id: string;
@@ -66,6 +78,11 @@ export interface HistoryJson {
   source: "coinmetrics" | "coingecko";
   /** The price at each day's end (00:00 UTC), plain digits; the latest day is yesterday. */
   prices: DailySeriesJson;
+}
+
+export interface HistoriesJson {
+  /** In the order asked; null: not ready in the cache, ask for it on its own. */
+  histories: (HistoryJson | null)[];
 }
 
 export interface RatesJson {

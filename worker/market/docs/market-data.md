@@ -11,6 +11,7 @@ and caches.
 ```
 browser ── /api/market/prices ──────────┐
         ── /api/market/prices?ids= ─────┤                                ┌─ CoinGecko
+        ── /api/market/histories ───────┤                                │
         ── /api/market/history ─────────┼─ Worker ── market_cache ───────┤
         ── /api/market/rates ───────────┤    │        (Postgres)         └─ Frankfurter
         ── /api/assets/search?q= ───────┤    │                              (central banks,
@@ -19,7 +20,7 @@ browser ── /api/market/prices ──────────┐
 
 | File                    | Role                                                                          |
 | ----------------------- | ----------------------------------------------------------------------------- |
-| `routes/market.ts`      | The six routes, their limits, the 502 for a failed source                     |
+| `routes/market.ts`      | The seven routes, their limits, the 502 for a failed source                   |
 | `market/coingecko.ts`   | CoinGecko's API: what is asked, how its answers are checked and reduced       |
 | `market/frankfurter.ts` | Frankfurter's API: exchange rates, Coin Metrics' prices, the coin-to-code map |
 | `market/series.ts`      | Daily series from the earliest day asked: pieces of a year, merge, refresh    |
@@ -34,6 +35,10 @@ browser ── /api/market/prices ──────────┐
 | `GET /api/market/rates?quotes=&from=`  | Frankfurter: a call per currency and year                           | 6 hours                                     | 90 days                    |
 | `GET /api/assets/search?q=`            | CoinGecko: one call per distinct search                             | a day                                       | a day                      |
 | `GET /api/assets/:id/logo`             | CoinGecko's image host                                              | a day (Cloudflare's cache, per data center) | a day                      |
+
+`POST /api/market/histories` (`{ assets: [{ asset, from }] }`, at most 20 coins)
+answers from the same entries as `/history` and never calls a source before its
+answer: see below.
 
 Asset ids are `crypto:` plus CoinGecko's id (`crypto:bitcoin`), so other kinds of
 asset can join later without a clash. Prices are in US dollars, as plain-digit
@@ -80,6 +85,22 @@ anyone has asked for.
   silent since, never more than a month back: late publications and revised
   blends replace what was there, and the rest stays.
 
+### Several histories at once
+
+A portfolio's chart needs the history of every coin held. Asked one by one, each
+request costs a session check, a counter and a read of the cache, and the chart
+waits for the slowest. `/histories` reads them all in one statement and answers
+in the order asked, each from its own day, exactly what `/history` would:
+
+- **From the cache alone.** A coin is `null` when nothing is cached for it, when
+  the cached series starts later than the day asked, or when CoinGecko's entry
+  is stale. The browser asks for those with `/history`, one by one, which asks
+  the source as always. So a slow source holds up no other coin, a first load
+  keeps the whole 30-call share for its one coin, and CoinGecko's budget is
+  spent in one place.
+- **A stale Coin Metrics series is served, then refreshed** after the answer,
+  once however often it was asked for, as `/history` does it.
+
 ## What the server learns
 
 - **The snapshot is the same for everyone.** Loading it says nothing about what a
@@ -92,6 +113,10 @@ anyone has asked for.
   when it was fetched, and the user's rate-limit counter when they last asked,
   so in a small group the two times can match (accepted, see the
   [threat model](../../../src/crypto/docs/threat-model.md)).
+- **A portfolio's histories are asked for together, in a POST's body:** the
+  coins and the day each was first held. The server learned the same from the
+  separate requests, sent at the same moment by the same session; an address
+  would put all of it in one place that proxies and logs keep.
 - **A search is kept for a day under its text**, so the next person typing the
   same thing costs no call. It is stored under the text, not under who typed it.
 - **Logos are asked for by coin id**, one image per coin a page shows (the
@@ -173,6 +198,13 @@ anyone has asked for.
   did for the next. Days are
   counted as numbers, because `Date.parse` is slow per point and takes
   `2026-02-30` for March 2.
+- **`/histories` does not ask sources itself.** Doing so would share one
+  request's 30 calls between up to 20 new coins, a year of days each, and make
+  every chart wait for the slowest source. Rejected with it: cutting each series
+  in Postgres (it saved the Worker 1–4 ms of CPU for 15–30 coins, measured
+  locally, and kept the database busy two to two and a half times as long);
+  whole series without cutting (an answer up to 3.4 times as large); one `from`
+  for all coins (a source asked for days nobody holds).
 - **From the day asked, not from the source's start.** Series used to be
   loaded whole from 2010 in one call, which was simpler (extended only at the
   end), until the source slowed to about a second per year of days and a first
@@ -201,6 +233,8 @@ anyone has asked for.
 | More than 50 ids, an id without `crypto:`                                      | 400 `invalid_ids`                                                |
 | A history asset that is not a `crypto:` id                                     | 400 `invalid_asset`                                              |
 | `from` missing, not a real day, or with a time                                 | 400 `invalid_from`                                               |
+| `/histories`: no coins, more than 20, a bad id or day, a field not known       | 400 `invalid_body`                                               |
+| `/histories`: a coin not cached from the day asked, CoinGecko's entry stale    | `null` for that coin, no call; the browser asks for it alone     |
 | A rate for USD, a code not in the list, more than 10                           | 400 `invalid_quotes`                                             |
 | An empty search, or over 50 characters                                         | 400 `invalid_query`                                              |
 | A logo nobody has seen, or on another host                                     | 404 `unknown_asset`                                              |
@@ -216,7 +250,9 @@ before the day asked, earlier days added on their own, pieces of a year newest
 first, the 30-call share, a stale series served at once and refreshed after the
 answer from a week before its last day (a month at most for a silent source),
 stale entries while a source fails, each 400, each read's
-limit a minute (429 before any call), a redirect refused, a logo over 100 KB or
+limit a minute (429 before any call), several histories at once (the same
+answers as one by one, no call before the answer, which coins are left to be
+asked alone, one refresh for a series asked twice, the body's limits), a redirect refused, a logo over 100 KB or
 in SVG refused, prices that cannot be real dropped, an unexpected error logged
 by route and not by coin, and how long each source's data is kept. The 8-second
 limit itself is not tested: the runner cannot wait that long or fake the clock
@@ -233,4 +269,4 @@ ids, currencies or search text into an error message or a log line. A new
 entry in `COIN_METRICS_CODES` is checked first by comparing the two sources'
 prices for the coin.
 
-Last reviewed: 2026-11-18
+Last reviewed: 2026-11-25
