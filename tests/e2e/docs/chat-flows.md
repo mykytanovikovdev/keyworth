@@ -24,6 +24,12 @@ stored encrypted through the form; only the model is answered in the browser
 - **Refusals:** a 502 says the AI isn't answering, and Try again asks again
   and shows the answer; a 429 `budget` says the chat is back at the reset time
   and disables the box.
+- **Working and following** (Chromium, Firefox, WebKit; the answer sent piece by
+  piece through a wrapped `fetch`, `streamModel`): "Thinking…" shows until the
+  first word, for the first question and for one asked on a long page, where it
+  and the question are in view; the page stays at its end while the answer grows;
+  a reader who scrolled up is not moved; back at the end, it follows again and
+  never moves up.
 - **Chats are kept:** the address becomes `/chat/<id>` without a reload and the
   menu lists the chat; after Lock (which reloads the tab) and unlocking, the
   page holds nothing of it, and opening it from the menu shows the question, the
@@ -37,8 +43,9 @@ stored encrypted through the form; only the model is answered in the browser
   does not scroll sideways, and axe finds no WCAG 2.2 A/AA violation before
   and after an answer.
 
-Everything but the full loop is Chromium only: text and routing, which no
-engine renders differently enough to matter
+Everything but the full loop and following the answer (engines scroll
+differently) is Chromium only: text and routing, which no engine renders
+differently enough to matter
 ([csp-and-engines.md](csp-and-engines.md)).
 
 ## What it does not
@@ -62,4 +69,4 @@ an error status with JSON, or never) and returns the request bodies;
 a test that checks the question is gone: the empty chat shows it as a
 suggestion.
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25

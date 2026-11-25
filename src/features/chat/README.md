@@ -26,30 +26,30 @@ question ─► Chat (@ai-sdk/react) ─► DirectChatTransport ─► ToolLoopA
                                   (results go back with the next step)
 ```
 
-| File                         | Role                                                                                                 |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------- |
-| `ChatPage.tsx`               | `/chat`, a new chat, and `/chat/<id>`, a kept one; Stop, refusals, today's limit, saving notices     |
-| `conversation.ts`            | The agent (`ToolLoopAgent`, ≤ 6 steps, no retries) and the open conversation, saved as it goes       |
-| `chat-session.ts`            | When the conversation starts over (New chat, locking), without loading the AI SDK                    |
-| `tools.ts`                   | The seven read-only tools, on the data `chat-data.ts` loads; amounts only with `includeAmounts`      |
-| `chat-data.ts`               | The transactions, settings and market data through the pages' own queries and cache                  |
-| `history.ts`                 | The latest messages within the server's limit, cut only before a question                            |
-| `refusals.ts`                | The server's refusals (`budget`, `rate_limited`…) as a code through the transport, then as words     |
-| `step-words.ts`              | What each tool call says in the steps line, and what the AI received from it                         |
-| `Answer.tsx`, `word-fade.ts` | The answer's markdown as plain elements: no HTML, no images, links as their words; new words fade in |
-| `chat-saver.ts`              | Keeps one chat stored: creates it, saves in order, merges another device's turns                     |
-| `chats.ts`, `queries.ts`     | The list of kept chats and its query; light, the menu is in the first load                           |
-| `saved.ts`, `kept.ts`        | Between the page's messages and the kept ones; titles, size, merging                                 |
-| `deleting.ts`, `useChats.ts` | Deleting with Undo (hidden at once, deleted when Undo is over), for the menu and Settings            |
-| `DeleteAllChats.tsx`         | Settings, Chats: "Delete all chats"                                                                  |
-| `follow.ts`                  | The starter questions, and keeping a growing answer in view                                          |
-| `Composer.tsx`               | The question box: Enter sends, Shift+Enter is a new line, Stop while answering; the caption          |
-| `Messages.tsx`               | A question, an answer, the steps line (`ToolSteps`), a stopped or broken-off answer                  |
-| `ChatLayout.tsx`             | The reading column with the box kept at the bottom; `EmptyChat`, a new chat with ideas               |
-| `answer-styles.ts`           | How an answer's paragraphs, lists, bold, tables and code look                                        |
-| `ChatList.tsx`               | The chats in the menu, each with a "⋯" menu (Delete chat)                                            |
-| `chat-list.ts`               | `ChatSummary`; `groupChats`: Today, Previous 7 days, Previous 30 days, Older, newest first           |
-| `DeleteAllChatsDialog.tsx`   | "Delete all chats?": asked once; Undo in the toast afterwards                                        |
+| File                         | Role                                                                                                                      |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `ChatPage.tsx`               | `/chat`, a new chat, and `/chat/<id>`, a kept one; Stop, refusals, today's limit, saving notices                          |
+| `conversation.ts`            | The agent (`ToolLoopAgent`, ≤ 6 steps, no retries) and the open conversation, saved as it goes                            |
+| `chat-session.ts`            | When the conversation starts over (New chat, locking), without loading the AI SDK                                         |
+| `tools.ts`                   | The seven read-only tools, on the data `chat-data.ts` loads; amounts only with `includeAmounts`                           |
+| `chat-data.ts`               | The transactions, settings and market data through the pages' own queries and cache                                       |
+| `history.ts`                 | The latest messages within the server's limit, cut only before a question                                                 |
+| `refusals.ts`                | The server's refusals (`budget`, `rate_limited`…) as a code through the transport, then as words                          |
+| `step-words.ts`              | What each tool call says in the steps line, and what the AI received from it                                              |
+| `Answer.tsx`, `word-fade.ts` | The answer's markdown as plain elements: no HTML, no images, links as their words; new words fade in                      |
+| `chat-saver.ts`              | Keeps one chat stored: creates it, saves in order, merges another device's turns                                          |
+| `chats.ts`, `queries.ts`     | The list of kept chats and its query; light, the menu is in the first load                                                |
+| `saved.ts`, `kept.ts`        | Between the page's messages and the kept ones; titles, size, merging                                                      |
+| `deleting.ts`, `useChats.ts` | Deleting with Undo (hidden at once, deleted when Undo is over), for the menu and Settings                                 |
+| `DeleteAllChats.tsx`         | Settings, Chats: "Delete all chats"                                                                                       |
+| `follow.ts`                  | The starter questions; following an answer to the page's end until the reader scrolls up                                  |
+| `Composer.tsx`               | The question box: Enter sends, Shift+Enter is a new line, Stop while answering; the caption                               |
+| `Messages.tsx`               | A question, an answer, the steps line (`ToolSteps`), "Thinking…" while nothing else shows, a stopped or broken-off answer |
+| `ChatLayout.tsx`             | The reading column with the box kept at the bottom; `EmptyChat`, a new chat with ideas                                    |
+| `answer-styles.ts`           | How an answer's paragraphs, lists, bold, tables and code look                                                             |
+| `ChatList.tsx`               | The chats in the menu, each with a "⋯" menu (Delete chat)                                                                 |
+| `chat-list.ts`               | `ChatSummary`; `groupChats`: Today, Previous 7 days, Previous 30 days, Older, newest first                                |
+| `DeleteAllChatsDialog.tsx`   | "Delete all chats?": asked once; Undo in the toast afterwards                                                             |
 
 What the tools return, what never leaves the device and how that is tested:
 [docs/tools-and-minimization.md](docs/tools-and-minimization.md). What is kept,
@@ -116,6 +116,11 @@ changes. Amounts stayed on this device", or "Amounts included, as you asked".
   refuses a call without a result (`saved.ts`).
 - **A question that is also a starter question** shows twice on an empty
   chat's page; tests that check a question is gone use their own words.
+- **Follow to the page's end, not to the last line:** the question box is part
+  of the page (sticky), so stopping at the line above it left the page short of
+  its end, and each piece of the answer pulled a reader who scrolled on back up.
+  Whether the reader is following is decided by how they scroll, never after the
+  answer has grown: a large piece would already be past any threshold.
 - **Enter during an input method's composition** (Japanese, Chinese) must not
   send: `Composer` checks `isComposing`.
 - **A wide table scrolls by itself, never the page:** the renderer wraps tables
