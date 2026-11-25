@@ -3,10 +3,11 @@ import {
   HISTORY_START,
 } from "../../shared/schemas/market.ts";
 import type { Database } from "../db/client.ts";
-import { describeError } from "../describe-error.ts";
 import {
+  afterAnswer,
   type Cached,
   type CacheTimes,
+  type Defer,
   readCached,
   storeCached,
 } from "./cache.ts";
@@ -262,7 +263,7 @@ export async function dailySeries(
   db: Database,
   requests: readonly SeriesRequest[],
   times: CacheTimes,
-  defer?: (work: Promise<void>) => void,
+  defer?: Defer,
 ): Promise<DailySeriesJson[]> {
   const known = await readCached<StoredSeries>(
     db,
@@ -284,7 +285,7 @@ export async function dailySeries(
     );
   }
   if (afterwards.length > 0 && defer) {
-    defer(refresh(db, afterwards.map(update), times.keepForMs));
+    defer(() => refresh(db, afterwards.map(update), times.keepForMs));
   }
   return plans.map(({ request, old }) =>
     shown(results.get(request) ?? old ?? emptySeries()),
@@ -301,7 +302,7 @@ export function keptSeries(
   known: ReadonlyMap<string, Cached<StoredSeries>>,
   requests: readonly SeriesRequest[],
   times: CacheTimes,
-  defer: (work: Promise<void>) => void,
+  defer: Defer,
 ): Map<SeriesRequest, DailySeriesJson> {
   const plans = requests.map((request) =>
     planOf(request, known.get(request.key), times, true),
@@ -314,7 +315,7 @@ export function keptSeries(
   );
   if (stale.size > 0) {
     const updates = [...stale.values()].map(updater(stale.size));
-    defer(refresh(db, updates, times.keepForMs));
+    defer(() => refresh(db, updates, times.keepForMs));
   }
   return new Map(
     plans.flatMap(({ request, old, ranges, later }) =>
@@ -365,21 +366,13 @@ async function store(
   return series;
 }
 
-/** Refreshes after the answer; a failure is logged, as a route would. */
+/** Refreshes after the answer, each on its own: one failing stops no other. */
 async function refresh(
   db: Database,
   updates: Update[],
   keepForMs: number,
 ): Promise<void> {
   for (const update of updates) {
-    try {
-      await store(db, update, keepForMs, false);
-    } catch (error) {
-      console.error(
-        error instanceof MarketError
-          ? `Market data unavailable: ${error.message}`
-          : `Market data refresh failed\n${describeError(error)}`,
-      );
-    }
+    await afterAnswer(() => store(db, update, keepForMs, false));
   }
 }

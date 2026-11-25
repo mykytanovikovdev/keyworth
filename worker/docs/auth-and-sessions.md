@@ -141,4 +141,4 @@ Any new route goes after `requireSession` unless it is deliberately public
 callback. Changing session lifetime or freshness changes the threat model:
 update [src/crypto/docs/threat-model.md](../../src/crypto/docs/threat-model.md).
 
-Last reviewed: 2026-11-18
+Last reviewed: 2026-11-25

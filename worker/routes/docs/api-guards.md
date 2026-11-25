@@ -2,8 +2,8 @@
 
 Everything that stands between a request and the database on the app's own
 routes (`/api/keys`, `/api/vault`, and every route added later). Code:
-`../index.ts` (`requireSession`), `../limits.ts`, `keys.ts`, `vault.ts`;
-schemas in `shared/schemas/`.
+`../index.ts` (`requireSession`), `../limits.ts`, `keys.ts`, `vault.ts`,
+`market.ts`; schemas in `shared/schemas/`.
 
 ## The order of checks
 
@@ -133,9 +133,7 @@ record that is not the user's is `not_found`, like one that does not exist.
   are stated in the
   [threat model](../../../src/crypto/docs/threat-model.md); a CSV export of the
   transactions is the defense against losing them.
-- **In the Workers test runner every request keeps its database connection
-  until the test file ends,** so tests seed rate-limit counters instead of
-  sending a hundred requests.
+- **Tests seed rate-limit counters** instead of sending a hundred requests.
 
 ## How it is tested
 

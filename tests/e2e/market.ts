@@ -83,6 +83,7 @@ export async function stubMarket(page: Page) {
           json: {
             currency: "USD",
             fetchedAt,
+            refreshing: false,
             quotes: COINS.filter((coin) => !ids || ids.includes(coin.id)),
           },
         });

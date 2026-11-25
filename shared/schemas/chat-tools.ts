@@ -64,7 +64,8 @@ export const CHAT_TOOLS = {
     }),
   },
   get_prices: {
-    description: "Today's prices of coins, in the user's base currency.",
+    description:
+      "Today's prices of coins, in the user's base currency, and when they are from (asOf, UTC).",
     inputSchema: z.object({
       assetIds: z.array(assetId).min(1).max(20),
     }),

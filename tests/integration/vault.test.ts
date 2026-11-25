@@ -709,8 +709,7 @@ describe("limits", () => {
 
   it("limits writes to 120 a minute per user, and the window resets", async () => {
     const user = await vaultUser("rate");
-    // Seeding the counter instead of sending 120 requests: in this runner every
-    // request keeps its database connection until the file ends.
+    // Seeding the counter instead of sending 120 requests.
     await query(
       `insert into api_rate_limits (user_id, bucket, window_start, count)
        values ($1, 'vault', now(), 120)`,
@@ -1224,8 +1223,7 @@ describe("deleting several", () => {
   });
 
   it("refuses what is not a list of ids, each once, at most a thousand", async () => {
-    // One user for every case: in this runner each request keeps its database
-    // connection until the file ends.
+    // One user for every case: signing in is the slow part.
     const user = await vaultUser("delete-many-bad");
     const id = crypto.randomUUID();
     for (const [what, body] of [

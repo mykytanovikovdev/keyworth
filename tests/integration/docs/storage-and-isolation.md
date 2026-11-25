@@ -25,13 +25,17 @@ through the real Google flow (only Google's token endpoint is replaced).
   `0.000000355498`), symbols in upper case, names without control or invisible
   characters; coins with no price, a negative one or a malformed id are left out;
   the logo's location never reaches the browser; the API key goes in its header.
-- One call serves every user for 10 minutes, then the next request refreshes it.
+- One call serves every user for 10 minutes. Under an hour old, prices are served
+  at once, marked as being refreshed and with their real age, while the source
+  has not answered yet, and the newer ones are there after it; an hour old, the
+  request waits. A failed refresh logs the source only.
 - A failing source: an unexpired entry is served with its real age; with nothing
   usable, 502 and exactly one log line, which names neither the asset nor the
   request; past a day nothing is served.
 - By id: coins in the snapshot cost no call; the others are asked for together,
-  once, and an unknown coin is cached too. Malformed ids and more than 50 are
-  refused.
+  once, and an unknown coin is cached too. Under an hour old, they are served at
+  once and refreshed in one call, the snapshot not with them; one an hour old or
+  not cached, and the request waits. Malformed ids and more than 50 are refused.
 - Search: one call per distinct search whatever its case and spaces, at most 20
   results; empty or over-long searches, and searches with a hidden character or
   a line break, are refused.
@@ -218,12 +222,10 @@ deploys that touch sign-in), the browser part of "Remember this device"
 - Every test signs in its own user (`signedIn()`, `uniqueUser()`: unique email
   and client IP), so tests never share data or rate limits.
 - Argon2 runs at OWASP's minimum here (`FAST_KDF`) to keep the suite fast.
-- **Requests in this runner keep their database connections until the file
-  ends** (they share one isolate). Sending a hundred requests exhausts
-  Postgres's connections, so rate limits and quotas are tested by seeding the
-  counter or the rows with `query()` and sending one request (races send six
-  at once, no more). `compose.yaml` sets `max_connections` to 300 because
-  files run in parallel.
+- **Rate limits and quotas are tested by seeding** the counter or the rows with
+  `query()` and sending one request (races send six at once): a hundred requests
+  would only be slow. `query()` shares one pool a file; a pool for each call kept
+  its connection until the file ended and ran the database out of them.
 - A `beforeAll` warm-up (`setup.ts`) keeps the Worker's cold start out of each
   file's first test.
 

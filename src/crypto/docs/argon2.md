@@ -102,8 +102,9 @@ suggests four or more random words.
 ## Changing the settings
 
 1. Raise `CURRENT_KDF_PARAMS`, keep `KDF_LIMITS` consistent, measure on a phone
-   (`npm run dev -- --host --port 5180 --strictPort`, then
-   `http://<computer's LAN address>:5180/design/kdf` on the phone).
+   over HTTPS: the design build served by `wrangler dev` with
+   `--local-protocol https` and a self-signed certificate, then
+   `https://<computer's LAN address>:<port>/design/kdf` on the phone.
 2. Existing slots keep working: their settings are stored with them.
    `kdfNeedsUpgrade` reports a slot weaker than the current settings (less
    memory or fewer passes; stronger ones are left alone), and the app rewraps
@@ -116,9 +117,9 @@ suggests four or more random words.
 
 ## Edge cases
 
-- **The benchmark page works over plain HTTP on a phone** because it uses noble
-  alone; the real screens need WebCrypto, which exists only on HTTPS or
-  `localhost`.
+- **The benchmark page opens over plain HTTP on a phone** because it uses noble
+  alone, but its times mean nothing there (above); the real screens need
+  WebCrypto, which exists only on HTTPS or `localhost`.
 - **Lowering the minimum** (`KDF_LIMITS`) would let a malicious server push
   weak settings for new slots; it should only ever go up.
 
@@ -131,4 +132,4 @@ progress, refused settings) and `tests/e2e/encryption.spec.ts` (the production
 settings in Chromium, Firefox and WebKit under the real CSP, opening keys made in
 Node).
 
-Last reviewed: 2026-11-06
+Last reviewed: 2026-11-25

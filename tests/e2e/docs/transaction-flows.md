@@ -70,4 +70,4 @@ Sign in with `openApp(page, context, baseURL)` (a user with keys, unlocked on
 and the database (`storedTransactions(userId)`). Rows exist twice in the page,
 for a phone and a wide screen: find text with `visible(page, text)`.
 
-Last reviewed: 2026-11-20
+Last reviewed: 2026-11-25

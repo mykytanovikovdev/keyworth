@@ -1,6 +1,7 @@
 import { and, eq, gt, inArray, sql } from "drizzle-orm";
 import type { Database } from "../db/client.ts";
 import { marketCache } from "../db/schema.ts";
+import { describeError } from "../describe-error.ts";
 import { MarketError } from "./upstream.ts";
 
 /*
@@ -13,6 +14,8 @@ import { MarketError } from "./upstream.ts";
 export interface CacheTimes {
   /** Served without asking the source again. */
   freshForMs: number;
+  /** No longer fresh but under this age: served at once, loaded again after. */
+  serveForMs?: number;
   /** Stands in when the source fails, then the daily cleanup deletes it. */
   keepForMs: number;
 }
@@ -20,6 +23,22 @@ export interface CacheTimes {
 export interface Cached<T> {
   value: T;
   fetchedAt: Date;
+}
+
+/** Takes work to start once the answer is sent. */
+export type Defer = (work: () => Promise<void>) => void;
+
+/** Work after the answer: nothing waits for it, and a failure is logged as a route would. */
+export async function afterAnswer(work: () => Promise<unknown>): Promise<void> {
+  try {
+    await work();
+  } catch (error) {
+    console.error(
+      error instanceof MarketError
+        ? `Market data unavailable: ${error.message}`
+        : `Market data refresh failed\n${describeError(error)}`,
+    );
+  }
 }
 
 /** Several entries in one statement: never a batch of queries left running. */
@@ -70,31 +89,49 @@ export async function readCached<T>(
 }
 
 /**
- * The cached value while it is fresh, otherwise a new one from `load`. When the
- * source fails, an older value that has not expired is better than nothing.
+ * The cached value while it is fresh, otherwise a new one from `load`. With
+ * `defer`, a value under `serveForMs` old is served at once and a new one loaded
+ * after the answer (`refreshing`). When the source fails, an older value that
+ * has not expired is better than nothing.
  */
 export async function cached<T extends object>(
   db: Database,
   key: string,
-  { freshForMs, keepForMs }: CacheTimes,
+  { freshForMs, serveForMs = 0, keepForMs }: CacheTimes,
   load: () => Promise<T>,
-): Promise<Cached<T>> {
+  defer?: Defer,
+): Promise<Cached<T> & { refreshing: boolean }> {
   const [row] = await db
     .select()
     .from(marketCache)
     .where(eq(marketCache.key, key))
     .limit(1);
   const now = Date.now();
-  if (row && now - row.fetchedAt.getTime() < freshForMs) {
-    return { value: row.value as T, fetchedAt: row.fetchedAt };
-  }
-  try {
+  const reload = async () => {
     const value = await load();
     await storeCached(db, [{ key, value }], keepForMs);
-    return { value, fetchedAt: new Date(now) };
+    return value;
+  };
+  if (!row) {
+    return {
+      value: await reload(),
+      fetchedAt: new Date(now),
+      refreshing: false,
+    };
+  }
+  const old = { value: row.value as T, fetchedAt: row.fetchedAt };
+  const age = now - row.fetchedAt.getTime();
+  if (age < freshForMs) return { ...old, refreshing: false };
+  if (defer && age < serveForMs) {
+    defer(() => afterAnswer(reload));
+    return { ...old, refreshing: true };
+  }
+  try {
+    const value = await reload();
+    return { value, fetchedAt: new Date(now), refreshing: false };
   } catch (error) {
-    if (error instanceof MarketError && row && row.expiresAt.getTime() > now) {
-      return { value: row.value as T, fetchedAt: row.fetchedAt };
+    if (error instanceof MarketError && row.expiresAt.getTime() > now) {
+      return { ...old, refreshing: false };
     }
     throw error;
   }

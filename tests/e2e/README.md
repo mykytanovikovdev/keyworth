@@ -61,9 +61,10 @@ Covered now:
   [docs/transaction-flows.md](docs/transaction-flows.md).
 - **`portfolio.spec.ts`** (Chromium, Firefox, WebKit; local builds only): the
   start page values a purchase added on it (today's price, all-time profit, the
-  chart, the table), a longer period, hidden amounts kept after a reload, the
-  Transactions link without a reload, failing prices shown as a notice and not
-  as zeros, 320 px with no axe violations. What it proves:
+  chart, the table), a longer period, hidden amounts kept after a reload, one
+  request for every coin's history, old prices at once and newer ones after,
+  the Transactions link without a reload, failing prices shown as a notice and
+  not as zeros, 320 px with no axe violations. What it proves:
   [docs/portfolio-flows.md](docs/portfolio-flows.md).
 - **`chat.spec.ts`** (Chromium, Firefox, WebKit for the full loop and for
   following an answer, the rest Chromium only; local builds only): a question
@@ -113,8 +114,8 @@ PLAYWRIGHT_BASE_URL=https://keyworth.app npx playwright test --project=headers -
 ```
 
 First run on a new machine: `npx playwright install chromium firefox webkit`
-(or only Docker, for `test:e2e:docker`). No account, database or network access
-to third parties is needed.
+(or only Docker, for `test:e2e:docker`). No account with, and no network access
+to, third parties is needed.
 
 ## Approach
 

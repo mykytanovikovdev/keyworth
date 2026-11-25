@@ -17,7 +17,7 @@ and `/api/vault`, locking and unlocking the app live in
 screens that use them ([src/vault](../vault/README.md),
 [src/features/unlock](../features/unlock/README.md)), with Argon2's progress
 shown as a ring around the mark and a first onboarding screen that shows what
-is encrypted where, are implemented and tested (phase 3).
+is encrypted where, are implemented and tested.
 
 ## How it works
 
@@ -97,8 +97,7 @@ The details live in [`docs/`](docs/):
   `assertKdfParams` refuses anything below OWASP's minimum or large enough to
   hang the page.
 - **WebCrypto needs a secure context.** `crypto.subtle` is undefined on
-  `http://<LAN IP>`; `localhost` and HTTPS are fine. The benchmark page uses
-  noble alone, so it also works on a phone over the local network.
+  `http://<LAN IP>`; `localhost` and HTTPS are fine.
 - **Normalization is part of the key.** Changing how passphrases are normalized
   (NFKC, spaces, trimmed ends) or the plain-Latin rule locks everyone out.
 - **Plain Latin only** for everything typed by hand to reach the keys (the
@@ -142,11 +141,10 @@ const value = await decryptRecord(dataKey, ref, envelope); // validate with the 
   9106's vector, noble against Node's native Argon2id with the production
   settings, every flow, wrong secrets, swapped slots, tampering, moved records,
   IV uniqueness and padding.
-- Timing on a device: `npm run dev -- --host --port 5180 --strictPort`, then
-  open `http://<this computer's LAN address>:5180/design/kdf` on the phone (same
-  Wi-Fi). The page checks the RFC 9106 vector and times the production
-  settings. The e2e suite runs the same page under the production CSP in every
-  engine.
+- Timing on a device: `/design/kdf` on the phone, over HTTPS on the same Wi-Fi
+  (how, and why not plain http: [docs/argon2.md](docs/argon2.md)). The page checks
+  the RFC 9106 vector and times the production settings. The e2e suite unlocks
+  with those settings under the production CSP in every engine.
 - Changing the Argon2 settings: update `CURRENT_KDF_PARAMS`, measure on a phone,
   keep `KDF_LIMITS` in `shared/schemas/keys.ts` consistent; existing slots are
   rewrapped at the first unlock within 10 minutes of a Google sign-in
@@ -155,8 +153,7 @@ const value = await decryptRecord(dataKey, ref, envelope); // validate with the 
 ## Related
 
 - [docs/](docs/): the threat model and the detailed design of every part
-
 - [shared/schemas/](../../shared/schemas/README.md): envelope, Argon2 settings and record kinds
-- [src/ui/](../ui/README.md): the design system the encryption screens will use
+- [src/ui/](../ui/README.md): the design system the encryption screens use
 - [worker/](../../worker/README.md): the CSP that protects these keys
 - [tests/unit/](../../tests/unit/README.md): the tests for this module

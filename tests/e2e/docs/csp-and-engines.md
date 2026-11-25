@@ -14,7 +14,8 @@ headers on `/api/health` and on 401s; a browser navigation to an unknown
 `/api/*` path reaches the Worker (OAuth callbacks rely on it).
 
 **Zero violations while rendering** (`app.spec.ts`, `design-system.spec.ts`,
-`auth.spec.ts`, `encryption.spec.ts`): the pages record **no CSP or Trusted Types
+`auth.spec.ts`, `encryption.spec.ts`, `transactions.spec.ts`, `portfolio.spec.ts`,
+`chat.spec.ts`): the pages record **no CSP or Trusted Types
 violation, console error or page error**; Trusted Types actually block an
 `innerHTML` string; the page is cross-origin isolated; React Aria's two hashed
 styles are applied; the `/design` page is absent from production. These checks
@@ -66,4 +67,4 @@ The encryption screens have their own suite, with the same CSP checks:
   (`watchCspViolations` in `support.ts`); a test that opens a page without it
   sees nothing.
 
-Last reviewed: 2026-11-08
+Last reviewed: 2026-11-25

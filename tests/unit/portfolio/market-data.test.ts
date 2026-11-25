@@ -75,6 +75,7 @@ describe("today's quotes", () => {
       {
         currency: "USD",
         fetchedAt: "",
+        refreshing: false,
         quotes: [
           {
             id: "crypto:bitcoin",
@@ -89,6 +90,7 @@ describe("today's quotes", () => {
       {
         currency: "USD",
         fetchedAt: "",
+        refreshing: false,
         quotes: [
           {
             id: "crypto:pepe",

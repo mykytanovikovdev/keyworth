@@ -14,11 +14,12 @@ Covered now:
 - **`cleanup.test.ts`**, through the Worker's real `scheduled` handler: expired
   sessions go with their remembered devices, devices past 14 days go while their
   session stays, counters older than an hour go; live rows stay in every case.
-- **`market.test.ts`**: prices, search and logos with CoinGecko replaced at
-  `fetch`: what is served and in what form, one call for everyone, stale and
-  expired data, failures (one log line naming no request), limits, logos only
-  from CoinGecko's host and never SVG, and a cache that keeps nothing about who
-  asked.
+- **`market.test.ts`**: prices, histories (one coin's or several at once),
+  exchange rates, search and logos, with CoinGecko and Frankfurter replaced at
+  `fetch`: what is served and in what form, one call for everyone, what is served
+  while newer data loads, stale and expired data, failures (one log line naming
+  no request), limits, logos only from CoinGecko's host and never SVG, and a
+  cache that keeps nothing about who asked.
 - **`auth.test.ts`**, through the real Google sign-in flow (state cookie,
   callback, database hooks, session):
   - an invited user gets a session, and `/api/me` returns only their own profile
@@ -48,14 +49,16 @@ Covered now:
   sessions and Google link; `list` reports each email's state.
 - **`keys.test.ts`** and **`vault.test.ts`**: wrapped keys, remembered devices
   and encrypted records through `/api/keys` and `/api/vault` (one record or a
-  batch from a CSV import, all or none), with slots and envelopes made by the
+  batch from a CSV import or a new chat, all or none; transactions or chats
+  deleted several at once), with slots and envelopes made by the
   real `src/crypto`: every guard (origin, size, rate, freshness, revisions,
   quotas), **no plaintext anywhere in the database**, and
   **isolation** between users.
 - **`chat.test.ts`**: `POST /api/chat/completions`, the thin proxy, with
   Workers AI replaced at `fetch` by streams recorded from it: the stream
   reaches the browser byte for byte; the server writes the model's request
-  (model, prompt, tools, limits, thinking off) whatever the browser sends, and
+  (model, prompt, tools, limits, temperature, thinking off, the language line)
+  whatever the browser sends, and
   sends no one's name or email; tool calls and results pass on; on the last
   step the model must answer without tools; malformed conversations, oversized
   bodies, missing session or origin and the rate limit are refused before the
@@ -139,16 +142,16 @@ Name files `*.test.ts` and put them in this folder. For a check on stored data,
   that leaves the Worker with 599, so a test must replace what it calls with
   `vi.spyOn(globalThis, "fetch")`. Do that after signing in: the sign-in helper
   restores the real `fetch` when it is done, which removes any earlier mock.
-
 - **The database must be running** (`npm run db:up`); the setup fails with that
   hint otherwise.
-- **Requests in this runner keep their database connections until the file
-  ends** (they share one isolate; in production each request closes its own).
-  A test that sends a hundred requests can exhaust Postgres's connections:
-  seed counters and data with `query()` instead (see the rate-limit tests).
-  Files also run in parallel, so `compose.yaml` raises `max_connections` to
-  500; "remaining connection slots are reserved" (53300) means that budget ran
-  out, not that the code is wrong.
+- **A pool made in a test keeps its connections until the file ends,** and it may
+  not end them (below), so run SQL through `query()`, which shares one pool a file.
+  It used to make a pool for each call: about 500 connections for the whole
+  suite, and 53300 ("remaining connection slots are reserved") in whichever test
+  came last; with one pool the suite peaks at about 45 (measured 2026-11-25). The
+  requests themselves let go of theirs.
+- **Seed counters and data with `query()`** instead of sending a hundred requests
+  (see the rate-limit tests): it is faster, and the test says what it needs.
 - **Never let pg end a connection inside workerd.** "TypeError: This socket has
   been closed" as an unhandled error after the tests pass means a pool ended
   one: `pool.end()`, or the idle timeout (10 seconds by default; slow CI runs

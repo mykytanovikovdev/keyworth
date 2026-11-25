@@ -58,7 +58,8 @@ restored from the back-forward cache) compares the epoch when it wakes up
    cookie). Offline, a note in localStorage repeats it at the next start.
 5. The page reloads, so nothing decrypted remains in components, caches or
    closures. Signing out and leaving for a fresh Google sign-in navigate away
-   instead.
+   instead. The app's own last work, deleting the chats whose Undo is still open,
+   starts with the state change of step 2 (`src/App.tsx`).
 
 | Reason           | When                                   | This tab after      |
 | ---------------- | -------------------------------------- | ------------------- |
@@ -109,4 +110,4 @@ key to a second tab and Lock across tabs in Chromium, Firefox and WebKit.
 - Anything new kept in Web Storage must be as harmless as a counter: no keys,
   no data, nothing derived from either.
 
-Last reviewed: 2026-10-31
+Last reviewed: 2026-11-25

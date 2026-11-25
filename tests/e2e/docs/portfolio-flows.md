@@ -26,6 +26,10 @@ production settings.
   only: the waiting is the router's, the same in every engine.
 - **An empty portfolio offers the import,** which opens at once on the
   transactions page. Chromium only.
+- **Old prices first, newer ones after:** prices half an hour old are shown at
+  once and replaced by the newer ones, asked for once, 5 seconds later; when
+  those do not come, nothing is asked again. Chromium only: when prices are
+  asked for is the page's own code.
 - **Failing prices show a notice, not zeros:** with `/api/market/prices`
   answering 502, the page says prices couldn't load and shows no "$0.00".
 - **Narrow screens and accessibility:** at 320 px the page does not scroll

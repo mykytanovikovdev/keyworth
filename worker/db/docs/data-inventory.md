@@ -65,6 +65,7 @@ while their owner stays away, so `worker/cleanup.ts` deletes them once a day at
 | `session` (with `device_unlocks`) | expired, which removes the IP address and user agent  |
 | `device_unlocks`                  | older than 14 days, when the server already refuses   |
 | `rate_limit`, `api_rate_limits`   | untouched for an hour, longer than any limit's window |
+| `market_cache`                    | past its own expiry: a day; Frankfurter's series, 90  |
 
 A run that fails is logged like any other error (`describe-error.ts`), shows as
 failed in Cloudflare's trigger history, and is covered by the next day's run; the
@@ -108,4 +109,4 @@ A new table or column updates this file in the same commit: what it holds,
 whether the server can read it, and what deletes it. User data must reference
 `user.id` with `on delete cascade`.
 
-Last reviewed: 2026-11-24
+Last reviewed: 2026-11-25

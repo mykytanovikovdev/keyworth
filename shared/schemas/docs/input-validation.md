@@ -149,21 +149,21 @@ off exactly that `'`, so every note comes back as it was, one that starts with
 
 ## Attacks and what stops them
 
-| Attack                                                     | Stopped by                                                                                              | Tested in                                                                                              |
-| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Script in a note or a coin's name (`<img onerror=…>`)      | React text (layer 4); no HTML sinks (ESLint); Trusted Types and the CSP (layer 5)                       | `tests/unit/transactions/rendering.test.ts`, `tests/e2e/transactions.spec.ts`, `tests/e2e/app.spec.ts` |
-| Script through an address (`javascript:`, a crafted `src`) | Addresses from constants or encoded ids; `no-script-url`; CSP `default-src 'none'`, `img-src 'self'`    | `rendering.test.ts` (an id with quotes stays encoded)                                                  |
-| Words or code through the page's address (`?error=`)       | Known codes only, by own keys; a parameter never becomes text on the page                               | `tests/e2e/auth.spec.ts`                                                                               |
-| Spoofed text (bidi overrides, zero-width characters)       | Fields drop them, schemas refuse them, the server refuses them in a search, sources' text is cleaned    | `tests/unit/schemas.test.ts`, `tests/integration/market.test.ts`                                       |
-| Built-in names as keys (`constructor`, `__proto__`)        | Allowlists, `Map`, `Object.hasOwn`; parsed data read through schemas, never merged with `Object.assign` | `tests/e2e/auth.spec.ts`                                                                               |
-| Oversized input                                            | `maxLength`, schema limits, body limits, rate limits, quotas                                            | `tests/integration/vault.test.ts`, `market.test.ts`                                                    |
-| SQL injection                                              | Parameterized queries only                                                                              | Every integration test goes through them                                                               |
-| A request that makes the server call elsewhere             | Fixed hosts; input only as a checked path segment or an encoded query value                             | `market.test.ts` (refused ids; other hosts fail the test)                                              |
-| Input in the logs                                          | Fixed error messages that name no input                                                                 | `market.test.ts` (the one log line)                                                                    |
-| Slow patterns on long input (ReDoS)                        | Anchored patterns without nested repetition, run on input already cut to its limit                      | Review                                                                                                 |
-| A formula in an exported cell                              | Export puts a `'` before `= + - @`, tab and CR at a cell's start and after `;`                          | `tests/unit/transactions/csv.test.ts`; `transactions.spec.ts` (the downloaded file)                    |
-| A hostile file                                             | [Files](#files): size first, strict UTF-8, each row rebuilt and parsed, a preview before writing        | `tests/unit/transactions/csv-import.test.ts`; `tests/e2e/transactions.spec.ts`                         |
-| Instructions hidden in data for the assistant              | Data reaches the model marked as untrusted and cut to size (project rule 12, phase 5)                   | With the chat, phase 5                                                                                 |
+| Attack                                                     | Stopped by                                                                                                                           | Tested in                                                                                                 |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------- |
+| Script in a note, a coin's name or the model's answer      | React text, markdown without HTML (layer 4); no HTML sinks (ESLint); Trusted Types and the CSP (layer 5)                             | `tests/unit/transactions/rendering.test.ts`; `transactions.spec.ts`, `chat.spec.ts`, `app.spec.ts` in e2e |
+| Script through an address (`javascript:`, a crafted `src`) | Addresses from constants or encoded ids; `no-script-url`; CSP `default-src 'none'`, `img-src 'self'`                                 | `rendering.test.ts` (an id with quotes stays encoded)                                                     |
+| Words or code through the page's address (`?error=`)       | Known codes only, by own keys; a parameter never becomes text on the page                                                            | `tests/e2e/auth.spec.ts`                                                                                  |
+| Spoofed text (bidi overrides, zero-width characters)       | Fields drop them, schemas refuse them, the server refuses them in a search, sources' text is cleaned                                 | `tests/unit/schemas.test.ts`, `tests/integration/market.test.ts`                                          |
+| Built-in names as keys (`constructor`, `__proto__`)        | Allowlists, `Map`, `Object.hasOwn`; parsed data read through schemas, never merged with `Object.assign`                              | `tests/e2e/auth.spec.ts`                                                                                  |
+| Oversized input                                            | `maxLength`, schema limits, body limits, rate limits, quotas                                                                         | `tests/integration/vault.test.ts`, `market.test.ts`                                                       |
+| SQL injection                                              | Parameterized queries only                                                                                                           | Every integration test goes through them                                                                  |
+| A request that makes the server call elsewhere             | Fixed hosts; input only as a checked path segment or an encoded query value                                                          | `market.test.ts` (refused ids; other hosts fail the test)                                                 |
+| Input in the logs                                          | Fixed error messages that name no input                                                                                              | `market.test.ts` (the one log line)                                                                       |
+| Slow patterns on long input (ReDoS)                        | Anchored patterns without nested repetition, run on input already cut to its limit                                                   | Review                                                                                                    |
+| A formula in an exported cell                              | Export puts a `'` before `= + - @`, tab and CR at a cell's start and after `;`                                                       | `tests/unit/transactions/csv.test.ts`; `transactions.spec.ts` (the downloaded file)                       |
+| A hostile file                                             | [Files](#files): size first, strict UTF-8, each row rebuilt and parsed, a preview before writing                                     | `tests/unit/transactions/csv-import.test.ts`; `tests/e2e/transactions.spec.ts`                            |
+| Instructions hidden in data for the assistant              | Coin names and tickers are the only outside text the model gets: cleaned, cut, and named as data in its instructions; notes never go | `market.test.ts` (clean names); `tests/unit/chat/tools.test.ts` (no note)                                 |
 
 **Accepted limits.** Free text may mix scripts, so a note can hold letters that
 look like Latin ones (Cyrillic "а"); notes are the user's own and may be in any
@@ -179,7 +179,7 @@ language. Secrets, which must be typed again exactly, are printable ASCII only.
   (`react-dom/server`) to check what reaches the page; the e2e tests add the
   real browser and CSP.
 - **File rules first, file code with the import:** the rules were fixed here
-  before the importer existed (4.3), so it started from them (4.5).
+  before the importer existed, so it started from them.
 - **Our own CSV reader, not a library:** RFC 4180 fits on a screen, every rule
   of it is tested, and a parser with options (dynamic typing, formulas,
   headers guessed) would read more into a file than this format needs.
@@ -196,9 +196,9 @@ language. Secrets, which must be typed again exactly, are printable ASCII only.
    allowlist, under body and rate limits; it never reaches a log or `sql.raw`.
 5. Show it as text. Never put it into `href`, `src` or `style`; encode an id with
    `encodeURIComponent`; look keys up with `Object.hasOwn` or a `Map`.
-6. If it can reach the assistant, it goes as untrusted data (rule 12).
+6. If it can reach the assistant, it goes as untrusted data.
 7. Test: accepted and refused values (hidden characters and the limit among
    them), how it is shown, and the server's 400.
 8. Add it to the tables above.
 
-Last reviewed: 2026-11-15
+Last reviewed: 2026-11-25

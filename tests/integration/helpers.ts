@@ -28,14 +28,20 @@ export function expectWorkerHeaders(response: Response) {
   expect(response.headers.has("x-powered-by")).toBe(false);
 }
 
+/**
+ * One pool a file. A pool of its own for each query kept a connection for each
+ * until the file ended, and the files together ran out of 500. No idle timeout,
+ * like the Worker's pools (worker/db/client.ts): ending an idle connection
+ * inside workerd fails on the closed socket.
+ */
+let pool: Pool | undefined;
+
 /** Runs SQL against the test database as the Worker's restricted role. */
 export async function query<T = Record<string, unknown>>(
   sql: string,
   params: unknown[] = [],
 ): Promise<T[]> {
-  // No idle timeout, like the Worker's pools (worker/db/client.ts): ending an
-  // idle connection inside workerd fails on the closed socket.
-  const pool = new Pool({
+  pool ??= new Pool({
     connectionString: env.HYPERDRIVE.connectionString,
     idleTimeoutMillis: 0,
   });

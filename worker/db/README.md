@@ -38,9 +38,9 @@ local, tests Worker ─► connect(env.HYPERDRIVE) ─► pg ─► Postgres 18 
 - **Tables:** the Google profile and sessions (Better Auth), the invite and
   block lists, rate-limit counters, the encryption tables (wrapped data keys,
   the data key's check value, encrypted records and remembered devices), the
-  market data cache and the market sources' call counters, which hold no user
-  data. Every table with user data is
-  deleted with the account. Every timestamp is `timestamp with time zone`.
+  market data cache, the market sources' call counters and the chat model's use
+  today, which hold no user data. Every table with user data is deleted with the
+  account. Every timestamp is `timestamp with time zone`.
 
 The details live in [`docs/`](docs/):
 
@@ -123,7 +123,6 @@ apply it with `npm run db:migrate`, and add tests.
 ## Related
 
 - [docs/](docs/): the data inventory, roles and migrations
-
 - [worker/](../README.md): routes, session checks and security headers
 - [tests/integration/](../../tests/integration/README.md): Worker tests against the test database
 - [scripts/](../../scripts/README.md): the user management and schema generation scripts

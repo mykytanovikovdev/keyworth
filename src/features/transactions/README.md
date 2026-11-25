@@ -5,8 +5,8 @@
 Transactions are the source of truth: positions, P&L and every figure are
 computed from them in the browser ([shared/metrics/](../../../shared/metrics/README.md)),
 and none of those results is stored. This folder is the one way to add, change
-or delete a transaction, whether it comes from the form, the chat (phase 7) or
-a CSV file (4.5): each change meets the same rules before anything is
+or delete a transaction, whether it comes from the form, a CSV file or, later,
+the chat: each change meets the same rules before anything is
 encrypted. It also holds the screens that add, edit and list transactions.
 Not here: the schema itself
 ([shared/schemas/transaction.ts](../../../shared/schemas/transaction.ts)) and the
@@ -28,6 +28,7 @@ calculations.
 | `editor.tsx`           | Adding, editing, deleting with Undo, for any page: the form, refusals in words, coin names    |
 | `TransactionsPage.tsx` | `/transactions`: the list, and the editor for each row                                        |
 | `queries.ts`           | The decrypted list as a query under `["vault", …]`, read again when the tab comes back        |
+| `useNewerPrices.ts`    | Prices the server is loading again are asked for again, once                                  |
 | `market.ts`            | The snapshot, coins outside it, the server's search, "Price that day" from history and rates  |
 | `csv.ts`               | CSV as RFC 4180 has it: reading, writing, and cells kept from turning into formulas           |
 | `csv-import.ts`        | A file checked before anything is written: size, UTF-8, columns, each row, duplicates, ledger |

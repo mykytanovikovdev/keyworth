@@ -62,6 +62,7 @@ function fakeData(
     today: TODAY,
     money,
     quote,
+    pricesAsOf: () => `${TODAY}T10:05:00.000Z`,
     assetOf: (assetId) => {
       const name = (assetId.split(":")[1] ?? assetId).toUpperCase();
       return { id: assetId, symbol: name.slice(0, 3), name };
@@ -314,6 +315,8 @@ describe("market tools", () => {
       }),
     ).toEqual({
       currency: "USD",
+      // Today's prices can be up to an hour old: the model is told from when.
+      asOf: `${TODAY}T10:05:00.000Z`,
       prices: [
         { id: "crypto:bitcoin", symbol: "BIT", price: "72000" },
         { id: "crypto:unknown", symbol: "UNK", price: null },
@@ -339,7 +342,7 @@ describe("market tools", () => {
 
     expect(
       await run(euros.get_prices.execute, { assetIds: ["crypto:bitcoin"] }),
-    ).toEqual({
+    ).toMatchObject({
       currency: "EUR",
       prices: [{ id: "crypto:bitcoin", symbol: "BIT", price: "64800" }],
     });

@@ -107,4 +107,4 @@ Worker responses; no inline code in `index.html`), every rendering e2e test
 and the post-deploy smoke test against keyworth.app. See
 [tests/e2e/docs/csp-and-engines.md](../../tests/e2e/docs/csp-and-engines.md).
 
-Last reviewed: 2026-11-21
+Last reviewed: 2026-11-25

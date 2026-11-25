@@ -17,7 +17,8 @@ an invite list for the closed beta, database sessions in an httpOnly cookie, and
 a session check in front of every other API route.
 
 Once a day it also deletes what no longer has a use: expired sessions, remembered
-devices past their limit and old request counters (`cleanup.ts`, a Cron Trigger).
+devices past their limit, old request counters and expired market data
+(`cleanup.ts`, a Cron Trigger).
 
 **Not responsible for:** serving static files or the SPA fallback (the assets layer
 does that without invoking the Worker), and any computation on financial data (that
@@ -41,6 +42,8 @@ Inside the Worker:
                  writes also need the app's own Origin (403 otherwise)
 /api/keys        wrapped data keys and remembered devices   (routes/)
 /api/vault       encrypted records                          (routes/)
+/api/market      prices, history, rates: cached for everyone (routes/, market/)
+/api/assets      coin search and logos                      (routes/, market/)
 /api/chat/completions  the model's stream passed through  (chat/)
 ```
 
@@ -83,7 +86,7 @@ the same runtime, assets and headers as production.
   cross-origin isolation comes from `public/_headers`; every Worker response
   gets its own from `security-headers.ts`. Details and the exceptions policy:
   [docs/security-headers.md](docs/security-headers.md).
-- **The app's own routes** (`/api/keys`, `/api/vault`) and their guards:
+- **The app's own routes** (keys, vault, market data) and their guards:
   [routes/README.md](routes/README.md),
   [routes/docs/api-guards.md](routes/docs/api-guards.md).
 
@@ -97,7 +100,7 @@ the same runtime, assets and headers as production.
   user's one round trip remains. Static files are still served from the
   nearest location. Measured with `npm run perf`
   ([scripts/README.md](../scripts/README.md#production-timings)).
-- **One Worker, one origin.** The session cookie (phase 2) works without CORS or
+- **One Worker, one origin.** The session cookie works without CORS or
   `SameSite=None`, and there is a single CSP to reason about.
 - **Hono.** Tiny, built on Web-standard `Request`/`Response`, typed routes, and
   ready-made middleware. It also runs on Node, which keeps an exit path open if the
@@ -166,8 +169,8 @@ the same runtime, assets and headers as production.
 - The daily cleanup runs only on Cloudflare's schedule. To run it locally, start
   `npm run preview` and call
   `curl "http://localhost:4173/cdn-cgi/local/scheduled?cron=0+3+*+*+*"`.
-- New route: add it to `index.ts` after `requireSession` (or a sub-app under
-  `worker/routes/` once there are several), read the user with `c.get("user")`,
+- New route: a sub-app under `worker/routes/`, mounted in `index.ts` after
+  `requireSession`; read the user with `c.get("user")`,
   and add validation and limits from the start. A public route goes before the
   session check, on purpose and with a comment.
 - Local secrets go in `.dev.vars` (copy `.dev.vars.example`); production
@@ -180,8 +183,8 @@ the same runtime, assets and headers as production.
 ## Related
 
 - [docs/](docs/): sign-in and sessions, security headers and the CSP
-
 - [Root README](../README.md)
 - [Design system](../src/ui/README.md) — why the CSP allows two style hashes
 - [Database](db/README.md) — schema, roles, migrations, local Postgres
+- [Market data](market/README.md) and [the chat's transit](chat/README.md)
 - [Integration tests](../tests/integration/README.md) — Worker tests in workerd

@@ -61,6 +61,8 @@ export interface PricesJson {
   currency: "USD";
   /** When the oldest of these prices was fetched (ISO 8601). */
   fetchedAt: string;
+  /** Newer prices are being loaded: asked for again in a moment, they are there. */
+  refreshing: boolean;
   quotes: QuoteJson[];
 }
 

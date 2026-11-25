@@ -40,7 +40,7 @@ and the pages that belong to no feature (not found, the dev-only mockups).
                switcher (`?screen=<id>` opens one, `&bare` hides the switcher,
                Replay starts a "try it" screen over)
 /design/transactions, /design/portfolio, /design/chat  the same; mockups
-               with a switcher, all in the new frame
+               with a switcher, all in the app's frame
 ```
 
 `src/App.tsx` creates the query client and the router, and passes the router's
@@ -66,7 +66,7 @@ and the pages that belong to no feature (not found, the dev-only mockups).
   page, about 8 kB gzip: the rest is shared with the portfolio). The first
   switch to a section is then instant, and the first load is not slower. The
   chat is left out: its chunk carries the AI SDK and a markdown parser (about
-  155 kB gzip), for those who open it.
+  160 kB gzip), for those who open it.
 - **Guards decide pages, not access.** `beforeLoad` redirects based on the
   cached session, but the Worker checks the session on every API request; a
   page that slipped through would get no data.

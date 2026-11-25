@@ -97,7 +97,8 @@ while unlocked (`wrong-state` otherwise). `records.ts` builds on them:
 
 - `readRecords` decrypts each record with the kind it asked for and checks it
   against the kind's schema; a record that fails either is returned with
-  `value: null` (damaged), never dropped and never thrown.
+  `value: null` (damaged), never dropped and never thrown. `readRecord` does the
+  same for one record by its id (a kept chat's messages).
 - `writeRecord` encrypts for `revision + 1` (the revision is in the AAD) and
   sends the revision it read. A 409 `conflict` means another tab or device
   wrote first: read again, re-apply the change, write again.
@@ -127,4 +128,4 @@ with the real API's rules; the same flows in real browsers are in
 - Keep `readRecords` returning damaged records instead of throwing: one bad
   record must not hide a user's other data.
 
-Last reviewed: 2026-11-03
+Last reviewed: 2026-11-25

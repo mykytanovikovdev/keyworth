@@ -8,24 +8,26 @@ details.
 | Folder                                  | Runner            | Runs in                                                | Covers                                                                      |
 | --------------------------------------- | ----------------- | ------------------------------------------------------ | --------------------------------------------------------------------------- |
 | [`unit/`](unit/README.md)               | Vitest (`unit`)   | Node                                                   | Pure logic, the encryption core, shared schemas                             |
-| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes, sign-in, encrypted storage, isolation                        |
+| [`integration/`](integration/README.md) | Vitest (`worker`) | workerd (Miniflare) + the local test Postgres          | Worker routes: sign-in, storage, isolation, market data, the chat's transit |
 | [`e2e/`](e2e/README.md)                 | Playwright        | Chromium, Firefox, WebKit against the production build | Page and Worker headers, CSP, rendering in both themes                      |
-|                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe; Argon2id under the CSP |
+|                                         |                   | the same, plus an emulated iPhone, against `/design`   | Every `src/ui` component under the CSP, themes, axe                         |
 |                                         |                   | the same, with the local test database                 | Sign-in pages, sign-out, account deletion                                   |
-|                                         |                   | the same                                               | Encryption flows, transactions, CSV import and export, the portfolio page   |
+|                                         |                   | the same                                               | Encryption flows with real Argon2id, transactions, CSV, portfolio, chat     |
 | [`visual/`](visual/README.md)           | Playwright        | Chromium in the Playwright Docker image                | Screenshots of `/design`, sign-in, settings, deletion                       |
 
 Planned, each arriving with the code it tests:
 
 - `e2e/` grows with recording a trade through the chat (phase 7).
 - `visual/` grows with the app's screens as they are built.
-- `agent/` — the chat agent with a scripted mock model from `ai/test`:
-  deterministic, runs in CI (phases 5–7).
 - `evals/` — a question set run manually against the real model; results are
-  saved for comparison when the prompt changes (phase 9).
+  saved for comparison when the prompt changes.
 
-Not covered on purpose: third-party services (Google, Anthropic, price APIs) are
-never called from automated tests; the Worker tests have no network at all. Encryption tests are mandatory and run in CI
+The chat's agent has no folder of its own: its tools are in `unit/chat/`, the
+server's side in `integration/chat.test.ts`, and the whole loop in
+`e2e/chat.spec.ts`, with the model answered by the test.
+
+Not covered on purpose: third-party services (Google, the chat's model, market
+sources) are never called from automated tests; the Worker tests have no network at all. Encryption tests are mandatory and run in CI
 on every push: the core in `unit/crypto/`, storage, isolation and "no plaintext
 in the database" in `integration/keys.test.ts` and `integration/vault.test.ts`,
 and Argon2id in every browser engine in `e2e/encryption.spec.ts`.

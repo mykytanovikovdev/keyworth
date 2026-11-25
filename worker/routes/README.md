@@ -3,9 +3,11 @@
 ## Purpose
 
 The app's own API routes, mounted under `/api` after the session check (Better
-Auth's routes are separate, in `../auth.ts`). Today: storage for end-to-end
-encryption. The server keeps wrapped keys and encrypted records here and can
-read neither; the cryptography is in [src/crypto/](../../src/crypto/README.md).
+Auth's routes are separate, in `../auth.ts`; the chat's is in
+[../chat/](../chat/README.md)). Two kinds: storage for end-to-end encryption,
+where the server keeps wrapped keys and encrypted records and can read neither
+(the cryptography is in [src/crypto/](../../src/crypto/README.md)), and market
+data, the same for everyone ([../market/](../market/README.md)).
 
 ## How it works
 
@@ -81,12 +83,12 @@ model: [src/crypto/docs/remember-device.md](../../src/crypto/docs/remember-devic
   session check, validate the body with a schema from `shared/schemas`, add
   `rateLimit()` and `maxBody()` to writes, and write tests in
   `tests/integration/` (including another user's attempt).
-- Tests: `tests/integration/keys.test.ts`, `tests/integration/vault.test.ts`.
+- Tests: `keys.test.ts`, `vault.test.ts`, `isolation.test.ts` and
+  `market.test.ts` in `tests/integration/`.
 
 ## Related
 
 - [docs/api-guards.md](docs/api-guards.md): every guard, its rule and its answer
-
 - [worker/](../README.md): the app, the session check, security headers
 - [worker/db/](../db/README.md): the tables behind these routes
 - [src/crypto/](../../src/crypto/README.md): what produces the slots and envelopes

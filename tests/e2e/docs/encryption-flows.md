@@ -8,8 +8,8 @@ same flows' logic and failure cases against a fake server; this suite proves
 that the browser parts hold: IndexedDB, BroadcastChannel between real tabs,
 Web Locks, reloads, downloads, print styles, the session and device cookies,
 and the production Argon2 settings. The three scenarios tagged `@chromium-only`
-(asking for a fresh sign-in, deleting from the recovery screen) run in Chromium
-alone: their screens are loaded in every engine by the other scenarios.
+(asking for a fresh sign-in in Settings and in recovery, deleting from the
+recovery screen) run in Chromium alone: their screens are loaded in every engine by the other scenarios.
 
 ## Approach
 
@@ -108,4 +108,4 @@ use `AFTER_ARGON2` (30 seconds). In CI a derivation takes several seconds,
 most in WebKit on Linux; with 15 seconds and the default test time, the test
 with six derivations failed there twice in a row (2026-11-03).
 
-Last reviewed: 2026-11-21
+Last reviewed: 2026-11-25

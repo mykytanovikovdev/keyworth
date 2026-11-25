@@ -9,9 +9,9 @@ services:
       POSTGRES_USER: keyworth_owner
       POSTGRES_PASSWORD: keyworth_owner
       POSTGRES_DB: keyworth
-    # The Workers test runner keeps every request's connection open until its
-    # test file ends, and test files run in parallel: 100 connections run out,
-    # and 300 did too once the suite passed 700 tests.
+    # Room to spare: the Worker tests run their files in parallel and peak at
+    # about 45 connections (they needed about 500 while every query of a test
+    # opened a pool of its own).
     command: ["postgres", "-c", "max_connections=500"]
     # 5433, not 5432: a Postgres installed on the host often holds the default port.
     ports:
