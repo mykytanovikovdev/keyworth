@@ -95,6 +95,8 @@ const RECORDS = entries(
 // (+4.35%, +14.29%). Ethereum: 2,820 a month ago, 2,760 today (−2.13%),
 // falling every day, so its largest drop is the whole change. Held today:
 // 0.4 BTC (28,800) and 3 ETH (8,280), 37,080 in all: shares 77.67% and 22.33%.
+// Bitcoin cost 60,000 each: +20%. Ethereum 3,000.625 each, the fee included:
+// 8,280 against 9,001.875, −8.02%.
 const MARKETS = {
   "crypto:bitcoin": rising(60000, 100),
   "crypto:ethereum": rising(3000, -2),
@@ -169,13 +171,15 @@ describe("get_portfolio", () => {
           id: "crypto:bitcoin",
           symbol: "BIT",
           share: 0.7767,
-          change: 0.0435,
+          priceChange: 0.0435,
+          allTimeReturn: 0.2,
         },
         {
           id: "crypto:ethereum",
           symbol: "ETH",
           share: 0.2233,
-          change: -0.0213,
+          priceChange: -0.0213,
+          allTimeReturn: -0.0802,
         },
       ],
     });
@@ -369,6 +373,37 @@ describe("market tools", () => {
     expect(points.at(-1)).toEqual({ date: TODAY, price: "72000" });
   });
 
+  it("takes All as since the coin's first transaction, or a year for one never held", async () => {
+    const withLitecoin = chatTools(
+      () =>
+        Promise.resolve(
+          fakeData(RECORDS, {
+            ...MARKETS,
+            "crypto:litecoin": rising(50, 0.1, 500),
+          }),
+        ),
+      () => false,
+    );
+    const history = (assetId: string) =>
+      run(withLitecoin.get_price_history.execute, { assetId, period: "All" });
+
+    // 62,000 on the day of the first purchase, 72,000 today.
+    expect(await history("crypto:bitcoin")).toMatchObject({
+      from: addDays(TODAY, -100),
+      change: 0.1613,
+    });
+    expect(await history("crypto:litecoin")).toMatchObject({
+      from: addDays(TODAY, -365),
+    });
+    // Several coins start on the same day, the first of any of them.
+    expect(
+      await run(withLitecoin.compare_assets.execute, {
+        assetIds: ["crypto:litecoin", "crypto:ethereum", "crypto:bitcoin"],
+        period: "All",
+      }),
+    ).toMatchObject({ from: addDays(TODAY, -100) });
+  });
+
   it("compares coins: change, volatility, drawdown and correlation", async () => {
     const result = await run(tools.compare_assets.execute, {
       assetIds: ["crypto:bitcoin", "crypto:ethereum"],
@@ -382,6 +417,32 @@ describe("market tools", () => {
         { id: "crypto:ethereum", change: -0.0213, maxDrawdown: -0.0213 },
       ],
       correlations: [{ a: "crypto:bitcoin", b: "crypto:ethereum" }],
+    });
+  });
+});
+
+describe("calc_portfolio_metrics", () => {
+  it("gives the portfolio's and each coin's change, and no amount", async () => {
+    const result = await run(tools.calc_portfolio_metrics.execute, {
+      period: "1M",
+    });
+
+    expect(keysOf(result).filter((key) => AMOUNT_KEYS.includes(key))).toEqual(
+      [],
+    );
+    expect(result).toMatchObject({
+      from: addDays(TODAY, -30),
+      to: TODAY,
+      holdings: [
+        { id: "crypto:bitcoin", share: 0.7767, priceChange: 0.0435 },
+        { id: "crypto:ethereum", share: 0.2233, priceChange: -0.0213 },
+      ],
+    });
+    // The same figures as the portfolio page's: worked out in summary.test.ts.
+    const { period } = await fakeData(RECORDS, MARKETS).summary("1M");
+    expect(result).toMatchObject({
+      change: Math.round((period.return ?? NaN) * 10_000) / 10_000,
+      maxDrawdown: Math.round((period.maxDrawdown ?? NaN) * 10_000) / 10_000,
     });
   });
 });
